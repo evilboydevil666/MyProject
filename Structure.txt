@@ -1,0 +1,98 @@
+rpg-narrator/
+├── src/
+│   ├── components/
+│   │   ├── CharacterSheet.vue         
+│   │   ├── Skills.vue                 
+│   │   ├── Feats.vue                  
+│   │   ├── Spells.vue                 
+│   │   ├── Inventory.vue             
+│   │   ├── TacticalMap.vue            
+│   │   ├── Settings.vue               
+│   │   ├── EnhancedWebChatComponent.vue 
+│   │   ├── ChatGPTWeb.vue            
+│   │   ├── NarrativeChat.vue          
+│   │   ├── PartySessionManagement.vue 
+│   │   ├── SessionPrepAssistant.vue   
+│   │   ├── SessionAutomation.vue      
+│   │   ├── InventoryNotification.vue  
+│   │   │
+│   │   ├── modals/
+│   │   │   ├── WebChatModal.vue       
+│   │   │   └── NotificationModal.vue  
+│   │   │
+│   │   ├── narrative/
+│   │   │   ├── NarrativeChatActions.vue    
+│   │   │   ├── NarrativeMessages.vue       
+│   │   │   ├── NarrativeQuickActions.vue   
+│   │   │   ├── NarrativeInput.vue          
+│   │   │   └── CharacterQuickStatus.vue    
+│   │   │
+│   │   ├── session/
+│   │   │   ├── UnifiedSessionManager.vue   
+│   │   │   ├── CombatTracker.vue           
+│   │   │   ├── TaskTracker.vue             
+│   │   │   └── JournalEntries.vue          
+│   │   │
+│   │   ├── party/
+│   │   │   ├── PartyRoster.vue             
+│   │   │   └── FactionsList.vue            
+│   │   │
+│   │   └── legacy/
+│   │       ├── NarrationPanel.vue          
+│   │       └── Sidebar.vue                 
+│   │
+│   ├── core/
+│   │   ├── SystemsManager.js          # Event system and app coordination
+│   │   ├── NarrativeEngine.js         
+│   │   ├── DiceSystem.js              
+│   │   ├── MemorySystem.js            
+│   │   ├── PredictionSystem.js        
+│   │   └── InventorySystem.js         
+│   │
+│   ├── services/
+│   │   ├── AIService.js               
+│   │   └── StorageService.js          
+│   │
+│   ├── utils/
+│   │   ├── DiceRoller.js              
+│   │   ├── InventoryParser.js         
+│   │   ├── SmartRollPredictor.js      
+│   │   ├── EnhancedCampaignMemory.js  
+│   │   ├── ContentCache.js            # Cache for API responses
+│   │   ├── ContextBridge.js           
+│   │   ├── EnhancedAPIManager.js      # Manages API interactions
+│   │   ├── IntelligentRequestRouter.js 
+│   │   ├── PredictiveContentEngine.js 
+│   │   ├── DiceStatistics.js          
+│   │   └── ContentFormatter.js        
+│   │
+│   ├── views/
+│   │   ├── CharacterView.vue          
+│   │   ├── PartyView.vue              
+│   │   ├── ChatGPTView.vue            
+│   │   ├── SessionPrepView.vue        
+│   │   ├── AutomationView.vue         
+│   │   ├── TacticalMapView.vue        
+│   │   └── SettingsView.vue           
+│   │
+│   ├── composables/                   # NEW DIRECTORY - Vue composition functions
+│   │   ├── useNarrativeChat.js        # Chat message handling and API calls
+│   │   ├── useCharacterContext.js     # Character state management
+│   │   ├── useAIPredictor.js          # AI action predictions
+│   │   ├── useChatGPT.js              
+│   │   ├── useGameState.js            
+│   │   ├── useNotifications.js        
+│   │   ├── useNavigation.js           
+│   │   └── useCharacter.js            
+│   │
+│   ├── App.vue                        # Main app component
+│   ├── main.js                        # Vue app initialization
+│   ├── characterState.js              # Global character state
+│   └── index.css                      # Global styles
+│
+├── public/
+│   └── index.html                     # HTML entry point
+│
+├── package.json                       # Project dependencies
+├── vite.config.js                     # Vite configuration
+└── README.md                          # Project documentation
