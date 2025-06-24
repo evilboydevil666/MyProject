@@ -1,9 +1,9 @@
 <template>
   <div class="character-view relative h-full">
-    <!-- Character Builder Wizard Overlay -->
+    <!-- Character Builder Wizard Overlay - FIXED: Now only covers this view -->
     <div 
       v-if="showWizard" 
-      class="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center overflow-y-auto p-4"
+      class="absolute inset-0 bg-black bg-opacity-75 z-40 flex items-center justify-center overflow-y-auto p-4"
     >
       <CharacterBuilderWizard 
         :mode="wizardMode"
@@ -15,7 +15,7 @@
     <!-- Level Up Notification -->
     <div 
       v-if="canLevelUp && !showWizard" 
-      class="fixed top-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-40 animate-pulse"
+      class="absolute top-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-30 animate-pulse"
     >
       <h3 class="font-bold text-lg mb-2">🎉 Level Up Available!</h3>
       <p class="text-sm mb-3">You have enough XP to reach level {{ nextLevel }}</p>
@@ -59,7 +59,7 @@
     <button
       v-if="characterExists"
       @click="confirmNewCampaign"
-      class="fixed bottom-4 left-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg"
+      class="absolute bottom-4 left-4 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg shadow-lg"
     >
       🔄 New Campaign
     </button>
@@ -231,15 +231,15 @@ function onWizardComplete(data) {
     if (data.equipment) {
       characterState.inventory = data.equipment.map(item => ({
         name: item.name,
-        notes: `Worth ${item.cost} gp`,
-        quantity: 1,
-        weight: 0
+        notes: item.notes || '',
+        quantity: item.quantity || 1,
+        weight: item.weight || 0
       }))
     }
     
     // Apply starting gold
-    if (data.remainingGold) {
-      characterState.money.gp = data.remainingGold
+    if (data.remainingGold !== undefined) {
+      characterState.money.gp = Math.floor(data.remainingGold)
     }
     
     // Calculate starting HP

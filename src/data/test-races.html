@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Pathfinder Data</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .race-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .race-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        .race-card h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pathfinder Data Import Test</h1>
+    
+    <div class="test-section">
+        <h2>Import Test Results</h2>
+        <div id="import-results"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Race Data</h2>
+        <div id="race-count"></div>
+        <div id="race-categories"></div>
+        <div id="race-list" class="race-grid"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Debug Output</h2>
+        <pre id="debug-output"></pre>
+    </div>
+
+    <script type="module">
+        // Test import - adjust path as needed
+        import pathfinderData, { 
+            pathfinderRaces, 
+            getRacesByCategory,
+            getRaceById 
+        } from './pathfinderData.js';
+        
+        const resultsDiv = document.getElementById('import-results');
+        const raceCountDiv = document.getElementById('race-count');
+        const raceCategoriesDiv = document.getElementById('race-categories');
+        const raceListDiv = document.getElementById('race-list');
+        const debugDiv = document.getElementById('debug-output');
+        
+        try {
+            // Test 1: Check if data imported
+            if (pathfinderData) {
+                resultsDiv.innerHTML += '<p class="success">✓ Default import successful</p>';
+            } else {
+                resultsDiv.innerHTML += '<p class="error">✗ Default import failed</p>';
+            }
+            
+            // Test 2: Check races array
+            if (pathfinderData.races && Array.isArray(pathfinderData.races)) {
+                resultsDiv.innerHTML += '<p class="success">✓ Races array found</p>';
+                raceCountDiv.innerHTML = `<p><strong>Total races:</strong> ${pathfinderData.races.length}</p>`;
+            } else {
+                resultsDiv.innerHTML += '<p class="error">✗ Races array not found</p>';
+            }
+            
+            // Test 3: Check categorized races
+            if (pathfinderRaces) {
+                resultsDiv.innerHTML += '<p class="success">✓ Categorized races import successful</p>';
+                
+                const categories = Object.keys(pathfinderRaces);
+                raceCategoriesDiv.innerHTML = '<h3>Race Categories:</h3><ul>';
+                categories.forEach(cat => {
+                    const count = pathfinderRaces[cat].length;
+                    raceCategoriesDiv.innerHTML += `<li>${cat}: ${count} races</li>`;
+                });
+                raceCategoriesDiv.innerHTML += '</ul>';
+            }
+            
+            // Test 4: Test helper functions
+            const human = getRaceById('human');
+            if (human) {
+                resultsDiv.innerHTML += '<p class="success">✓ getRaceById() works</p>';
+            }
+            
+            const coreRaces = getRacesByCategory('Core');
+            if (coreRaces && coreRaces.length > 0) {
+                resultsDiv.innerHTML += '<p class="success">✓ getRacesByCategory() works</p>';
+            }
+            
+            // Display all races
+            pathfinderData.races.forEach(race => {
+                const raceCard = document.createElement('div');
+                raceCard.className = 'race-card';
+                raceCard.innerHTML = `
+                    <h4>${race.name}</h4>
+                    <p><small>${race.category}</small></p>
+                    <p>Size: ${race.size}</p>
+                    <p>Speed: ${race.speed}ft</p>
+                `;
+                raceListDiv.appendChild(raceCard);
+            });
+            
+            // Debug output
+            debugDiv.textContent = JSON.stringify({
+                dataKeys: Object.keys(pathfinderData),
+                raceCount: pathfinderData.races?.length,
+                firstRace: pathfinderData.races?.[0],
+                categorizedRaces: Object.keys(pathfinderRaces || {})
+            }, null, 2);
+            
+        } catch (error) {
+            resultsDiv.innerHTML = `<p class="error">✗ Import error: ${error.message}</p>`;
+            debugDiv.textContent = error.stack;
+        }
+    </script>
+</body>
+</html>
