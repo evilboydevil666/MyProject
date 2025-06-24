@@ -1,468 +1,474 @@
 <template>
-  <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg max-w-4xl mx-auto">
-    <!-- Header -->
-    <div class="mb-6">
-      <h2 class="text-3xl font-bold text-blue-300 mb-2">
-        {{ isLevelUp ? '📈 Level Up Wizard' : '🎭 Character Builder' }}
-      </h2>
-      <div class="flex items-center gap-4 text-sm text-gray-400">
-        <span>Step {{ currentStep + 1 }} of {{ totalSteps }}</span>
-        <div class="flex-1 bg-gray-700 rounded-full h-2">
-          <div 
-            class="bg-blue-500 h-full rounded-full transition-all duration-300"
-            :style="{ width: `${((currentStep + 1) / totalSteps) * 100}%` }"
-          ></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Step Content -->
-    <div class="mb-6 min-h-[400px]">
-      <!-- Step 1: Mode Selection (Creation Only) -->
-      <div v-if="!isLevelUp && currentStep === 0" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">Choose Creation Method</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button 
-            @click="creationMode = 'guided'; nextStep()"
-            class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-blue-500 transition-all"
-          >
-            <h4 class="text-lg font-bold text-green-300 mb-2">🎯 Guided Creation</h4>
-            <p class="text-sm">Step-by-step character creation with recommendations</p>
-          </button>
-          <button 
-            @click="creationMode = 'quick'; generateQuickCharacter()"
-            class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-purple-500 transition-all"
-          >
-            <h4 class="text-lg font-bold text-purple-300 mb-2">⚡ Quick Build</h4>
-            <p class="text-sm">Generate a balanced character instantly</p>
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 2: Race Selection (Creation) / Class Selection (Level Up) -->
-      <div v-else-if="(!isLevelUp && currentStep === 1) || (isLevelUp && currentStep === 0)" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">
-          {{ isLevelUp ? 'Choose Class for Level ' + (currentLevel + 1) : 'Choose Your Race' }}
-        </h3>
-        
-        <!-- Race Selection -->
-        <div v-if="!isLevelUp" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div 
-            v-for="race in availableRaces" 
-            :key="race.id"
-            @click="selectRace(race)"
-            :class="[
-              'p-4 bg-gray-800 rounded-lg cursor-pointer transition-all',
-              selectedRace?.id === race.id ? 'border-2 border-blue-500' : 'border-2 border-gray-600 hover:border-gray-500'
-            ]"
-          >
-            <h4 class="font-bold text-green-300">{{ race.name }}</h4>
-            <p class="text-xs text-gray-400 mt-1">{{ race.size }} {{ race.type }}</p>
-            <div class="mt-2 text-xs">
-              <p class="text-blue-300">{{ formatAbilityMods(race.abilityMods) }}</p>
-              <p class="text-gray-400 mt-1">{{ race.traits.slice(0, 2).join(', ') }}...</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Class Selection -->
-        <div v-else class="space-y-4">
-          <div class="mb-4 p-3 bg-gray-800 rounded">
-            <p class="text-sm text-gray-400">Current Classes:</p>
-            <div class="flex gap-2 mt-1">
-              <span 
-                v-for="cls in currentClasses" 
-                :key="cls.className"
-                class="px-2 py-1 bg-gray-700 rounded text-sm"
-              >
-                {{ cls.className }} {{ cls.level }}
-              </span>
-            </div>
-          </div>
-          
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+  <div class="character-builder-wizard-backdrop">
+    <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg max-w-4xl mx-auto shadow-2xl border border-gray-700">
+      <!-- Header -->
+      <div class="mb-6">
+        <h2 class="text-3xl font-bold text-blue-300 mb-2">
+          {{ isLevelUp ? '📈 Level Up Wizard' : '🎭 Character Builder' }}
+        </h2>
+        <div class="flex items-center gap-4 text-sm text-gray-400">
+          <span>Step {{ currentStep + 1 }} of {{ totalSteps }}</span>
+          <div class="flex-1 bg-gray-700 rounded-full h-2">
             <div 
-              v-for="cls in availableClasses" 
-              :key="cls.id"
-              @click="selectClass(cls)"
-              :class="[
-                'p-4 bg-gray-800 rounded-lg cursor-pointer transition-all',
-                selectedClass?.id === cls.id ? 'border-2 border-blue-500' : 'border-2 border-gray-600 hover:border-gray-500'
-              ]"
-            >
-              <h4 class="font-bold text-green-300">{{ cls.name }}</h4>
-              <p class="text-xs text-gray-400">{{ cls.hitDie }} HD, {{ cls.bab }} BAB</p>
-              <div class="mt-2 text-xs">
-                <p>{{ cls.skillPoints }} + Int skill points</p>
-                <p class="text-blue-300 mt-1">{{ cls.primaryAbility }}</p>
-              </div>
-            </div>
+              class="bg-blue-500 h-full rounded-full transition-all duration-300"
+              :style="{ width: `${((currentStep + 1) / totalSteps) * 100}%` }"
+            ></div>
           </div>
         </div>
       </div>
 
-      <!-- Step 3: Ability Scores (Creation) / Hit Points (Level Up) -->
-      <div v-else-if="(!isLevelUp && currentStep === 2) || (isLevelUp && currentStep === 1)" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">
-          {{ isLevelUp ? 'Roll Hit Points' : 'Determine Ability Scores' }}
-        </h3>
-
-        <!-- Ability Score Generation -->
-        <div v-if="!isLevelUp" class="space-y-4">
-          <div class="flex gap-2 mb-4">
+      <!-- Step Content - FIXED: Added scrollable container -->
+      <div class="step-content-container mb-6">
+        <!-- Step 1: Mode Selection (Creation Only) -->
+        <div v-if="!isLevelUp && currentStep === 0" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Choose Creation Method</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button 
-              v-for="method in ['standard', 'roll', 'pointbuy']"
-              :key="method"
-              @click="abilityMethod = method"
-              :class="[
-                'px-4 py-2 rounded',
-                abilityMethod === method ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
-              ]"
+              @click="creationMode = 'guided'; nextStep()"
+              class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-blue-500 transition-all"
             >
-              {{ method === 'standard' ? 'Standard Array' : method === 'roll' ? 'Roll 4d6' : 'Point Buy' }}
+              <h4 class="text-lg font-bold text-green-300 mb-2">🎯 Guided Creation</h4>
+              <p class="text-sm">Step-by-step character creation with recommendations</p>
+            </button>
+            <button 
+              @click="creationMode = 'quick'; generateQuickCharacter()"
+              class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-purple-500 transition-all"
+            >
+              <h4 class="text-lg font-bold text-purple-300 mb-2">⚡ Quick Build</h4>
+              <p class="text-sm">Generate a balanced character instantly</p>
             </button>
           </div>
-
-          <!-- Standard Array -->
-          <div v-if="abilityMethod === 'standard'" class="space-y-2">
-            <p class="text-sm text-gray-400 mb-2">Assign these scores: 15, 14, 13, 12, 10, 8</p>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div v-for="ability in abilities" :key="ability" class="bg-gray-800 p-3 rounded">
-                <label class="block text-sm font-medium mb-1">{{ ability }}</label>
-                <select 
-                  v-model="abilityScores[ability]"
-                  class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1"
-                >
-                  <option :value="null">--</option>
-                  <option v-for="score in availableScores" :key="score" :value="score">
-                    {{ score }}
-                  </option>
-                </select>
-                <p class="text-xs text-blue-300 mt-1">
-                  Total: {{ getFinalAbilityScore(ability) }} 
-                  ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Roll Method -->
-          <div v-else-if="abilityMethod === 'roll'" class="space-y-2">
-            <button 
-              @click="rollAbilityScores"
-              class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded mb-3"
-            >
-              🎲 Roll All Scores
-            </button>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div v-for="ability in abilities" :key="ability" class="bg-gray-800 p-3 rounded">
-                <label class="block text-sm font-medium mb-1">{{ ability }}</label>
-                <div class="flex items-center gap-2">
-                  <input 
-                    v-model.number="abilityScores[ability]"
-                    type="number"
-                    min="3"
-                    max="18"
-                    class="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1"
-                  />
-                  <button 
-                    @click="rollSingleAbility(ability)"
-                    class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs"
-                  >
-                    🎲
-                  </button>
-                </div>
-                <p class="text-xs text-blue-300 mt-1">
-                  Total: {{ getFinalAbilityScore(ability) }} 
-                  ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Point Buy -->
-          <div v-else-if="abilityMethod === 'pointbuy'" class="space-y-2">
-            <div class="mb-3 p-3 bg-gray-800 rounded">
-              <p class="text-sm">Points Remaining: <span class="font-bold text-green-300">{{ pointBuyRemaining }}</span> / 27</p>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div v-for="ability in abilities" :key="ability" class="bg-gray-800 p-3 rounded">
-                <label class="block text-sm font-medium mb-1">{{ ability }}</label>
-                <div class="flex items-center gap-2">
-                  <button 
-                    @click="adjustPointBuy(ability, -1)"
-                    :disabled="abilityScores[ability] <= 7"
-                    class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
-                  >
-                    -
-                  </button>
-                  <span class="w-8 text-center">{{ abilityScores[ability] }}</span>
-                  <button 
-                    @click="adjustPointBuy(ability, 1)"
-                    :disabled="abilityScores[ability] >= 15 || getPointCost(abilityScores[ability] + 1) > pointBuyRemaining"
-                    class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
-                  >
-                    +
-                  </button>
-                </div>
-                <p class="text-xs text-blue-300 mt-1">
-                  Total: {{ getFinalAbilityScore(ability) }} 
-                  ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
 
-        <!-- Hit Point Rolling -->
-        <div v-else class="space-y-4">
-          <div class="bg-gray-800 p-6 rounded-lg text-center">
-            <p class="text-lg mb-4">Rolling hit points for {{ selectedClass.name }} ({{ selectedClass.hitDie }})</p>
-            
-            <div v-if="!hitPointsRolled" class="space-y-4">
-              <button 
-                @click="rollHitPoints"
-                class="bg-green-600 hover:bg-green-500 px-6 py-3 rounded-lg text-lg font-semibold"
-              >
-                🎲 Roll Hit Points
-              </button>
-              <p class="text-sm text-gray-400">Or take average: {{ getAverageHP() }}</p>
-              <button 
-                @click="takeAverageHP"
-                class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded"
-              >
-                Take Average
-              </button>
-            </div>
-
-            <div v-else class="space-y-4">
-              <div class="text-3xl font-bold text-green-300">
-                {{ hitPointRoll }}
-              </div>
-              <p class="text-sm text-gray-400">
-                + {{ getAbilityModifier(getFinalAbilityScore('CON')) }} (CON modifier)
-                {{ selectedClass.name === 'Barbarian' ? '+ 4 (Favored Class)' : '+ 1 (Favored Class)' }}
-              </p>
-              <p class="text-xl font-semibold">
-                Total: +{{ getTotalHPGain() }} HP
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 4: Skills -->
-      <div v-else-if="(!isLevelUp && currentStep === 3) || (isLevelUp && currentStep === 2)" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">Allocate Skill Points</h3>
-        
-        <div class="mb-4 p-3 bg-gray-800 rounded flex justify-between items-center">
-          <div>
-            <p class="text-sm text-gray-400">Skill Points Available:</p>
-            <p class="text-2xl font-bold text-green-300">{{ skillPointsRemaining }} / {{ totalSkillPoints }}</p>
-          </div>
-          <div class="text-sm text-gray-400">
-            <p>Class Skills: {{ selectedClass.skillPoints }} + {{ getAbilityModifier(getFinalAbilityScore('INT')) }} (INT)</p>
-            <p v-if="selectedRace?.name === 'Human'">+1 (Human bonus)</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-96 overflow-y-auto">
-          <div 
-            v-for="skill in availableSkills" 
-            :key="skill.name"
-            class="bg-gray-800 p-3 rounded flex items-center justify-between"
-          >
-            <div class="flex-1">
-              <p class="font-medium">
-                {{ skill.name }}
-                <span class="text-xs text-gray-400 ml-1">({{ skill.ability }})</span>
-                <span v-if="isClassSkill(skill)" class="text-xs text-green-400 ml-1">●</span>
-              </p>
-              <p class="text-xs text-gray-400">{{ skill.description }}</p>
-            </div>
-            <div class="flex items-center gap-2 ml-4">
-              <button 
-                @click="adjustSkillRanks(skill, -1)"
-                :disabled="(skillRanks[skill.name] || 0) <= 0"
-                class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
-              >
-                -
-              </button>
-              <span class="w-8 text-center">{{ skillRanks[skill.name] || 0 }}</span>
-              <button 
-                @click="adjustSkillRanks(skill, 1)"
-                :disabled="skillPointsRemaining <= 0 || (skillRanks[skill.name] || 0) >= getMaxRanks()"
-                class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
-              >
-                +
-              </button>
-              <span class="text-sm text-blue-300 ml-2">
-                +{{ getSkillBonus(skill) }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 5: Feats -->
-      <div v-else-if="(!isLevelUp && currentStep === 4) || (isLevelUp && currentStep === 3)" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">Choose Feats</h3>
-        
-        <div class="mb-4 p-3 bg-gray-800 rounded">
-          <p class="text-sm text-gray-400">Feats Available: <span class="font-bold text-green-300">{{ featsRemaining }}</span></p>
-          <div class="text-xs text-gray-400 mt-1">
-            <p v-if="!isLevelUp || currentLevel === 0">• 1 feat at 1st level</p>
-            <p v-if="selectedRace?.name === 'Human'">• 1 bonus feat (Human)</p>
-            <p v-if="isLevelUp && (currentLevel + 1) % 2 === 1">• 1 feat (odd level)</p>
-            <p v-if="hasBonusFeats()">• {{ getBonusFeatsCount() }} bonus feat(s) ({{ selectedClass.name }})</p>
-          </div>
-        </div>
-
-        <div class="mb-3">
-          <input 
-            v-model="featFilter"
-            placeholder="Search feats..."
-            class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
-          />
-        </div>
-
-        <div class="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
-          <div 
-            v-for="feat in filteredFeats" 
-            :key="feat.name"
-            @click="toggleFeat(feat)"
-            :class="[
-              'p-3 bg-gray-800 rounded cursor-pointer transition-all',
-              selectedFeats.includes(feat.name) ? 'border-2 border-blue-500' : 'border-2 border-gray-600 hover:border-gray-500',
-              !meetsPrerequisites(feat) ? 'opacity-50 cursor-not-allowed' : ''
-            ]"
-          >
-            <div class="flex justify-between items-start">
-              <div class="flex-1">
-                <h4 class="font-bold">{{ feat.name }}</h4>
-                <p class="text-xs text-gray-400 mt-1">{{ feat.description }}</p>
-                <p v-if="feat.prerequisites" class="text-xs text-yellow-400 mt-1">
-                  Requires: {{ feat.prerequisites }}
-                </p>
-              </div>
-              <div v-if="selectedFeats.includes(feat.name)" class="ml-2 text-green-400">
-                ✓
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 6: Equipment (Creation Only) -->
-      <div v-else-if="!isLevelUp && currentStep === 5" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">Starting Equipment</h3>
-        
-        <div class="mb-4 p-3 bg-gray-800 rounded">
-          <p class="text-sm text-gray-400">Starting Gold: <span class="font-bold text-yellow-300">{{ startingGold }} gp</span></p>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Quick Packs -->
-          <div>
-            <h4 class="font-semibold mb-2">Quick Equipment Packs</h4>
-            <div class="space-y-2">
-              <button 
-                v-for="pack in equipmentPacks" 
-                :key="pack.name"
-                @click="selectEquipmentPack(pack)"
-                class="w-full p-3 bg-gray-800 hover:bg-gray-700 rounded text-left"
-              >
-                <p class="font-medium">{{ pack.name }}</p>
-                <p class="text-xs text-gray-400">{{ pack.cost }} gp</p>
-              </button>
-            </div>
-          </div>
-
-          <!-- Selected Equipment -->
-          <div>
-            <h4 class="font-semibold mb-2">Your Equipment</h4>
-            <div class="bg-gray-800 p-3 rounded space-y-1 max-h-64 overflow-y-auto">
-              <div v-if="selectedEquipment.length === 0" class="text-gray-500 text-sm">
-                No equipment selected
-              </div>
-              <div v-for="(item, index) in selectedEquipment" :key="index" class="flex justify-between text-sm">
-                <span>{{ item.name }}</span>
-                <span class="text-yellow-300">{{ item.cost }} gp</span>
-              </div>
-              <div v-if="selectedEquipment.length > 0" class="border-t border-gray-700 pt-1 mt-2">
-                <div class="flex justify-between font-semibold">
-                  <span>Total:</span>
-                  <span class="text-yellow-300">{{ totalEquipmentCost }} gp</span>
-                </div>
-                <div class="flex justify-between text-sm text-gray-400">
-                  <span>Remaining:</span>
-                  <span>{{ startingGold - totalEquipmentCost }} gp</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Summary -->
-      <div v-else-if="(!isLevelUp && currentStep === 6) || (isLevelUp && currentStep === 4)" class="space-y-4">
-        <h3 class="text-xl font-semibold mb-4">Summary</h3>
-        
-        <div class="bg-gray-800 p-4 rounded-lg space-y-3">
-          <h4 class="font-bold text-green-300 text-lg">
-            {{ isLevelUp ? 'Level Up Complete!' : 'Character Complete!' }}
-          </h4>
+        <!-- Step 2: Race Selection (Creation) / Class Selection (Level Up) - FIXED -->
+        <div v-else-if="(!isLevelUp && currentStep === 1) || (isLevelUp && currentStep === 0)" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">
+            {{ isLevelUp ? 'Choose Class for Level ' + (currentLevel + 1) : 'Choose Your Race' }}
+          </h3>
           
-          <div v-if="!isLevelUp" class="space-y-2">
-            <p><strong>Name:</strong> {{ characterName || 'Unnamed Hero' }}</p>
-            <p><strong>Race:</strong> {{ selectedRace?.name }}</p>
-            <p><strong>Class:</strong> {{ selectedClass?.name }} 1</p>
+          <!-- Race Selection - FIXED: Better scrolling and clicking -->
+          <div v-if="!isLevelUp" class="race-selection-container">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div 
+                v-for="race in availableRaces" 
+                :key="race.id"
+                @click="selectRace(race)"
+                :class="[
+                  'race-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-105',
+                  selectedRace?.id === race.id ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500'
+                ]"
+              >
+                <h4 class="font-bold text-green-300">{{ race.name }}</h4>
+                <p class="text-xs text-gray-400 mt-1">{{ race.size }} {{ race.type }}</p>
+                <div class="mt-2 text-xs">
+                  <p class="text-blue-300">{{ formatAbilityMods(race.abilityMods) }}</p>
+                  <p class="text-gray-400 mt-1">{{ race.traits.slice(0, 2).join(', ') }}...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Class Selection - FIXED: Similar improvements -->
+          <div v-else class="space-y-4">
+            <div class="mb-4 p-3 bg-gray-800 rounded">
+              <p class="text-sm text-gray-400">Current Classes:</p>
+              <div class="flex gap-2 mt-1 flex-wrap">
+                <span 
+                  v-for="cls in currentClasses" 
+                  :key="cls.className"
+                  class="px-2 py-1 bg-gray-700 rounded text-sm"
+                >
+                  {{ cls.className }} {{ cls.level }}
+                </span>
+              </div>
+            </div>
+            
+            <div class="class-selection-container">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div 
+                  v-for="cls in availableClasses" 
+                  :key="cls.id"
+                  @click="selectClass(cls)"
+                  :class="[
+                    'class-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-105',
+                    selectedClass?.id === cls.id ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500'
+                  ]"
+                >
+                  <h4 class="font-bold text-green-300">{{ cls.name }}</h4>
+                  <p class="text-xs text-gray-400">{{ cls.hitDie }} HD, {{ cls.bab }} BAB</p>
+                  <div class="mt-2 text-xs">
+                    <p>{{ cls.skillPoints }} + Int skill points</p>
+                    <p class="text-blue-300 mt-1">{{ cls.primaryAbility }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: Ability Scores (Creation) / Hit Points (Level Up) -->
+        <div v-else-if="(!isLevelUp && currentStep === 2) || (isLevelUp && currentStep === 1)" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">
+            {{ isLevelUp ? 'Roll Hit Points' : 'Determine Ability Scores' }}
+          </h3>
+
+          <!-- Ability Score Generation -->
+          <div v-if="!isLevelUp" class="space-y-4">
+            <div class="flex gap-2 mb-4 flex-wrap">
+              <button 
+                v-for="method in ['standard', 'roll', 'pointbuy']"
+                :key="method"
+                @click="abilityMethod = method"
+                :class="[
+                  'px-4 py-2 rounded',
+                  abilityMethod === method ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                ]"
+              >
+                {{ method === 'standard' ? 'Standard Array' : method === 'roll' ? 'Roll 4d6' : 'Point Buy' }}
+              </button>
+            </div>
+
+            <!-- Standard Array -->
+            <div v-if="abilityMethod === 'standard'" class="space-y-2">
+              <p class="text-sm text-gray-400 mb-2">Assign these scores: 15, 14, 13, 12, 10, 8</p>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div v-for="ability in abilities" :key="ability" class="bg-gray-800 p-3 rounded">
+                  <label class="block text-sm font-medium mb-1">{{ ability }}</label>
+                  <select 
+                    v-model="abilityScores[ability]"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1"
+                  >
+                    <option :value="null">--</option>
+                    <option v-for="score in availableScores" :key="score" :value="score">
+                      {{ score }}
+                    </option>
+                  </select>
+                  <p class="text-xs text-blue-300 mt-1">
+                    Total: {{ getFinalAbilityScore(ability) }} 
+                    ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Roll Method -->
+            <div v-else-if="abilityMethod === 'roll'" class="space-y-2">
+              <button 
+                @click="rollAbilityScores"
+                class="bg-green-600 hover:bg-green-500 px-4 py-2 rounded mb-3"
+              >
+                🎲 Roll All Scores
+              </button>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div v-for="ability in abilities" :key="ability" class="bg-gray-800 p-3 rounded">
+                  <label class="block text-sm font-medium mb-1">{{ ability }}</label>
+                  <div class="flex items-center gap-2">
+                    <input 
+                      v-model.number="abilityScores[ability]"
+                      type="number"
+                      min="3"
+                      max="18"
+                      class="w-16 bg-gray-700 border border-gray-600 rounded px-2 py-1"
+                    />
+                    <button 
+                      @click="rollSingleAbility(ability)"
+                      class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs"
+                    >
+                      🎲
+                    </button>
+                  </div>
+                  <p class="text-xs text-blue-300 mt-1">
+                    Total: {{ getFinalAbilityScore(ability) }} 
+                    ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Point Buy -->
+            <div v-else-if="abilityMethod === 'pointbuy'" class="space-y-2">
+              <div class="mb-3 p-3 bg-gray-800 rounded">
+                <p class="text-sm">Points Remaining: <span class="font-bold text-green-300">{{ pointBuyRemaining }}</span> / 27</p>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div v-for="ability in abilities" :key="ability" class="bg-gray-800 p-3 rounded">
+                  <label class="block text-sm font-medium mb-1">{{ ability }}</label>
+                  <div class="flex items-center gap-2">
+                    <button 
+                      @click="adjustPointBuy(ability, -1)"
+                      :disabled="abilityScores[ability] <= 7"
+                      class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
+                    >
+                      -
+                    </button>
+                    <span class="w-8 text-center">{{ abilityScores[ability] }}</span>
+                    <button 
+                      @click="adjustPointBuy(ability, 1)"
+                      :disabled="abilityScores[ability] >= 15 || getPointCost(abilityScores[ability] + 1) > pointBuyRemaining"
+                      class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p class="text-xs text-blue-300 mt-1">
+                    Total: {{ getFinalAbilityScore(ability) }} 
+                    ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hit Point Rolling -->
+          <div v-else class="space-y-4">
+            <div class="bg-gray-800 p-6 rounded-lg text-center">
+              <p class="text-lg mb-4">Rolling hit points for {{ selectedClass.name }} ({{ selectedClass.hitDie }})</p>
+              
+              <div v-if="!hitPointsRolled" class="space-y-4">
+                <button 
+                  @click="rollHitPoints"
+                  class="bg-green-600 hover:bg-green-500 px-6 py-3 rounded-lg text-lg font-semibold"
+                >
+                  🎲 Roll Hit Points
+                </button>
+                <p class="text-sm text-gray-400">Or take average: {{ getAverageHP() }}</p>
+                <button 
+                  @click="takeAverageHP"
+                  class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded"
+                >
+                  Take Average
+                </button>
+              </div>
+
+              <div v-else class="space-y-4">
+                <div class="text-3xl font-bold text-green-300">
+                  {{ hitPointRoll }}
+                </div>
+                <p class="text-sm text-gray-400">
+                  + {{ getAbilityModifier(getFinalAbilityScore('CON')) }} (CON modifier)
+                  {{ selectedClass.name === 'Barbarian' ? '+ 4 (Favored Class)' : '+ 1 (Favored Class)' }}
+                </p>
+                <p class="text-xl font-semibold">
+                  Total: +{{ getTotalHPGain() }} HP
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Skills -->
+        <div v-else-if="(!isLevelUp && currentStep === 3) || (isLevelUp && currentStep === 2)" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Allocate Skill Points</h3>
+          
+          <div class="mb-4 p-3 bg-gray-800 rounded flex justify-between items-center">
             <div>
-              <p class="font-semibold mb-1">Ability Scores:</p>
-              <div class="grid grid-cols-3 gap-2 text-sm">
-                <span v-for="ability in abilities" :key="ability">
-                  {{ ability }}: {{ getFinalAbilityScore(ability) }} 
-                  ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
+              <p class="text-sm text-gray-400">Skill Points Available:</p>
+              <p class="text-2xl font-bold text-green-300">{{ skillPointsRemaining }} / {{ totalSkillPoints }}</p>
+            </div>
+            <div class="text-sm text-gray-400">
+              <p>Class Skills: {{ selectedClass.skillPoints }} + {{ getAbilityModifier(getFinalAbilityScore('INT')) }} (INT)</p>
+              <p v-if="selectedRace?.name === 'Human'">+1 (Human bonus)</p>
+            </div>
+          </div>
+
+          <div class="skills-list grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div 
+              v-for="skill in availableSkills" 
+              :key="skill.name"
+              class="bg-gray-800 p-3 rounded flex items-center justify-between"
+            >
+              <div class="flex-1">
+                <p class="font-medium">
+                  {{ skill.name }}
+                  <span class="text-xs text-gray-400 ml-1">({{ skill.ability }})</span>
+                  <span v-if="isClassSkill(skill)" class="text-xs text-green-400 ml-1">●</span>
+                </p>
+                <p class="text-xs text-gray-400">{{ skill.description }}</p>
+              </div>
+              <div class="flex items-center gap-2 ml-4">
+                <button 
+                  @click="adjustSkillRanks(skill, -1)"
+                  :disabled="(skillRanks[skill.name] || 0) <= 0"
+                  class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
+                >
+                  -
+                </button>
+                <span class="w-8 text-center">{{ skillRanks[skill.name] || 0 }}</span>
+                <button 
+                  @click="adjustSkillRanks(skill, 1)"
+                  :disabled="skillPointsRemaining <= 0 || (skillRanks[skill.name] || 0) >= getMaxRanks()"
+                  class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-2 py-1 rounded"
+                >
+                  +
+                </button>
+                <span class="text-sm text-blue-300 ml-2">
+                  +{{ getSkillBonus(skill) }}
                 </span>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Step 5: Feats -->
+        <div v-else-if="(!isLevelUp && currentStep === 4) || (isLevelUp && currentStep === 3)" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Choose Feats</h3>
           
-          <div v-else class="space-y-2">
-            <p><strong>New Level:</strong> {{ selectedClass?.name }} {{ getClassLevel(selectedClass?.name) + 1 }}</p>
-            <p><strong>Total Character Level:</strong> {{ currentLevel + 1 }}</p>
-            <p><strong>Hit Points Gained:</strong> +{{ getTotalHPGain() }}</p>
-            <p><strong>Skill Points Spent:</strong> {{ totalSkillPoints - skillPointsRemaining }}</p>
-            <p v-if="selectedFeats.length > 0"><strong>New Feats:</strong> {{ selectedFeats.join(', ') }}</p>
+          <div class="mb-4 p-3 bg-gray-800 rounded">
+            <p class="text-sm text-gray-400">Feats Available: <span class="font-bold text-green-300">{{ featsRemaining }}</span></p>
+            <div class="text-xs text-gray-400 mt-1">
+              <p v-if="!isLevelUp || currentLevel === 0">• 1 feat at 1st level</p>
+              <p v-if="selectedRace?.name === 'Human'">• 1 bonus feat (Human)</p>
+              <p v-if="isLevelUp && (currentLevel + 1) % 2 === 1">• 1 feat (odd level)</p>
+              <p v-if="hasBonusFeats()">• {{ getBonusFeatsCount() }} bonus feat(s) ({{ selectedClass.name }})</p>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <input 
+              v-model="featFilter"
+              placeholder="Search feats..."
+              class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+            />
+          </div>
+
+          <div class="feats-list grid grid-cols-1 gap-2">
+            <div 
+              v-for="feat in filteredFeats" 
+              :key="feat.name"
+              @click="toggleFeat(feat)"
+              :class="[
+                'feat-card p-3 bg-gray-800 rounded cursor-pointer transition-all transform hover:scale-102',
+                selectedFeats.includes(feat.name) ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500',
+                !meetsPrerequisites(feat) ? 'opacity-50 cursor-not-allowed' : ''
+              ]"
+            >
+              <div class="flex justify-between items-start">
+                <div class="flex-1">
+                  <h4 class="font-bold">{{ feat.name }}</h4>
+                  <p class="text-xs text-gray-400 mt-1">{{ feat.description }}</p>
+                  <p v-if="feat.prerequisites" class="text-xs text-yellow-400 mt-1">
+                    Requires: {{ feat.prerequisites }}
+                  </p>
+                </div>
+                <div v-if="selectedFeats.includes(feat.name)" class="ml-2 text-green-400">
+                  ✓
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6: Equipment (Creation Only) -->
+        <div v-else-if="!isLevelUp && currentStep === 5" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Starting Equipment</h3>
+          
+          <div class="mb-4 p-3 bg-gray-800 rounded">
+            <p class="text-sm text-gray-400">Starting Gold: <span class="font-bold text-yellow-300">{{ startingGold }} gp</span></p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Quick Packs -->
+            <div>
+              <h4 class="font-semibold mb-2">Quick Equipment Packs</h4>
+              <div class="space-y-2">
+                <button 
+                  v-for="pack in equipmentPacks" 
+                  :key="pack.name"
+                  @click="selectEquipmentPack(pack)"
+                  class="w-full p-3 bg-gray-800 hover:bg-gray-700 rounded text-left transition-all"
+                >
+                  <p class="font-medium">{{ pack.name }}</p>
+                  <p class="text-xs text-gray-400">{{ pack.cost }} gp</p>
+                </button>
+              </div>
+            </div>
+
+            <!-- Selected Equipment -->
+            <div>
+              <h4 class="font-semibold mb-2">Your Equipment</h4>
+              <div class="bg-gray-800 p-3 rounded space-y-1 max-h-64 overflow-y-auto">
+                <div v-if="selectedEquipment.length === 0" class="text-gray-500 text-sm">
+                  No equipment selected
+                </div>
+                <div v-for="(item, index) in selectedEquipment" :key="index" class="flex justify-between text-sm">
+                  <span>{{ item.name }}</span>
+                  <span class="text-yellow-300">{{ item.cost }} gp</span>
+                </div>
+                <div v-if="selectedEquipment.length > 0" class="border-t border-gray-700 pt-1 mt-2">
+                  <div class="flex justify-between font-semibold">
+                    <span>Total:</span>
+                    <span class="text-yellow-300">{{ totalEquipmentCost }} gp</span>
+                  </div>
+                  <div class="flex justify-between text-sm text-gray-400">
+                    <span>Remaining:</span>
+                    <span>{{ startingGold - totalEquipmentCost }} gp</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div v-else-if="(!isLevelUp && currentStep === 6) || (isLevelUp && currentStep === 4)" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Summary</h3>
+          
+          <div class="bg-gray-800 p-4 rounded-lg space-y-3">
+            <h4 class="font-bold text-green-300 text-lg">
+              {{ isLevelUp ? 'Level Up Complete!' : 'Character Complete!' }}
+            </h4>
+            
+            <div v-if="!isLevelUp" class="space-y-2">
+              <p><strong>Name:</strong> {{ characterName || 'Unnamed Hero' }}</p>
+              <p><strong>Race:</strong> {{ selectedRace?.name }}</p>
+              <p><strong>Class:</strong> {{ selectedClass?.name }} 1</p>
+              <div>
+                <p class="font-semibold mb-1">Ability Scores:</p>
+                <div class="grid grid-cols-3 gap-2 text-sm">
+                  <span v-for="ability in abilities" :key="ability">
+                    {{ ability }}: {{ getFinalAbilityScore(ability) }} 
+                    ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="space-y-2">
+              <p><strong>New Level:</strong> {{ selectedClass?.name }} {{ getClassLevel(selectedClass?.name) + 1 }}</p>
+              <p><strong>Total Character Level:</strong> {{ currentLevel + 1 }}</p>
+              <p><strong>Hit Points Gained:</strong> +{{ getTotalHPGain() }}</p>
+              <p><strong>Skill Points Spent:</strong> {{ totalSkillPoints - skillPointsRemaining }}</p>
+              <p v-if="selectedFeats.length > 0"><strong>New Feats:</strong> {{ selectedFeats.join(', ') }}</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Navigation -->
-    <div class="flex justify-between items-center">
-      <button 
-        @click="previousStep"
-        :disabled="currentStep === 0"
-        class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded"
-      >
-        ← Previous
-      </button>
-      
-      <div class="flex gap-2">
+      <!-- Navigation - Keep at bottom -->
+      <div class="flex justify-between items-center pt-4 border-t border-gray-700">
         <button 
-          @click="cancel"
-          class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded"
+          @click="previousStep"
+          :disabled="currentStep === 0"
+          class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded"
         >
-          Cancel
+          ← Previous
         </button>
-        <button 
-          @click="nextStep"
-          :disabled="!canProceed"
-          class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded"
-        >
-          {{ currentStep === totalSteps - 1 ? 'Finish' : 'Next →' }}
-        </button>
+        
+        <div class="flex gap-2">
+          <button 
+            @click="cancel"
+            class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded"
+          >
+            Cancel
+          </button>
+          <button 
+            @click="nextStep"
+            :disabled="!canProceed"
+            class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded"
+          >
+            {{ currentStep === totalSteps - 1 ? 'Finish' : 'Next →' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -470,7 +476,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { characterState } from '@/characterState.js
+import { characterState } from '@/characterState.js'
 
 // Props
 const props = defineProps({
@@ -1092,7 +1098,106 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Custom scrollbar for skill/feat lists */
+/* Backdrop for modal-like appearance */
+.character-builder-wizard-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+/* Main wizard container */
+.character-builder-wizard {
+  background-color: #111827;
+  position: relative;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Step content container - scrollable */
+.step-content-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 300px;
+  max-height: calc(90vh - 200px);
+  padding-right: 0.5rem;
+}
+
+/* Race and class selection containers */
+.race-selection-container,
+.class-selection-container {
+  width: 100%;
+}
+
+/* Clickable cards */
+.race-card,
+.class-card,
+.feat-card {
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+.race-card:hover,
+.class-card:hover,
+.feat-card:hover {
+  z-index: 2;
+}
+
+/* Fix for click events */
+.race-card *,
+.class-card *,
+.feat-card * {
+  pointer-events: none;
+}
+
+/* Skills and feats lists */
+.skills-list,
+.feats-list {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Custom scrollbar for the step content */
+.step-content-container::-webkit-scrollbar,
+.skills-list::-webkit-scrollbar,
+.feats-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.step-content-container::-webkit-scrollbar-track,
+.skills-list::-webkit-scrollbar-track,
+.feats-list::-webkit-scrollbar-track {
+  background: #1F2937;
+  border-radius: 4px;
+}
+
+.step-content-container::-webkit-scrollbar-thumb,
+.skills-list::-webkit-scrollbar-thumb,
+.feats-list::-webkit-scrollbar-thumb {
+  background: #4B5563;
+  border-radius: 4px;
+}
+
+.step-content-container::-webkit-scrollbar-thumb:hover,
+.skills-list::-webkit-scrollbar-thumb:hover,
+.feats-list::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}
+
+/* Custom scrollbar for other elements */
 .overflow-y-auto::-webkit-scrollbar {
   width: 6px;
 }
@@ -1109,5 +1214,39 @@ onMounted(() => {
 /* Smooth transitions */
 button, div {
   transition: all 0.2s ease;
+}
+
+/* Enhanced section backgrounds */
+.space-y-4 > div[class*="bg-gray-800"] {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Hover scale for cards */
+.transform.hover\:scale-105:hover {
+  transform: scale(1.05);
+}
+
+.transform.hover\:scale-102:hover {
+  transform: scale(1.02);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .character-builder-wizard-backdrop {
+    padding: 0.5rem;
+  }
+  
+  .character-builder-wizard {
+    max-height: 95vh;
+  }
+  
+  .step-content-container {
+    max-height: calc(95vh - 180px);
+  }
+  
+  .skills-list,
+  .feats-list {
+    max-height: 300px;
+  }
 }
 </style>
