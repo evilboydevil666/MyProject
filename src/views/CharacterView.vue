@@ -191,6 +191,9 @@ function clearCharacterData() {
   })
 }
 
+// Updated onWizardComplete function for CharacterView.vue
+// Replace the existing onWizardComplete function with this one:
+
 function onWizardComplete(data) {
   // Apply character data from wizard
   if (data.mode === 'create') {
@@ -201,6 +204,40 @@ function onWizardComplete(data) {
       className: data.class?.name || '', 
       level: 1 
     }]
+    
+    // Apply all character details
+    characterState.age = data.age || 18
+    characterState.gender = data.gender || ''
+    characterState.height = data.height || ''
+    characterState.weight = data.weight || ''
+    characterState.hair = data.hair || ''
+    characterState.eyes = data.eyes || ''
+    characterState.skin = data.skin || ''
+    characterState.alignment = data.alignment || 'TN'
+    characterState.deity = data.deity || ''
+    characterState.homeland = data.homeland || ''
+    
+    // Apply languages
+    if (data.languages && Array.isArray(data.languages)) {
+      characterState.languages = [...data.languages]
+    }
+    
+    // Apply personality traits (these need to be added to characterState)
+    if (data.personalityTraits) {
+      characterState.personalityTraits = data.personalityTraits
+    }
+    if (data.ideals) {
+      characterState.ideals = data.ideals
+    }
+    if (data.bonds) {
+      characterState.bonds = data.bonds
+    }
+    if (data.flaws) {
+      characterState.flaws = data.flaws
+    }
+    if (data.distinguishingFeatures) {
+      characterState.distinguishingFeatures = data.distinguishingFeatures
+    }
     
     // Apply ability scores
     if (data.finalAbilityScores) {
@@ -231,15 +268,15 @@ function onWizardComplete(data) {
     if (data.equipment) {
       characterState.inventory = data.equipment.map(item => ({
         name: item.name,
-        notes: item.notes || '',
-        quantity: item.quantity || 1,
-        weight: item.weight || 0
+        notes: `Worth ${item.cost} gp`,
+        quantity: 1,
+        weight: 0
       }))
     }
     
     // Apply starting gold
-    if (data.remainingGold !== undefined) {
-      characterState.money.gp = Math.floor(data.remainingGold)
+    if (data.remainingGold) {
+      characterState.money.gp = data.remainingGold
     }
     
     // Calculate starting HP

@@ -18,6 +18,11 @@ export const characterState = reactive({
   eyes: '',
   skin: '',
   portrait: '',
+  personalityTraits: '',
+  ideals: '',
+  bonds: '',
+  flaws: '',
+  distinguishingFeatures: '',
 
   // Class & Leveling - FIXED: Added id to default class object
   classes: [{ id: 1, className: '', level: 1 }],
@@ -160,9 +165,9 @@ export const characterState = reactive({
   shield: [],
   gear: [],
   inventory: [
-    { name: 'Backpack', notes: 'Standard adventuring pack' },
-    { name: 'Bedroll', notes: '' },
-    { name: 'Trail Rations (5 days)', notes: '' }
+    { name: 'Backpack', notes: 'Standard adventuring pack', weight: 2, quantity: 1, value: 2 },
+    { name: 'Bedroll', notes: '', weight: 5, quantity: 1, value: 0.1 },
+    { name: 'Trail Rations (5 days)', notes: '', weight: 5, quantity: 1, value: 2.5 }
   ],
   money: {
     cp: 0,

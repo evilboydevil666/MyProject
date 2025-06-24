@@ -26,81 +26,82 @@
     </div>
 
     <!-- Spell Slots by Level -->
-    <div v-for="level in 10" :key="'level' + level" 
-         v-if="level === 0 || (spellSlots[level] && spellSlots[level].max > 0)"
-         class="bg-gray-800 p-4 rounded border border-gray-600">
-      
-      <!-- Level Header -->
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="text-lg font-semibold">
-          {{ level === 0 ? (isClericOrDruid ? 'Orisons' : 'Cantrips') : `${level}${getOrdinalSuffix(level)} Level` }}
-        </h3>
-        <div class="flex items-center gap-4">
-          <div class="text-sm">
-            <span class="text-gray-400">DC:</span>
-            <span class="font-bold text-yellow-400">{{ 10 + level + castingAbilityMod }}</span>
-          </div>
-          <div v-if="level > 0" class="text-sm">
-            <span class="text-gray-400">Slots:</span>
-            <span class="font-bold">{{ spellSlots[level].used }} / {{ spellSlots[level].max }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Spell Slot Tracker (visual) -->
-      <div v-if="level > 0 && spellSlots[level].max > 0" class="mb-3">
-        <div class="flex gap-1">
-          <div v-for="slot in spellSlots[level].max" :key="slot"
-               :class="[
-                 'w-8 h-8 rounded-full border-2 cursor-pointer transition-all',
-                 slot <= spellSlots[level].used 
-                   ? 'bg-gray-600 border-gray-500' 
-                   : 'bg-blue-500 border-blue-400 hover:bg-blue-400'
-               ]"
-               @click="toggleSlotUsed(level, slot)"
-               :title="slot <= spellSlots[level].used ? 'Used' : 'Available'"
-          ></div>
-        </div>
-      </div>
-
-      <!-- Spell List -->
-      <div class="space-y-2">
-        <div v-for="spell in getSpellsForLevel(level)" :key="spell.name"
-             class="bg-gray-700 p-2 rounded flex items-center justify-between">
-          <div class="flex-1">
-            <div class="flex items-center gap-2">
-              <span class="font-medium">{{ spell.name }}</span>
-              <span v-if="spell.prepared" class="text-xs bg-green-600 px-2 py-0.5 rounded">Prepared</span>
-              <span v-if="spell.domain" class="text-xs bg-purple-600 px-2 py-0.5 rounded">{{ spell.domain }}</span>
-              <span v-if="spell.school" class="text-xs text-gray-400">({{ spell.school }})</span>
-            </div>
-            <div v-if="spell.description" class="text-sm text-gray-400 mt-1">
-              {{ spell.description.substring(0, 100) }}{{ spell.description.length > 100 ? '...' : '' }}
-            </div>
-          </div>
-          <div class="flex items-center gap-2 ml-4">
-            <button 
-              @click="castSpell(spell, level)"
-              :disabled="level > 0 && spellSlots[level].used >= spellSlots[level].max"
-              class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed px-3 py-1 rounded text-sm"
-            >
-              Cast
-            </button>
-            <button 
-              @click="showSpellDetails(spell)"
-              class="bg-gray-600 hover:bg-gray-500 p-1 rounded"
-              title="View spell details"
-            >
-              ?
-            </button>
-          </div>
-        </div>
+    <template v-for="spellLevel in 10" :key="'level' + spellLevel">
+      <div v-if="spellLevel === 0 || (spellSlots[spellLevel] && spellSlots[spellLevel].max > 0)"
+           class="bg-gray-800 p-4 rounded border border-gray-600">
         
-        <div v-if="getSpellsForLevel(level).length === 0" class="text-gray-400 italic text-center py-2">
-          No spells known at this level
+        <!-- Level Header -->
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-lg font-semibold">
+            {{ spellLevel === 0 ? (isClericOrDruid ? 'Orisons' : 'Cantrips') : `${spellLevel}${getOrdinalSuffix(spellLevel)} Level` }}
+          </h3>
+          <div class="flex items-center gap-4">
+            <div class="text-sm">
+              <span class="text-gray-400">DC:</span>
+              <span class="font-bold text-yellow-400">{{ 10 + spellLevel + castingAbilityMod }}</span>
+            </div>
+            <div v-if="spellLevel > 0" class="text-sm">
+              <span class="text-gray-400">Slots:</span>
+              <span class="font-bold">{{ spellSlots[spellLevel].used }} / {{ spellSlots[spellLevel].max }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spell Slot Tracker (visual) -->
+        <div v-if="spellLevel > 0 && spellSlots[spellLevel].max > 0" class="mb-3">
+          <div class="flex gap-1">
+            <div v-for="slot in spellSlots[spellLevel].max" :key="slot"
+                 :class="[
+                   'w-8 h-8 rounded-full border-2 cursor-pointer transition-all',
+                   slot <= spellSlots[spellLevel].used 
+                     ? 'bg-gray-600 border-gray-500' 
+                     : 'bg-blue-500 border-blue-400 hover:bg-blue-400'
+                 ]"
+                 @click="toggleSlotUsed(spellLevel, slot)"
+                 :title="slot <= spellSlots[spellLevel].used ? 'Used' : 'Available'"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Spell List -->
+        <div class="space-y-2">
+          <div v-for="spell in getSpellsForLevel(spellLevel)" :key="spell.name"
+               class="bg-gray-700 p-2 rounded flex items-center justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-2">
+                <span class="font-medium">{{ spell.name }}</span>
+                <span v-if="spell.prepared" class="text-xs bg-green-600 px-2 py-0.5 rounded">Prepared</span>
+                <span v-if="spell.domain" class="text-xs bg-purple-600 px-2 py-0.5 rounded">{{ spell.domain }}</span>
+                <span v-if="spell.school" class="text-xs text-gray-400">({{ spell.school }})</span>
+              </div>
+              <div v-if="spell.description" class="text-sm text-gray-400 mt-1">
+                {{ spell.description.substring(0, 100) }}{{ spell.description.length > 100 ? '...' : '' }}
+              </div>
+            </div>
+            <div class="flex items-center gap-2 ml-4">
+              <button 
+                @click="castSpell(spell, spellLevel)"
+                :disabled="spellLevel > 0 && spellSlots[spellLevel].used >= spellSlots[spellLevel].max"
+                class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed px-3 py-1 rounded text-sm"
+              >
+                Cast
+              </button>
+              <button 
+                @click="showSpellDetails(spell)"
+                class="bg-gray-600 hover:bg-gray-500 p-1 rounded"
+                title="View spell details"
+              >
+                ?
+              </button>
+            </div>
+          </div>
+          
+          <div v-if="getSpellsForLevel(spellLevel).length === 0" class="text-gray-400 italic text-center py-2">
+            No spells known at this level
+          </div>
         </div>
       </div>
-    </div>
+    </template>
 
     <!-- Spell Details Modal -->
     <div v-if="selectedSpell" 
@@ -168,6 +169,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { characterState } from '../../characterState.js'
 import spellDataManager from '../../data/spellDataManager.js'
+import { useNarrativeChat } from '@/composables/useNarrativeChat'
 
 // Props
 const props = defineProps({
@@ -181,6 +183,7 @@ const props = defineProps({
 const selectedSpell = ref(null)
 const selectedSpellDetails = ref(null)
 const loadingSpellDetails = ref(false)
+const { sendMessage } = useNarrativeChat()
 
 // Initialize spell data manager with API key if available
 onMounted(() => {
@@ -265,8 +268,23 @@ function getOrdinalSuffix(num) {
 }
 
 function getSpellsForLevel(level) {
-  // Get spells from character state
-  return characterState.spells?.filter(spell => spell.level === level) || []
+  // First check if we have properly formatted spells
+  if (characterState.spells && characterState.spells.length > 0) {
+    return characterState.spells.filter(spell => spell.level === level) || []
+  }
+  
+  // Fallback: Convert spellsKnown to spell objects if needed
+  if (characterState.spellsKnown && characterState.spellsKnown.length > 0 && level === 1) {
+    // For now, assume all known spells are 1st level (can be improved)
+    return characterState.spellsKnown.map(spellName => ({
+      name: spellName,
+      level: 1,
+      school: 'Unknown',
+      description: ''
+    }))
+  }
+  
+  return []
 }
 
 function toggleSlotUsed(level, slot) {
@@ -281,17 +299,49 @@ function toggleSlotUsed(level, slot) {
   }
 }
 
-function castSpell(spell, level) {
+async function castSpell(spell, level) {
   // Handle spell casting
-  if (level > 0 && spellSlots.value[level].used < spellSlots.value[level].max) {
-    spellSlots.value[level].used++
-    
-    // Could emit an event for the narrative system
-    console.log(`Casting ${spell.name}!`)
-  } else if (level === 0) {
-    // Cantrips/orisons can be cast unlimited times
-    console.log(`Casting ${spell.name} (Cantrip/Orison)`)
+  if (level > 0 && spellSlots.value[level].used >= spellSlots.value[level].max) {
+    // No spell slots available
+    await sendMessage({
+      text: `I attempt to cast ${spell.name}, but I have no ${level}${getOrdinalSuffix(level)} level spell slots remaining.`,
+      context: {
+        action: 'spell_failed',
+        spell: spell.name,
+        reason: 'no_slots'
+      }
+    })
+    return
   }
+  
+  if (level > 0) {
+    // Use a spell slot
+    spellSlots.value[level].used++
+  }
+  
+  // Send to narrative system
+  let castingMessage = `I cast ${spell.name}`
+  if (spell.school) {
+    castingMessage += ` (${spell.school})`
+  }
+  
+  await sendMessage({
+    text: castingMessage,
+    context: {
+      action: 'cast_spell',
+      spell: spell.name,
+      level: level,
+      school: spell.school,
+      description: spell.description,
+      character: {
+        name: characterState.name,
+        class: characterState.classes[0]?.className,
+        level: characterState.classes[0]?.level,
+        currentHp: characterState.hp,
+        maxHp: characterState.hpMax
+      }
+    }
+  })
 }
 
 async function showSpellDetails(spell) {

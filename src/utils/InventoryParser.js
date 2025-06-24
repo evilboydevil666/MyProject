@@ -382,14 +382,21 @@ export class InventoryParser {
    * @returns {Object} - Weight summary
    */
   static calculateTotalWeight(inventory) {
+    // Ensure inventory is an array
+    if (!Array.isArray(inventory)) {
+      inventory = []
+    }
+    
     let totalWeight = 0
     const breakdown = {}
     
     inventory.forEach(item => {
+      if (!item || typeof item !== 'object') return
+      
       const weight = this.calculateWeight(item)
       totalWeight += weight
       
-      const category = item.category || this.categorizeItem(item.name)
+      const category = item.category || this.categorizeItem(item.name || '')
       if (!breakdown[category]) {
         breakdown[category] = 0
       }
@@ -1064,6 +1071,27 @@ export class InventoryParser {
    * @param {Object} characterData - Character data for weight calculations
    */
   static async applyInventoryChanges(changes, autoApply = false, characterData = null) {
+    // Ensure changes object has all required properties
+    changes = {
+      itemsGained: [],
+      itemsLost: [],
+      moneyGained: { gp: 0, sp: 0, cp: 0, pp: 0 },
+      moneyLost: { gp: 0, sp: 0, cp: 0, pp: 0 },
+      ...changes // Spread to override with any provided values
+    }
+    
+    // Ensure arrays are actually arrays
+    if (!Array.isArray(changes.itemsGained)) changes.itemsGained = []
+    if (!Array.isArray(changes.itemsLost)) changes.itemsLost = []
+    
+    // Ensure money objects exist
+    if (!changes.moneyGained || typeof changes.moneyGained !== 'object') {
+      changes.moneyGained = { gp: 0, sp: 0, cp: 0, pp: 0 }
+    }
+    if (!changes.moneyLost || typeof changes.moneyLost !== 'object') {
+      changes.moneyLost = { gp: 0, sp: 0, cp: 0, pp: 0 }
+    }
+    
     if (!this.hasChanges(changes)) {
       return { applied: false, message: 'No inventory changes detected' }
     }
@@ -1078,35 +1106,52 @@ export class InventoryParser {
     let appliedChanges = []
     const strength = characterData?.abilities?.strength || 10
 
-    // Apply item gains
+    // Apply item gains (now safe because we ensured it's an array)
     changes.itemsGained.forEach(item => {
+      // Ensure item has required properties
+      if (!item || !item.name) {
+        console.warn('Skipping invalid item:', item)
+        return
+      }
+      
+      // Ensure numeric properties
+      item.quantity = item.quantity || 1
+      item.weight = item.weight || 0
+      item.value = item.value || 0
+      
       this.addItemToInventory(item)
       appliedChanges.push(`+${item.quantity} ${item.name} (${item.weight * item.quantity}lbs, ${item.value * item.quantity}gp)`)
     })
 
-    // Apply item losses
+    // Apply item losses (now safe because we ensured it's an array)
     changes.itemsLost.forEach(item => {
+      // Ensure item has required properties
+      if (!item || !item.name) {
+        console.warn('Skipping invalid item:', item)
+        return
+      }
+      
       this.removeItemFromInventory(item)
       appliedChanges.push(`-${item.quantity} ${item.name}`)
     })
 
     // Apply money changes
     Object.entries(changes.moneyGained).forEach(([currency, amount]) => {
-      if (amount > 0) {
+      if (amount > 0 && characterState.money && characterState.money[currency] !== undefined) {
         characterState.money[currency] += amount
         appliedChanges.push(`+${amount} ${currency}`)
       }
     })
 
     Object.entries(changes.moneyLost).forEach(([currency, amount]) => {
-      if (amount > 0) {
+      if (amount > 0 && characterState.money && characterState.money[currency] !== undefined) {
         characterState.money[currency] = Math.max(0, characterState.money[currency] - amount)
         appliedChanges.push(`-${amount} ${currency}`)
       }
     })
 
     // Calculate new encumbrance
-    const weightSummary = this.calculateTotalWeight(characterState.inventory)
+    const weightSummary = this.calculateTotalWeight(characterState.inventory || [])
     const encumbrance = this.calculateEncumbrance(weightSummary.total, strength)
 
     return {
@@ -1115,7 +1160,7 @@ export class InventoryParser {
       changes: appliedChanges,
       weightSummary,
       encumbrance,
-      exportData: this.exportForCharacterBuilder(characterState.inventory)
+      exportData: this.exportForCharacterBuilder(characterState.inventory || [])
     }
   }
 
@@ -1124,19 +1169,28 @@ export class InventoryParser {
    * @param {Object} item - Item to add
    */
   static addItemToInventory(item) {
+    // Ensure inventory exists
+    if (!characterState.inventory) {
+      characterState.inventory = []
+    }
+    
     const existingIndex = characterState.inventory.findIndex(inv => 
       inv.name.toLowerCase() === item.name.toLowerCase()
     )
 
     if (existingIndex >= 0) {
       const existingQuantity = parseInt(characterState.inventory[existingIndex].quantity) || 1
-      characterState.inventory[existingIndex].quantity = existingQuantity + item.quantity
+      characterState.inventory[existingIndex].quantity = existingQuantity + (item.quantity || 1)
       
       // Update weight and value
-      characterState.inventory[existingIndex].totalWeight = 
-        characterState.inventory[existingIndex].weight * characterState.inventory[existingIndex].quantity
-      characterState.inventory[existingIndex].totalValue = 
-        characterState.inventory[existingIndex].value * characterState.inventory[existingIndex].quantity
+      if (characterState.inventory[existingIndex].weight !== undefined) {
+        characterState.inventory[existingIndex].totalWeight = 
+          characterState.inventory[existingIndex].weight * characterState.inventory[existingIndex].quantity
+      }
+      if (characterState.inventory[existingIndex].value !== undefined) {
+        characterState.inventory[existingIndex].totalValue = 
+          characterState.inventory[existingIndex].value * characterState.inventory[existingIndex].quantity
+      }
       
       const currentNotes = characterState.inventory[existingIndex].notes || ''
       characterState.inventory[existingIndex].notes = currentNotes + 
@@ -1151,13 +1205,19 @@ export class InventoryParser {
    * @param {Object} item - Item to remove
    */
   static removeItemFromInventory(item) {
+    // Ensure inventory exists
+    if (!characterState.inventory) {
+      characterState.inventory = []
+      return
+    }
+    
     const existingIndex = characterState.inventory.findIndex(inv => 
       inv.name.toLowerCase() === item.name.toLowerCase()
     )
 
     if (existingIndex >= 0) {
       const existingQuantity = parseInt(characterState.inventory[existingIndex].quantity) || 1
-      const newQuantity = Math.max(0, existingQuantity - item.quantity)
+      const newQuantity = Math.max(0, existingQuantity - (item.quantity || 1))
       
       if (newQuantity === 0) {
         characterState.inventory.splice(existingIndex, 1)
@@ -1165,10 +1225,14 @@ export class InventoryParser {
         characterState.inventory[existingIndex].quantity = newQuantity
         
         // Update weight and value
-        characterState.inventory[existingIndex].totalWeight = 
-          characterState.inventory[existingIndex].weight * newQuantity
-        characterState.inventory[existingIndex].totalValue = 
-          characterState.inventory[existingIndex].value * newQuantity
+        if (characterState.inventory[existingIndex].weight !== undefined) {
+          characterState.inventory[existingIndex].totalWeight = 
+            characterState.inventory[existingIndex].weight * newQuantity
+        }
+        if (characterState.inventory[existingIndex].value !== undefined) {
+          characterState.inventory[existingIndex].totalValue = 
+            characterState.inventory[existingIndex].value * newQuantity
+        }
         
         const currentNotes = characterState.inventory[existingIndex].notes || ''
         characterState.inventory[existingIndex].notes = currentNotes + 

@@ -8,9 +8,42 @@ export function useNarrativeChat() {
   
   // Check for API key
   const hasApiKey = computed(() => {
-    const key = localStorage.getItem('openai-api-key') // FIXED: Changed from 'openai_api_key'
+    const key = localStorage.getItem('openai_api_key')
     return !!key && key.startsWith('sk-')
   })
+  
+  // Build system prompt based on context
+  function buildSystemPrompt(context) {
+    let prompt = "You are a Pathfinder 1e game narrator. Respond to player actions with vivid, immersive narration."
+    
+    if (context?.action === 'cast_spell') {
+      prompt += "\nThe player is casting a spell. Describe the magical effects dramatically."
+      prompt += `\nSpell: ${context.spell} (${context.school || 'Unknown'} school)`
+      if (context.description) {
+        prompt += `\nEffect: ${context.description}`
+      }
+    } else if (context?.action === 'use_item') {
+      prompt += "\nThe player is using an item. Describe the action and its immediate effects."
+      prompt += `\nItem: ${context.item}`
+      if (context.effect) {
+        prompt += `\nMechanical effect: ${JSON.stringify(context.effect)}`
+      }
+    } else if (context?.action === 'spell_failed') {
+      prompt += "\nThe player attempted to cast a spell but failed."
+      prompt += `\nSpell: ${context.spell}`
+      prompt += `\nReason: ${context.reason}`
+    } else if (context?.action === 'equip_item') {
+      prompt += "\nThe player is equipping an item."
+      prompt += `\nItem: ${context.item}`
+    }
+    
+    if (context?.character) {
+      prompt += `\n\nCharacter: ${context.character.name || 'Unknown'}, Level ${context.character.level || 1} ${context.character.class || 'Adventurer'}`
+      prompt += `\nHP: ${context.character.currentHp || 0}/${context.character.maxHp || 10}`
+    }
+    
+    return prompt
+  }
   
   // Send message to AI
   async function sendMessage(messageData) {
@@ -32,14 +65,10 @@ export function useNarrativeChat() {
     isLoading.value = true
     
     try {
-      const apiKey = localStorage.getItem('openai-api-key') // FIXED: Changed from 'openai_api_key'
+      const apiKey = localStorage.getItem('openai_api_key')
       
       // Build the prompt with context
-      let systemPrompt = "You are a Pathfinder 1e game narrator. Respond to player actions with vivid, immersive narration."
-      if (context?.character) {
-        systemPrompt += `\n\nCharacter: ${context.character.name || 'Unknown'}, Level ${context.character.level || 1} ${context.character.class || 'Adventurer'}`
-        systemPrompt += `\nHP: ${context.character.currentHp || 0}/${context.character.maxHp || 10}`
-      }
+      let systemPrompt = buildSystemPrompt(context)
       
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -111,6 +140,33 @@ export function useNarrativeChat() {
     URL.revokeObjectURL(url)
   }
   
+  // Generate contextual narrative for common actions
+  function generateActionNarrative(action, details = {}) {
+    const narratives = {
+      'rest': 'You settle down to rest, taking a moment to recover your strength.',
+      'search': 'You carefully examine the area, looking for anything of interest.',
+      'listen': 'You pause and focus your senses, straining to hear any sounds.',
+      'hide': 'You quickly seek cover, trying to remain unseen.',
+      'sneak': 'Moving as quietly as possible, you advance with caution.',
+      'intimidate': 'You put on your most menacing expression and stance.',
+      'persuade': 'You speak with conviction, choosing your words carefully.',
+      'defend': 'You raise your guard, preparing for incoming attacks.',
+      'charge': 'With a battle cry, you rush forward at full speed!',
+      'retreat': 'You carefully withdraw from the engagement.',
+    }
+    
+    return narratives[action] || `You ${action}.`
+  }
+  
+  // Quick action buttons data
+  const quickActions = [
+    { id: 'search', label: 'Search', icon: '🔍' },
+    { id: 'listen', label: 'Listen', icon: '👂' },
+    { id: 'rest', label: 'Rest', icon: '🏕️' },
+    { id: 'hide', label: 'Hide', icon: '🫥' },
+    { id: 'defend', label: 'Defend', icon: '🛡️' },
+  ]
+  
   return {
     messages,
     currentInput,
@@ -118,6 +174,8 @@ export function useNarrativeChat() {
     hasApiKey,
     sendMessage,
     clearMessages,
-    exportChat
+    exportChat,
+    generateActionNarrative,
+    quickActions
   }
 }

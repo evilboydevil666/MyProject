@@ -1,5 +1,5 @@
 <template>
-  <div class="character-builder-wizard-backdrop">
+  
     <div class="character-builder-wizard-container">
       <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg shadow-2xl border border-gray-700 backdrop-blur-sm bg-opacity-95">
       <!-- Header -->
@@ -106,7 +106,7 @@
           </div>
         </div>
 
-        <!-- Step 3: Class Selection (Creation) or Step 1: Class Selection (Level Up) -->
+        <!-- Step 3: Class and Favored Class Selection -->
         <div v-else-if="(!isLevelUp && currentStep === 2) || (isLevelUp && currentStep === 0)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">
             {{ isLevelUp ? 'Choose Class for Level ' + (currentLevel + 1) : 'Choose Your Class' }}
@@ -129,14 +129,15 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
               <div 
-                v-for="cls in availableClasses" 
+                v-for="cls in filteredClasses" 
                 :key="cls.id"
                 @click="selectClass(cls)"
                 :class="[
                   'class-card p-4 rounded-lg cursor-pointer transition-all',
                   selectedClass?.id === cls.id 
                     ? 'bg-green-800 border-2 border-green-400 shadow-md' 
-                    : 'bg-gray-800 border-2 border-gray-600 hover:border-gray-500 hover:bg-gray-750'
+                    : 'bg-gray-800 border-2 border-gray-600 hover:border-gray-500 hover:bg-gray-750',
+                  !meetsClassRequirements(cls) ? 'opacity-50 cursor-not-allowed' : ''
                 ]"
               >
                 <h4 class="font-bold" :class="selectedClass?.id === cls.id ? 'text-green-200' : 'text-green-300'">
@@ -152,7 +153,62 @@
                   <p class="mt-1" :class="selectedClass?.id === cls.id ? 'text-green-200' : 'text-blue-300'">
                     {{ cls.primaryAbility }}
                   </p>
+                  <p v-if="cls.alignmentRestriction" class="mt-1 text-yellow-400">
+                    Requires: {{ cls.alignmentRestriction }}
+                  </p>
                 </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Favored Class Selection (Creation Only) -->
+          <div v-if="!isLevelUp && selectedClass" class="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <h4 class="font-semibold mb-3 text-blue-300">Favored Class</h4>
+            <p class="text-sm text-gray-400 mb-3">
+              Your favored class grants you a bonus at each level. Choose your favored class:
+            </p>
+            <div class="space-y-2">
+              <label class="flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer">
+                <input 
+                  type="radio" 
+                  v-model="favoredClass" 
+                  :value="selectedClass.name"
+                  class="mr-2 text-green-500"
+                />
+                <span>{{ selectedClass.name }} (Current class)</span>
+              </label>
+              <label v-if="selectedRace?.name === 'Half-Elf'" class="flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer">
+                <input 
+                  type="radio" 
+                  v-model="favoredClass" 
+                  value="any"
+                  class="mr-2 text-green-500"
+                />
+                <span>Any (Half-Elf can choose any class)</span>
+              </label>
+            </div>
+            
+            <div v-if="favoredClass" class="mt-4 p-3 bg-gray-750 rounded">
+              <p class="text-sm font-medium mb-2 text-green-300">Favored Class Bonus (gained each level):</p>
+              <div class="space-y-2">
+                <label class="flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer">
+                  <input 
+                    type="radio" 
+                    v-model="favoredClassBonus" 
+                    value="hp"
+                    class="mr-2 text-blue-500"
+                  />
+                  <span>+1 hit point</span>
+                </label>
+                <label class="flex items-center p-2 hover:bg-gray-700 rounded cursor-pointer">
+                  <input 
+                    type="radio" 
+                    v-model="favoredClassBonus" 
+                    value="skill"
+                    class="mr-2 text-blue-500"
+                  />
+                  <span>+1 skill rank</span>
+                </label>
               </div>
             </div>
           </div>
@@ -271,6 +327,49 @@
                 </div>
               </div>
             </div>
+            
+            <!-- Derived Statistics Display -->
+            <div v-if="derivedStats" class="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
+              <h4 class="font-semibold mb-3 text-blue-300">Derived Statistics</h4>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span class="text-gray-400">Initiative:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.initiative >= 0 ? '+' : '' }}{{ derivedStats.initiative }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">HP:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.maxHP }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">AC:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.ac.total }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">Fort:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.fortitude >= 0 ? '+' : '' }}{{ derivedStats.fortitude }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">Ref:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.reflex >= 0 ? '+' : '' }}{{ derivedStats.reflex }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">Will:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.will >= 0 ? '+' : '' }}{{ derivedStats.will }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">BAB:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.bab >= 0 ? '+' : '' }}{{ derivedStats.bab }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">CMB:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.cmb >= 0 ? '+' : '' }}{{ derivedStats.cmb }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-400">CMD:</span>
+                  <span class="ml-2 text-green-300">{{ derivedStats.cmd }}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Hit Point Rolling -->
@@ -300,8 +399,9 @@
                 </div>
                 <p class="text-sm text-gray-400">
                   + <span class="text-white">{{ getAbilityModifier(getFinalAbilityScore('CON')) }}</span> (CON modifier)
-                  <span v-if="selectedClass?.name === 'Barbarian'">+ <span class="text-white">4</span> (Favored Class)</span>
-                  <span v-else>+ <span class="text-white">1</span> (Favored Class)</span>
+                  <span v-if="favoredClass === selectedClass.name && favoredClassBonus === 'hp'">
+                    + <span class="text-white">1</span> (Favored Class)
+                  </span>
                 </p>
                 <p class="text-xl font-semibold bg-green-900 bg-opacity-50 rounded p-2 inline-block">
                   Total: <span class="text-green-300">+{{ getTotalHPGain() }} HP</span>
@@ -327,6 +427,7 @@
               <p v-if="selectedClass">Class Skills: <span class="text-white">{{ selectedClass.skillPoints }}</span> + <span class="text-white">{{ getAbilityModifier(getFinalAbilityScore('INT')) }}</span> (INT)</p>
               <p v-else class="text-yellow-400">Please select a class first</p>
               <p v-if="selectedRace?.name === 'Human'">+<span class="text-white">1</span> (Human bonus)</p>
+              <p v-if="favoredClass === selectedClass?.name && favoredClassBonus === 'skill'">+<span class="text-white">1</span> (Favored class)</p>
             </div>
           </div>
 
@@ -428,8 +529,99 @@
           </div>
         </div>
 
-        <!-- Step 7: Equipment (Creation Only) -->
-        <div v-else-if="!isLevelUp && currentStep === 6" class="space-y-4">
+        <!-- Step 7: Spells (Creation Only, for spellcasters) -->
+        <div v-else-if="!isLevelUp && currentStep === 6 && isSpellcaster" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Select Spells</h3>
+          
+          <!-- Wizard Spells -->
+          <div v-if="selectedClass?.name === 'Wizard'">
+            <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
+              <p class="text-sm text-gray-400">
+                As a wizard, you know all cantrips and start with 3 + INT modifier 1st level spells in your spellbook.
+              </p>
+              <p class="text-sm text-green-300 mt-2">
+                Spells Known: {{ 3 + getAbilityModifier(getFinalAbilityScore('INT')) }}
+              </p>
+            </div>
+            
+            <!-- Cantrips -->
+            <div class="mb-6">
+              <h4 class="font-semibold text-blue-300 mb-2">Cantrips (0-level spells)</h4>
+              <p class="text-xs text-gray-400 mb-2">You know all wizard cantrips</p>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div v-for="spell in wizardCantrips" :key="spell.name" class="p-2 bg-gray-800 rounded text-sm">
+                  <span class="font-medium">{{ spell.name }}</span>
+                  <p class="text-xs text-gray-400">{{ spell.school }}</p>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 1st Level Spells -->
+            <div>
+              <h4 class="font-semibold text-blue-300 mb-2">1st Level Spells</h4>
+              <p class="text-xs text-gray-400 mb-2">
+                Selected: {{ selectedSpells.length }} / {{ 3 + getAbilityModifier(getFinalAbilityScore('INT')) }}
+              </p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div 
+                  v-for="spell in wizard1stLevelSpells" 
+                  :key="spell.name"
+                  @click="toggleSpell(spell)"
+                  :class="[
+                    'p-3 rounded cursor-pointer transition-all',
+                    selectedSpells.includes(spell.name) 
+                      ? 'bg-green-800 border-2 border-green-400' 
+                      : 'bg-gray-800 border-2 border-gray-600 hover:border-gray-500',
+                    selectedSpells.length >= (3 + getAbilityModifier(getFinalAbilityScore('INT'))) && !selectedSpells.includes(spell.name)
+                      ? 'opacity-50 cursor-not-allowed' : ''
+                  ]"
+                >
+                  <h5 class="font-medium">{{ spell.name }}</h5>
+                  <p class="text-xs text-gray-400">{{ spell.school }}</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ spell.description }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Divine Casters -->
+          <div v-else-if="isDivineCaster">
+            <div class="p-4 bg-gray-800 rounded border border-gray-700">
+              <p class="text-sm text-gray-400 mb-2">
+                As a {{ selectedClass.name }}, you have access to all spells on your spell list.
+              </p>
+              <p class="text-sm text-green-300">
+                You can prepare {{ getSpellsPerDay() }} spells per day.
+              </p>
+              
+              <!-- Domain Selection for Clerics -->
+              <div v-if="selectedClass?.name === 'Cleric'" class="mt-4">
+                <h4 class="font-semibold text-blue-300 mb-2">Choose Domains</h4>
+                <p class="text-xs text-gray-400 mb-2">Select 2 domains from your deity</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <div 
+                    v-for="domain in availableDomains" 
+                    :key="domain"
+                    @click="toggleDomain(domain)"
+                    :class="[
+                      'p-2 rounded cursor-pointer text-sm transition-all',
+                      selectedDomains.includes(domain) 
+                        ? 'bg-green-800 border border-green-400' 
+                        : 'bg-gray-700 border border-gray-600 hover:border-gray-500',
+                      selectedDomains.length >= 2 && !selectedDomains.includes(domain)
+                        ? 'opacity-50 cursor-not-allowed' : ''
+                    ]"
+                  >
+                    {{ domain }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 8: Equipment (Creation Only) -->
+        <div v-else-if="!isLevelUp && ((isSpellcaster && currentStep === 7) || (!isSpellcaster && currentStep === 6))" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Starting Equipment</h3>
           
           <!-- Gold Display -->
@@ -705,8 +897,8 @@
           </div>
         </div>
 
-        <!-- Step 8: Character Details (Creation Only) -->
-        <div v-else-if="!isLevelUp && currentStep === 7" class="space-y-4">
+        <!-- Step 9: Character Details (Creation Only) -->
+        <div v-else-if="!isLevelUp && ((isSpellcaster && currentStep === 8) || (!isSpellcaster && currentStep === 7))" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Character Details</h3>
           
           <div class="flex justify-end mb-4">
@@ -945,7 +1137,7 @@
         </div>
 
         <!-- Summary -->
-        <div v-else-if="(!isLevelUp && currentStep === 8) || (isLevelUp && currentStep === 4)" class="space-y-4">
+        <div v-else-if="(!isLevelUp && ((isSpellcaster && currentStep === 9) || (!isSpellcaster && currentStep === 8))) || (isLevelUp && currentStep === 4)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Summary</h3>
           
           <div class="bg-gray-800 p-4 rounded-lg space-y-3 border border-gray-700">
@@ -961,6 +1153,7 @@
                 <p><strong class="text-gray-400">Alignment:</strong> <span class="text-white">{{ characterDetails.alignment }}</span></p>
               </div>
               <p v-if="characterDetails.deity"><strong class="text-gray-400">Deity:</strong> <span class="text-white">{{ characterDetails.deity }}</span></p>
+              <p v-if="favoredClass"><strong class="text-gray-400">Favored Class:</strong> <span class="text-white">{{ favoredClass }} ({{ favoredClassBonus === 'hp' ? '+1 HP/level' : '+1 skill/level' }})</span></p>
               
               <!-- Physical Description -->
               <div v-if="characterDetails.age || characterDetails.height || characterDetails.weight" class="bg-gray-750 p-3 rounded">
@@ -985,8 +1178,28 @@
                 </div>
               </div>
               
+              <!-- Derived Stats -->
+              <div v-if="derivedStats" class="bg-gray-750 p-3 rounded">
+                <p class="font-semibold mb-1 text-blue-300">Combat Statistics:</p>
+                <div class="grid grid-cols-2 gap-2 text-sm ml-4">
+                  <p><span class="text-gray-400">HP:</span> {{ derivedStats.maxHP }}</p>
+                  <p><span class="text-gray-400">Initiative:</span> {{ derivedStats.initiative >= 0 ? '+' : '' }}{{ derivedStats.initiative }}</p>
+                  <p><span class="text-gray-400">AC:</span> {{ derivedStats.ac.total }}</p>
+                  <p><span class="text-gray-400">BAB:</span> {{ derivedStats.bab >= 0 ? '+' : '' }}{{ derivedStats.bab }}</p>
+                  <p><span class="text-gray-400">Fort:</span> {{ derivedStats.fortitude >= 0 ? '+' : '' }}{{ derivedStats.fortitude }}</p>
+                  <p><span class="text-gray-400">Ref:</span> {{ derivedStats.reflex >= 0 ? '+' : '' }}{{ derivedStats.reflex }}</p>
+                  <p><span class="text-gray-400">Will:</span> {{ derivedStats.will >= 0 ? '+' : '' }}{{ derivedStats.will }}</p>
+                  <p><span class="text-gray-400">CMB:</span> {{ derivedStats.cmb >= 0 ? '+' : '' }}{{ derivedStats.cmb }}</p>
+                  <p><span class="text-gray-400">CMD:</span> {{ derivedStats.cmd }}</p>
+                </div>
+              </div>
+              
               <p v-if="characterDetails.languages.length > 0">
                 <strong class="text-gray-400">Languages:</strong> <span class="text-white">{{ characterDetails.languages.join(', ') }}</span>
+              </p>
+              
+              <p v-if="selectedSpells.length > 0">
+                <strong class="text-gray-400">Spells Known:</strong> <span class="text-white">{{ selectedSpells.join(', ') }}</span>
               </p>
             </div>
             
@@ -1016,6 +1229,7 @@
           <div v-if="!canProceed" class="text-xs text-red-400 mr-4">
             <p v-if="!isLevelUp && currentStep === 1 && !selectedRace">Select a race to continue</p>
             <p v-else-if="currentStep === 2 && !selectedClass">Select a class to continue</p>
+            <p v-else-if="currentStep === 2 && !favoredClass && !isLevelUp">Select a favored class to continue</p>
             <p v-else>Complete this step to continue</p>
           </div>
           
@@ -1036,7 +1250,7 @@
       </div>
       </div>
     </div>
-  </div>
+  
 </template>
 
 <script setup>
@@ -1044,6 +1258,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { characterState } from '@/characterState.js'
 // Import the race data from pathfinderRaces.js - Try different import paths
 import { pathfinderRaces, getAllRaces, getRaceById } from '@/data/pathfinderRaces.js'
+import { InventoryParser } from '@/utils/InventoryParser.js'
+import { StorageService } from '@/services/StorageService.js'
+import { useChatGPT } from '@/composables/useChatGPT'
+const storageService = new StorageService('pathfinder')
+const { sendToChatGPT } = useChatGPT()
 
 /* 
  * Integration with Inventory System:
@@ -1090,6 +1309,10 @@ const currentClasses = ref([])
 const currentLevel = ref(0)
 const selectedRaceCategory = ref('Core')
 
+// Favored Class
+const favoredClass = ref('')
+const favoredClassBonus = ref('hp') // 'hp' or 'skill'
+
 // Character details
 const characterDetails = ref({
   name: '',
@@ -1111,12 +1334,23 @@ const characterDetails = ref({
   distinguishingFeatures: ''
 })
 
+// Spell-related state
+const selectedSpells = ref([])
+const selectedDomains = ref([])
+
 // Common character data
 const alignments = [
   'LG', 'NG', 'CG',
   'LN', 'TN', 'CN',
   'LE', 'NE', 'CE'
 ]
+
+const alignmentRestrictions = {
+  'Paladin': ['LG'],
+  'Monk': ['LG', 'LN', 'LE', 'NG', 'TN', 'NE', 'CG', 'CN', 'CE'], // Any
+  'Barbarian': ['NG', 'CG', 'TN', 'CN', 'NE', 'CE'], // Non-lawful
+  'Druid': ['NG', 'LN', 'TN', 'CN', 'NE'], // Neutral on one axis
+}
 
 const commonLanguages = [
   'Common', 'Dwarven', 'Elven', 'Giant', 'Gnome', 'Goblin', 
@@ -1148,6 +1382,57 @@ const deities = [
   { name: 'Zon-Kuthon', alignment: 'LE', domains: 'Envy, pain, darkness' }
 ]
 
+// Spell data
+const wizardCantrips = [
+  { name: 'Acid Splash', school: 'Conjuration' },
+  { name: 'Arcane Mark', school: 'Universal' },
+  { name: 'Dancing Lights', school: 'Evocation' },
+  { name: 'Daze', school: 'Enchantment' },
+  { name: 'Detect Magic', school: 'Divination' },
+  { name: 'Detect Poison', school: 'Divination' },
+  { name: 'Flare', school: 'Evocation' },
+  { name: 'Ghost Sound', school: 'Illusion' },
+  { name: 'Light', school: 'Evocation' },
+  { name: 'Mage Hand', school: 'Transmutation' },
+  { name: 'Mending', school: 'Transmutation' },
+  { name: 'Message', school: 'Transmutation' },
+  { name: 'Open/Close', school: 'Transmutation' },
+  { name: 'Prestidigitation', school: 'Universal' },
+  { name: 'Ray of Frost', school: 'Evocation' },
+  { name: 'Read Magic', school: 'Divination' },
+  { name: 'Resistance', school: 'Abjuration' },
+  { name: 'Touch of Fatigue', school: 'Necromancy' }
+]
+
+const wizard1stLevelSpells = [
+  { name: 'Alarm', school: 'Abjuration', description: 'Wards an area for 2 hours/level' },
+  { name: 'Burning Hands', school: 'Evocation', description: '1d4/level fire damage (max 5d4)' },
+  { name: 'Charm Person', school: 'Enchantment', description: 'Makes one person your friend' },
+  { name: 'Color Spray', school: 'Illusion', description: 'Knocks unconscious, blinds, stuns' },
+  { name: 'Detect Secret Doors', school: 'Divination', description: 'Reveals hidden doors' },
+  { name: 'Disguise Self', school: 'Illusion', description: 'Changes your appearance' },
+  { name: 'Enlarge Person', school: 'Transmutation', description: 'Humanoid creature doubles in size' },
+  { name: 'Feather Fall', school: 'Transmutation', description: 'Objects or creatures fall slowly' },
+  { name: 'Grease', school: 'Conjuration', description: 'Makes 10-ft. square or object slippery' },
+  { name: 'Identify', school: 'Divination', description: 'Identifies magic item properties' },
+  { name: 'Mage Armor', school: 'Conjuration', description: '+4 armor bonus to AC' },
+  { name: 'Magic Missile', school: 'Evocation', description: '1d4+1 damage, always hits' },
+  { name: 'Protection from Evil', school: 'Abjuration', description: '+2 AC and saves vs evil' },
+  { name: 'Shield', school: 'Abjuration', description: '+4 AC, blocks magic missiles' },
+  { name: 'Shocking Grasp', school: 'Evocation', description: 'Touch delivers 1d6/level electricity' },
+  { name: 'Silent Image', school: 'Illusion', description: 'Creates minor illusion' },
+  { name: 'Sleep', school: 'Enchantment', description: 'Puts 4 HD of creatures to sleep' },
+  { name: 'Summon Monster I', school: 'Conjuration', description: 'Summons extraplanar creature' }
+]
+
+const availableDomains = [
+  'Air', 'Animal', 'Artifice', 'Chaos', 'Charm', 'Community', 'Darkness',
+  'Death', 'Destruction', 'Earth', 'Evil', 'Fire', 'Glory', 'Good',
+  'Healing', 'Knowledge', 'Law', 'Liberation', 'Luck', 'Madness', 'Magic',
+  'Nobility', 'Plant', 'Protection', 'Repose', 'Rune', 'Strength', 'Sun',
+  'Travel', 'Trickery', 'War', 'Water', 'Weather'
+]
+
 // Ability scores
 const abilityMethod = ref('standard')
 const abilities = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
@@ -1177,6 +1462,7 @@ const selectedEquipmentCategory = ref('Weapons')
 const equipmentSearch = ref('')
 const customItemName = ref('')
 const customItemCost = ref(0)
+const customItemWeight = ref(0)
 const actualStartingGold = ref(0)
 const goldRollMessage = ref('')
 
@@ -1455,7 +1741,9 @@ const availableClasses = [
     skillPoints: 2,
     primaryAbility: 'STR or DEX',
     classSkills: ['Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (engineering)', 'Profession', 'Ride', 'Survival', 'Swim'],
-    bonusFeats: true
+    bonusFeats: true,
+    alignmentRestriction: null,
+    saves: { fort: 'good', ref: 'poor', will: 'poor' }
   },
   {
     id: 'wizard',
@@ -1465,7 +1753,13 @@ const availableClasses = [
     skillPoints: 2,
     primaryAbility: 'INT',
     classSkills: ['Appraise', 'Craft', 'Fly', 'Knowledge (all)', 'Linguistics', 'Profession', 'Spellcraft'],
-    bonusFeats: true
+    bonusFeats: true,
+    alignmentRestriction: null,
+    saves: { fort: 'poor', ref: 'poor', will: 'good' },
+    spellcaster: true,
+    spellType: 'arcane',
+    spellsKnown: 'all',
+    spellsPrepared: true
   },
   {
     id: 'rogue',
@@ -1475,7 +1769,9 @@ const availableClasses = [
     skillPoints: 8,
     primaryAbility: 'DEX',
     classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (local)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Stealth', 'Swim', 'Use Magic Device'],
-    bonusFeats: false
+    bonusFeats: false,
+    alignmentRestriction: null,
+    saves: { fort: 'poor', ref: 'good', will: 'poor' }
   },
   {
     id: 'cleric',
@@ -1485,7 +1781,12 @@ const availableClasses = [
     skillPoints: 2,
     primaryAbility: 'WIS',
     classSkills: ['Appraise', 'Craft', 'Diplomacy', 'Heal', 'Knowledge (arcana)', 'Knowledge (history)', 'Knowledge (nobility)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Profession', 'Sense Motive', 'Spellcraft'],
-    bonusFeats: false
+    bonusFeats: false,
+    alignmentRestriction: null,
+    saves: { fort: 'good', ref: 'poor', will: 'good' },
+    spellcaster: true,
+    spellType: 'divine',
+    domains: true
   },
   {
     id: 'barbarian',
@@ -1495,7 +1796,9 @@ const availableClasses = [
     skillPoints: 4,
     primaryAbility: 'STR',
     classSkills: ['Acrobatics', 'Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (nature)', 'Perception', 'Ride', 'Survival', 'Swim'],
-    bonusFeats: false
+    bonusFeats: false,
+    alignmentRestriction: 'Non-lawful',
+    saves: { fort: 'good', ref: 'poor', will: 'poor' }
   },
   {
     id: 'ranger',
@@ -1505,7 +1808,21 @@ const availableClasses = [
     skillPoints: 6,
     primaryAbility: 'STR or DEX',
     classSkills: ['Climb', 'Craft', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (geography)', 'Knowledge (nature)', 'Perception', 'Profession', 'Ride', 'Spellcraft', 'Stealth', 'Survival', 'Swim'],
-    bonusFeats: false
+    bonusFeats: false,
+    alignmentRestriction: null,
+    saves: { fort: 'good', ref: 'good', will: 'poor' }
+  },
+  {
+    id: 'paladin',
+    name: 'Paladin',
+    hitDie: 'd10',
+    bab: 'Full',
+    skillPoints: 2,
+    primaryAbility: 'STR',
+    classSkills: ['Craft', 'Diplomacy', 'Handle Animal', 'Heal', 'Knowledge (nobility)', 'Knowledge (religion)', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft'],
+    bonusFeats: false,
+    alignmentRestriction: 'Lawful Good',
+    saves: { fort: 'good', ref: 'poor', will: 'good' }
   }
 ]
 
@@ -1652,10 +1969,59 @@ const equipmentPacks = [
   }
 ]
 
-// Computed
+// Computed properties
+const isSpellcaster = computed(() => {
+  return selectedClass.value?.spellcaster || false
+})
+
+const isDivineCaster = computed(() => {
+  return selectedClass.value?.spellType === 'divine'
+})
+
+const derivedStats = computed(() => {
+  if (!selectedClass.value || !selectedRace.value) return null
+  
+  const level = isLevelUp.value ? currentLevel.value + 1 : 1
+  
+  return {
+    // Base Attack Bonus
+    bab: calculateBAB(selectedClass.value, level),
+    
+    // Hit Points
+    maxHP: calculateMaxHP(),
+    
+    // Saves
+    fortitude: calculateSave('fort', selectedClass.value, level) + getAbilityModifier(getFinalAbilityScore('CON')),
+    reflex: calculateSave('ref', selectedClass.value, level) + getAbilityModifier(getFinalAbilityScore('DEX')),
+    will: calculateSave('will', selectedClass.value, level) + getAbilityModifier(getFinalAbilityScore('WIS')),
+    
+    // Combat stats
+    initiative: getAbilityModifier(getFinalAbilityScore('DEX')) + (selectedFeats.value.includes('Improved Initiative') ? 4 : 0),
+    
+    // AC components
+    ac: {
+      total: 10 + getAbilityModifier(getFinalAbilityScore('DEX')) + getSizeModifier(selectedRace.value.size),
+      base: 10,
+      dex: getAbilityModifier(getFinalAbilityScore('DEX')),
+      size: getSizeModifier(selectedRace.value.size)
+    },
+    
+    // CMB/CMD
+    cmb: calculateBAB(selectedClass.value, level) + getAbilityModifier(getFinalAbilityScore('STR')) - getSizeModifier(selectedRace.value.size),
+    cmd: 10 + calculateBAB(selectedClass.value, level) + getAbilityModifier(getFinalAbilityScore('STR')) + getAbilityModifier(getFinalAbilityScore('DEX')) - getSizeModifier(selectedRace.value.size)
+  }
+})
+
+const filteredClasses = computed(() => {
+  if (!characterDetails.value.alignment) return availableClasses
+  return availableClasses.filter(cls => meetsClassRequirements(cls))
+})
+
 const totalSteps = computed(() => {
   if (isLevelUp.value) return 5 // Class, HP, Skills, Feats, Summary
-  return 9 // Mode, Race, Class, Abilities, Skills, Feats, Equipment, Details, Summary
+  // For creation: Mode, Race, Class+Favored, Abilities, Skills, Feats, [Spells], Equipment, Details, Summary
+  if (isSpellcaster.value) return 10
+  return 9
 })
 
 const canProceed = computed(() => {
@@ -1668,13 +2034,26 @@ const canProceed = computed(() => {
         const canProceedStep1 = selectedRace.value !== null
         console.log('Step 1 (Race) can proceed:', canProceedStep1, 'Selected race:', selectedRace.value)
         return canProceedStep1
-      case 2: return selectedClass.value !== null // Class
+      case 2: return selectedClass.value !== null && (favoredClass.value !== '' || isLevelUp.value) // Class & Favored Class
       case 3: return validateAbilityScores()
       case 4: return true // Skills (can skip)
       case 5: return selectedFeats.value.length <= featsRemaining.value // Allow 0 feats
-      case 6: return true // Equipment (can skip)
-      case 7: return true // Character details (can skip)
-      case 8: return true // Summary
+      case 6: 
+        if (isSpellcaster.value) {
+          // Spell selection - check if wizard has selected enough spells
+          if (selectedClass.value?.name === 'Wizard') {
+            return selectedSpells.value.length === (3 + getAbilityModifier(getFinalAbilityScore('INT')))
+          }
+          // Cleric domain selection
+          if (selectedClass.value?.name === 'Cleric') {
+            return selectedDomains.value.length === 2
+          }
+          return true
+        }
+        return true // Equipment (can skip)
+      case 7: return true // Equipment or Details (can skip)
+      case 8: return true // Details (can skip)
+      case 9: return true // Summary
     }
   } else {
     switch (currentStep.value) {
@@ -1746,6 +2125,8 @@ function formatAbilityMods(mods) {
     .join(', ')
 }
 
+
+
 // Get a summary of race traits
 function getRaceTraitSummary(race) {
   if (race.racialTraits && race.racialTraits.length > 0) {
@@ -1776,8 +2157,20 @@ function selectRace(race) {
 }
 
 function selectClass(cls) {
+  if (!meetsClassRequirements(cls)) return
   selectedClass.value = cls
+  favoredClass.value = cls.name // Default to selected class
+  rollStartingGold()
   calculateSkillPoints()
+}
+
+function meetsClassRequirements(cls) {
+  if (!cls.alignmentRestriction) return true
+  
+  const restrictions = alignmentRestrictions[cls.name]
+  if (!restrictions) return true
+  
+  return restrictions.includes(characterDetails.value.alignment)
 }
 
 function validateAbilityScores() {
@@ -1840,15 +2233,77 @@ function getAbilityModifier(score) {
   return Math.floor((score - 10) / 2)
 }
 
+function rollStartingGold() {
+  if (!selectedClass.value) return
+  
+  const goldDice = startingGoldDice[selectedClass.value.name] || startingGoldDice.default
+  let total = 0
+  let rolls = []
+  
+  for (let i = 0; i < goldDice.dice; i++) {
+    const roll = Math.floor(Math.random() * goldDice.sides) + 1
+    rolls.push(roll)
+    total += roll
+  }
+  
+  actualStartingGold.value = total * goldDice.multiplier
+  goldRollMessage.value = `Rolled ${rolls.join('+')} = ${total} × ${goldDice.multiplier} = ${actualStartingGold.value}gp`
+  
+  // Clear message after 5 seconds
+  setTimeout(() => {
+    goldRollMessage.value = ''
+  }, 5000)
+}
+
+function calculateBAB(cls, level) {
+  if (cls.bab === 'Full') return level
+  if (cls.bab === '3/4') return Math.floor(level * 0.75)
+  if (cls.bab === '1/2') return Math.floor(level * 0.5)
+  return 0
+}
+
+function calculateSave(type, cls, level) {
+  const progression = cls.saves[type]
+  if (progression === 'good') {
+    return 2 + Math.floor(level / 2)
+  } else {
+    return Math.floor(level / 3)
+  }
+}
+
+function getSizeModifier(size) {
+  const modifiers = {
+    'Fine': 8,
+    'Diminutive': 4,
+    'Tiny': 2,
+    'Small': 1,
+    'Medium': 0,
+    'Large': -1,
+    'Huge': -2,
+    'Gargantuan': -4,
+    'Colossal': -8
+  }
+  return modifiers[size] || 0
+}
+
+function calculateMaxHP() {
+  if (!selectedClass.value) return 0
+  
+  const dieSize = parseInt(selectedClass.value.hitDie.substring(1))
+  const conMod = getAbilityModifier(getFinalAbilityScore('CON'))
+  const fcBonus = (favoredClass.value === selectedClass.value.name && favoredClassBonus.value === 'hp') ? 1 : 0
+  const toughnessBonus = selectedFeats.value.includes('Toughness') ? 3 : 0
+  
+  return dieSize + conMod + fcBonus + toughnessBonus
+}
+
 function rollHitPoints() {
-  if (!selectedClass.value?.hitDie) return
   const dieSize = parseInt(selectedClass.value.hitDie.substring(1))
   hitPointRoll.value = Math.floor(Math.random() * dieSize) + 1
   hitPointsRolled.value = true
 }
 
 function getAverageHP() {
-  if (!selectedClass.value?.hitDie) return 0
   const dieSize = parseInt(selectedClass.value.hitDie.substring(1))
   return Math.floor(dieSize / 2) + 1
 }
@@ -1860,8 +2315,8 @@ function takeAverageHP() {
 
 function getTotalHPGain() {
   const conMod = getAbilityModifier(getFinalAbilityScore('CON'))
-  const favoredClassBonus = 1 // Could be HP or skill point
-  return hitPointRoll.value + conMod + favoredClassBonus
+  const fcBonus = (favoredClass.value === selectedClass.value.name && favoredClassBonus.value === 'hp') ? 1 : 0
+  return hitPointRoll.value + conMod + fcBonus
 }
 
 function calculateSkillPoints() {
@@ -1879,8 +2334,14 @@ function calculateSkillPoints() {
     points += 1
   }
   
+  // Favored class bonus
+  if (!isLevelUp.value || (favoredClass.value === selectedClass.value.name && favoredClassBonus.value === 'skill')) {
+    points += 1
+  }
+  
   // Minimum 1 skill point
   points = Math.max(1, points)
+  
   
   totalSkillPoints.value = points
   skillPointsRemaining.value = points
@@ -1955,7 +2416,7 @@ function getBonusFeatsCount() {
 
 function meetsPrerequisites(feat) {
   if (!feat.prerequisites) return true
-  // Simplified - would need full prerequisite parsing
+  // TODO: Implement full prerequisite parsing
   return true
 }
 
@@ -1968,6 +2429,34 @@ function toggleFeat(feat) {
   } else if (selectedFeats.value.length < featsRemaining.value) {
     selectedFeats.value.push(feat.name)
   }
+}
+
+// Spell-related methods
+function toggleSpell(spell) {
+  const maxSpells = 3 + getAbilityModifier(getFinalAbilityScore('INT'))
+  const index = selectedSpells.value.indexOf(spell.name)
+  
+  if (index > -1) {
+    selectedSpells.value.splice(index, 1)
+  } else if (selectedSpells.value.length < maxSpells) {
+    selectedSpells.value.push(spell.name)
+  }
+}
+
+function toggleDomain(domain) {
+  const index = selectedDomains.value.indexOf(domain)
+  
+  if (index > -1) {
+    selectedDomains.value.splice(index, 1)
+  } else if (selectedDomains.value.length < 2) {
+    selectedDomains.value.push(domain)
+  }
+}
+
+function getSpellsPerDay() {
+  // Simplified for 1st level
+  const wisMod = getAbilityModifier(getFinalAbilityScore('WIS'))
+  return 1 + wisMod // 1 base + WIS modifier for 1st level spells
 }
 
 function selectEquipmentPack(pack) {
@@ -2152,28 +2641,6 @@ function getStartingGoldFormula() {
   return `${goldDice.dice}d${goldDice.sides} × ${goldDice.multiplier}`
 }
 
-function rollStartingGold() {
-  if (!selectedClass.value) return
-  
-  const goldDice = startingGoldDice[selectedClass.value.name] || startingGoldDice.default
-  let total = 0
-  let rolls = []
-  
-  for (let i = 0; i < goldDice.dice; i++) {
-    const roll = Math.floor(Math.random() * goldDice.sides) + 1
-    rolls.push(roll)
-    total += roll
-  }
-  
-  actualStartingGold.value = total * goldDice.multiplier
-  goldRollMessage.value = `Rolled ${rolls.join('+')} = ${total} × ${goldDice.multiplier} = ${actualStartingGold.value}gp`
-  
-  // Clear message after 5 seconds
-  setTimeout(() => {
-    goldRollMessage.value = ''
-  }, 5000)
-}
-
 function getCarryingCapacity() {
   const str = getFinalAbilityScore('STR')
   // Light load capacities by Strength score
@@ -2347,6 +2814,8 @@ function generateQuickCharacter() {
     }
   }
   selectedClass.value = availableClasses[0] // Fighter
+  favoredClass.value = 'Fighter'
+  favoredClassBonus.value = 'hp'
   
   // Standard array
   abilityScores.value = {
@@ -2365,9 +2834,62 @@ function generateQuickCharacter() {
   // Generate random details
   generateRandomDetails()
   characterDetails.value.name = 'Quick Hero'
+  characterDetails.value.alignment = 'NG'
   
   // Jump to summary
-  currentStep.value = 8 // Updated for new step count
+  currentStep.value = totalSteps.value - 1
+}
+
+async function fetchSpellDetails(spellNames) {
+  const spellDetails = []
+  
+  for (const spellName of spellNames) {
+    try {
+      const prompt = `Provide Pathfinder 1e spell details for "${spellName}" in JSON format:
+      {
+        "name": "${spellName}",
+        "level": <spell level as number>,
+        "school": "<school of magic>",
+        "castingTime": "<casting time>",
+        "components": ["V", "S", "M/F/DF"],
+        "range": "<range>",
+        "area": "<area if applicable>",
+        "effect": "<effect if applicable>",
+        "duration": "<duration>",
+        "savingThrow": "<save type and effect>",
+        "spellResistance": "<yes/no>",
+        "description": "<full spell description>"
+      }`
+      
+      const response = await sendToChatGPT(prompt, {}, {
+        temperature: 0.1,
+        systemPrompt: 'You are a Pathfinder 1e rules expert. Provide accurate spell information in the exact JSON format requested.'
+      })
+      
+      try {
+        const spellData = JSON.parse(response)
+        spellDetails.push(spellData)
+      } catch (e) {
+        console.error('Failed to parse spell JSON:', e)
+        spellDetails.push({
+          name: spellName,
+          level: 1,
+          school: 'Unknown',
+          description: response
+        })
+      }
+    } catch (error) {
+      console.error(`Failed to fetch details for ${spellName}:`, error)
+      spellDetails.push({
+        name: spellName,
+        level: 1,
+        school: 'Unknown',
+        description: 'Failed to load spell details'
+      })
+    }
+  }
+  
+  return spellDetails
 }
 
 function nextStep() {
@@ -2396,7 +2918,7 @@ function previousStep() {
   }
 }
 
-function completeCharacter() {
+async function completeCharacter() {
   // Map equipment categories to inventory system categories
   const categoryMap = {
     'weapons': 'weapons',
@@ -2436,11 +2958,14 @@ function completeCharacter() {
     ...characterDetails.value, // Include all character details
     race: selectedRace.value,
     class: selectedClass.value,
+    favoredClass: favoredClass.value,
+    favoredClassBonus: favoredClassBonus.value,
     abilityScores: { ...abilityScores.value },
     finalAbilityScores: abilities.reduce((acc, ability) => {
       acc[ability] = getFinalAbilityScore(ability)
       return acc
     }, {}),
+    derivedStats: derivedStats.value,
     skills: { ...skillRanks.value },
     feats: [...selectedFeats.value],
     equipment: formattedEquipment,
@@ -2450,13 +2975,192 @@ function completeCharacter() {
       sp: 0,
       cp: 0
     },
+    spells: selectedSpells.value,
+    domains: selectedDomains.value,
     hitPointsGained: isLevelUp.value ? getTotalHPGain() : null
   }
+  
+  // Apply to character state
+  await applyCharacterData(characterData)
   
   emit('complete', characterData)
   if (props.onComplete) {
     props.onComplete(characterData)
   }
+}
+
+async function applyCharacterData(data) {
+  if (!isLevelUp.value) {
+    // Basic info
+    characterState.name = data.name
+    characterState.gender = data.gender
+    characterState.age = data.age
+    characterState.alignment = data.alignment
+    characterState.race = data.race.name
+    characterState.favoredClass = data.favoredClass
+    characterState.deity = data.deity
+    characterState.homeland = data.homeland
+    characterState.height = data.height
+    characterState.weight = data.weight
+    characterState.eyes = data.eyes
+    characterState.hair = data.hair
+    characterState.skin = data.skin
+    
+    // Class
+    characterState.classes = [{
+      className: data.class.name,
+      level: 1
+    }]
+    
+    // Ability scores
+    Object.assign(characterState.abilityScores, data.finalAbilityScores)
+    
+    // Calculate ability modifiers
+    for (const ability of abilities) {
+      characterState.abilityMods[ability] = getAbilityModifier(data.finalAbilityScores[ability])
+    }
+    
+    // Combat stats
+    characterState.hp = data.derivedStats.maxHP
+    characterState.hpMax = data.derivedStats.maxHP
+    characterState.bab = data.derivedStats.bab
+    characterState.init = data.derivedStats.initiative
+    characterState.initiativeMod = data.derivedStats.initiative
+    characterState.ac = data.derivedStats.ac.total
+    characterState.touchAC = 10 + data.derivedStats.ac.dex + data.derivedStats.ac.size
+    characterState.flatAC = 10 + data.derivedStats.ac.size
+    characterState.cmb = data.derivedStats.cmb
+    characterState.cmd = data.derivedStats.cmd
+    
+    // Saves
+    characterState.saves.fort = data.derivedStats.fortitude
+    characterState.saves.ref = data.derivedStats.reflex
+    characterState.saves.will = data.derivedStats.will
+    
+    // Skills - update the characterState skills array
+    for (const skillName in data.skills) {
+      const skill = characterState.skills.find(s => s.name === skillName)
+      if (skill) {
+        skill.rank = data.skills[skillName]
+      }
+    }
+    
+    // Feats
+    characterState.feats = data.feats.map(featName => ({
+      name: featName,
+      desc: availableFeats.find(f => f.name === featName)?.description || ''
+    }))
+    
+    // Money
+    characterState.money = data.startingMoney
+    
+    // Languages
+    characterState.languages = data.languages || ['Common']
+    
+    // Equipment
+    if (data.equipment && Array.isArray(data.equipment)) {
+  data.equipment.forEach(item => {
+    if (item && item.name) {
+      characterState.inventory.push({
+        name: item.name,
+        quantity: item.quantity || 1,
+        category: item.category || 'miscellaneous',
+        type: item.type || '',
+        value: item.value || 0,
+        weight: item.weight || 0,
+        equipped: false,
+        notes: item.notes || ''
+      })
+    }
+  })
+}
+    
+    // Racial traits
+    characterState.vision = data.race.racialTraits?.find(t => t.name.includes('vision'))?.name || 'Normal'
+    characterState.speed = data.race.speed
+    
+    // Spells (if applicable)
+if (data.spells && data.spells.length > 0) {
+  console.log('Fetching spell details...')
+  
+  try {
+    const spellDetails = await fetchSpellDetails(data.spells)
+    
+    characterState.spellsKnown = data.spells
+    characterState.spells = spellDetails.map(spell => {
+      const isCantrip = wizardCantrips.some(c => c.name === spell.name)
+      
+      return {
+        ...spell,
+        level: isCantrip ? 0 : (spell.level || 1),
+        prepared: true,
+        source: 'Wizard'
+      }
+    })
+    
+    if (data.class.name === 'Wizard') {
+      const intMod = getAbilityModifier(data.finalAbilityScores.INT)
+      characterState.spellSlots = {
+        0: { used: 0, max: 3 },
+        1: { used: 0, max: 1 + Math.max(0, intMod) },
+        2: { used: 0, max: 0 },
+        3: { used: 0, max: 0 },
+        4: { used: 0, max: 0 },
+        5: { used: 0, max: 0 },
+        6: { used: 0, max: 0 },
+        7: { used: 0, max: 0 },
+        8: { used: 0, max: 0 },
+        9: { used: 0, max: 0 }
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch spell details:', error)
+    characterState.spells = data.spells.map(spellName => ({
+      name: spellName,
+      level: 1,
+      school: 'Unknown',
+      description: 'Details unavailable'
+    }))
+  }
+}
+    
+  } else {
+    // Level up existing character
+    const classEntry = characterState.classes.find(c => c.className === data.class.name)
+    if (classEntry) {
+      classEntry.level++
+    } else {
+      characterState.classes.push({
+        className: data.class.name,
+        level: 1
+      })
+    }
+    
+    // Update HP
+    characterState.hpMax += data.hitPointsGained
+    characterState.hp += data.hitPointsGained
+    
+    // Update skills
+    for (const skillName in data.skills) {
+      const skill = characterState.skills.find(s => s.name === skillName)
+      if (skill) {
+        skill.rank += data.skills[skillName]
+      }
+    }
+    
+    // Add new feats
+    data.feats.forEach(featName => {
+      if (!characterState.feats.find(f => f.name === featName)) {
+        characterState.feats.push({
+          name: featName,
+          desc: availableFeats.find(f => f.name === featName)?.description || ''
+        })
+      }
+    })
+  }
+  
+  // Save to storage
+  storageService.save('character', characterState)
 }
 
 function cancel() {
@@ -2468,10 +3172,6 @@ function cancel() {
 
 // Initialize
 onMounted(() => {
-  console.log('CharacterBuilderWizard mounted')
-  console.log('pathfinderRaces:', pathfinderRaces)
-  console.log('Core races:', pathfinderRaces.core)
-  
   if (isLevelUp.value) {
     // Load current character data
     currentClasses.value = characterState.classes || []
@@ -2486,9 +3186,19 @@ onMounted(() => {
     if (characterState.languages) {
       characterDetails.value.languages = [...characterState.languages]
     }
+    
+    // Set favored class
+    favoredClass.value = characterState.favoredClass || ''
   } else {
     // New character - set default starting language
     characterDetails.value.languages = ['Common']
+  }
+})
+
+// Watch for race selection to initialize favored class for Half-Elves
+watch(selectedRace, (newRace) => {
+  if (newRace?.name === 'Half-Elf' && !favoredClass.value) {
+    favoredClass.value = 'any'
   }
 })
 
@@ -2506,52 +3216,27 @@ watch(selectedClass, (newClass) => {
   box-sizing: border-box;
 }
 
-/* Backdrop for modal-like appearance */
-.character-builder-wizard-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    linear-gradient(to right, 
-      rgba(59, 130, 246, 0.05) 0, 
-      rgba(59, 130, 246, 0.05) 50px,
-      transparent 50px,
-      transparent calc(100% - 50px),
-      rgba(59, 130, 246, 0.05) calc(100% - 50px),
-      rgba(59, 130, 246, 0.05) 100%
-    ),
-    rgba(0, 0, 0, 0.75);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding: 2rem 50px; /* Added 50px left/right padding */
-  overflow-y: auto;
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
-
-/* Wizard container wrapper */
+/* Main wizard container - no longer a modal */
 .character-builder-wizard-container {
   width: 100%;
-  max-width: 900px;
-  margin: 0 auto;
-  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #0f172a;
+  overflow: hidden;
 }
 
-/* Main wizard container */
+/* Main wizard content */
 .character-builder-wizard {
   background-color: #111827;
   position: relative;
-  max-height: 90vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   width: 100%;
   box-sizing: border-box;
-  contain: layout style; /* CSS containment */
+  contain: layout style;
 }
 
 /* Step content container - scrollable */
@@ -2560,13 +3245,10 @@ watch(selectedClass, (newClass) => {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 300px;
-  max-height: calc(90vh - 200px);
-  padding-right: 1rem; /* Increased padding */
-  padding-left: 0.5rem; /* Added left padding */
-  padding-bottom: 1rem; /* Add padding to prevent content cutoff */
-  width: 100%; /* Ensure content stays within container */
+  padding: 1rem;
+  width: 100%;
   box-sizing: border-box;
-  position: relative; /* For proper containment */
+  position: relative;
 }
 
 /* Ensure children don't overflow */
@@ -2589,8 +3271,8 @@ watch(selectedClass, (newClass) => {
   user-select: none;
   position: relative;
   z-index: 1;
-  overflow: hidden; /* Prevent content overflow */
-  word-wrap: break-word; /* Break long words */
+  overflow: hidden;
+  word-wrap: break-word;
   transition: all 0.2s ease;
   box-sizing: border-box;
 }
@@ -2599,7 +3281,6 @@ watch(selectedClass, (newClass) => {
 .class-card:hover,
 .feat-card:hover {
   z-index: 2;
-  /* No transform on hover to prevent overflow */
 }
 
 /* Fix for click events */
@@ -2616,26 +3297,6 @@ watch(selectedClass, (newClass) => {
   overflow-y: auto;
   padding-right: 0.5rem;
   box-sizing: border-box;
-}
-
-/* Custom scrollbar for the backdrop */
-.character-builder-wizard-backdrop::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.character-builder-wizard-backdrop::-webkit-scrollbar-track {
-  background: rgba(31, 41, 55, 0.5);
-  border-radius: 4px;
-}
-
-.character-builder-wizard-backdrop::-webkit-scrollbar-thumb {
-  background: #4B5563;
-  border-radius: 4px;
-}
-
-.character-builder-wizard-backdrop::-webkit-scrollbar-thumb:hover {
-  background: #6B7280;
 }
 
 /* Custom scrollbar for the step content */
@@ -2743,12 +3404,12 @@ button, div {
   background: #6B7280;
 }
 
-/* Selected card highlight - contained and subtle */
+/* Selected card highlight */
 .race-card.bg-green-800,
 .class-card.bg-green-800,
 .feat-card.bg-green-800 {
   box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.5);
-  border-color: #10b981 !important; /* Brighter green border */
+  border-color: #10b981 !important;
 }
 
 /* Line clamp utility for text truncation */
@@ -2762,31 +3423,12 @@ button, div {
 
 /* Responsive adjustments */
 @media (max-width: 850px) {
-  .character-builder-wizard-backdrop {
-    padding: 1rem 30px; /* Reduced padding on smaller screens */
-    /* Update gradient for 30px padding */
-    background: 
-      linear-gradient(to right, 
-        rgba(59, 130, 246, 0.05) 0, 
-        rgba(59, 130, 246, 0.05) 30px,
-        transparent 30px,
-        transparent calc(100% - 30px),
-        rgba(59, 130, 246, 0.05) calc(100% - 30px),
-        rgba(59, 130, 246, 0.05) 100%
-      ),
-      rgba(0, 0, 0, 0.75);
-  }
-  
-  .character-builder-wizard-container {
-    max-width: 100%;
-  }
-  
   .character-builder-wizard {
-    max-height: 95vh;
+    height: 100%;
   }
   
   .step-content-container {
-    max-height: calc(95vh - 180px);
+    padding: 0.5rem;
   }
   
   .skills-list,
@@ -2796,21 +3438,6 @@ button, div {
 }
 
 @media (max-width: 640px) {
-  .character-builder-wizard-backdrop {
-    padding: 1rem 20px; /* Minimal padding on mobile */
-    /* Update gradient for 20px padding */
-    background: 
-      linear-gradient(to right, 
-        rgba(59, 130, 246, 0.05) 0, 
-        rgba(59, 130, 246, 0.05) 20px,
-        transparent 20px,
-        transparent calc(100% - 20px),
-        rgba(59, 130, 246, 0.05) calc(100% - 20px),
-        rgba(59, 130, 246, 0.05) 100%
-      ),
-      rgba(0, 0, 0, 0.75);
-  }
-  
   .character-builder-wizard {
     padding: 1rem;
   }

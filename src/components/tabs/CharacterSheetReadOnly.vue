@@ -76,6 +76,87 @@
       </div>
     </div>
 
+ <!-- Physical Attributes (Updated to include Gender) -->
+    <div class="grid grid-cols-4 gap-4">
+      <div class="border border-green-500 p-4 rounded">
+        <label class="block mb-1">Gender</label>
+        <div class="w-full bg-gray-700 border border-gray-600 p-2 rounded text-white">
+          {{ characterState.gender || 'Not set' }}
+        </div>
+      </div>
+      <div class="border border-green-500 p-4 rounded">
+        <label class="block mb-1">Height</label>
+        <div class="w-full bg-gray-700 border border-gray-600 p-2 rounded text-white">
+          {{ characterState.height || 'Not set' }}
+        </div>
+      </div>
+      <div class="border border-green-500 p-4 rounded">
+        <label class="block mb-1">Weight</label>
+        <div class="w-full bg-gray-700 border border-gray-600 p-2 rounded text-white">
+          {{ characterState.weight || 'Not set' }}
+        </div>
+      </div>
+      <div class="border border-green-500 p-4 rounded">
+        <label class="block mb-1">Appearance</label>
+        <div class="text-sm space-y-1">
+          <div class="bg-gray-700 border border-gray-600 p-1 rounded">
+            Hair: {{ characterState.hair || 'Not set' }}
+          </div>
+          <div class="bg-gray-700 border border-gray-600 p-1 rounded">
+            Eyes: {{ characterState.eyes || 'Not set' }}
+          </div>
+          <div class="bg-gray-700 border border-gray-600 p-1 rounded">
+            Skin: {{ characterState.skin || 'Not set' }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Personality & Background -->
+    <div class="border border-green-500 p-4 rounded">
+      <h3 class="text-lg font-semibold mb-3">Personality & Background</h3>
+      <div class="grid grid-cols-1 gap-4">
+        <div v-if="characterState.personalityTraits" class="bg-gray-800 p-3 rounded">
+          <label class="block mb-1 text-sm font-bold text-blue-300">Personality Traits</label>
+          <div class="text-white">{{ characterState.personalityTraits }}</div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div v-if="characterState.ideals" class="bg-gray-800 p-3 rounded">
+            <label class="block mb-1 text-sm font-bold text-green-300">Ideals</label>
+            <div class="text-white">{{ characterState.ideals }}</div>
+          </div>
+          <div v-if="characterState.bonds" class="bg-gray-800 p-3 rounded">
+            <label class="block mb-1 text-sm font-bold text-yellow-300">Bonds</label>
+            <div class="text-white">{{ characterState.bonds }}</div>
+          </div>
+          <div v-if="characterState.flaws" class="bg-gray-800 p-3 rounded">
+            <label class="block mb-1 text-sm font-bold text-red-300">Flaws</label>
+            <div class="text-white">{{ characterState.flaws }}</div>
+          </div>
+        </div>
+        <div v-if="characterState.distinguishingFeatures" class="bg-gray-800 p-3 rounded">
+          <label class="block mb-1 text-sm font-bold text-purple-300">Distinguishing Features</label>
+          <div class="text-white">{{ characterState.distinguishingFeatures }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Languages -->
+    <div class="border border-green-500 p-4 rounded">
+      <h3 class="text-lg font-semibold mb-2">Languages</h3>
+      <div class="flex flex-wrap gap-2">
+        <span v-for="(lang, idx) in characterState.languages" 
+              :key="idx" 
+              class="bg-gray-700 px-3 py-1 rounded text-sm">
+          {{ lang }}
+        </span>
+        <span v-if="!characterState.languages || characterState.languages.length === 0" 
+              class="text-gray-400 italic">
+          No languages known
+        </span>
+      </div>
+    </div>
+
     <!-- Experience & Level -->
     <div class="border border-green-500 p-4 rounded">
       <div class="flex justify-between items-center mb-2">

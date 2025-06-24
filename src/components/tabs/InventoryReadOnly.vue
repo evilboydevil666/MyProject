@@ -1,5 +1,5 @@
 <template>
-  <div class="inventory-container space-y-6">
+  <div class="inventory-container space-y-6 text-white">
     <h2 class="text-2xl mb-4 text-white">Inventory</h2>
     
     <!-- Quick Stats -->
@@ -44,86 +44,70 @@
       </div>
     </div>
 
-    <!-- Inventory Categories -->
-    <div class="space-y-4">
-      <!-- Weapons -->
-      <div class="bg-gray-800 p-4 rounded border border-gray-600">
-        <h3 class="text-lg font-semibold mb-3 text-white">Weapons</h3>
-        <div v-if="weapons.length === 0" class="text-gray-400 italic">No weapons equipped</div>
-        <div v-else class="space-y-2">
-          <div v-for="(item, index) in weapons" :key="index" 
-               class="bg-gray-700 p-2 rounded flex justify-between items-center">
-            <div>
-              <span class="font-medium text-white">{{ item.name }}</span>
-              <span v-if="item.quantity > 1" class="text-gray-400 ml-2">(×{{ item.quantity }})</span>
-            </div>
-            <div class="text-sm text-gray-400">{{ item.notes }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Armor -->
-      <div class="bg-gray-800 p-4 rounded border border-gray-600">
-        <h3 class="text-lg font-semibold mb-3 text-white">Armor & Shields</h3>
-        <div v-if="armor.length === 0" class="text-gray-400 italic">No armor equipped</div>
-        <div v-else class="space-y-2">
-          <div v-for="(item, index) in armor" :key="index" 
-               class="bg-gray-700 p-2 rounded flex justify-between items-center">
-            <div>
-              <span class="font-medium text-white">{{ item.name }}</span>
-              <span v-if="item.quantity > 1" class="text-gray-400 ml-2">(×{{ item.quantity }})</span>
-            </div>
-            <div class="text-sm text-gray-400">{{ item.notes }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Consumables -->
-      <div class="bg-gray-800 p-4 rounded border border-gray-600">
-        <h3 class="text-lg font-semibold mb-3 text-white">Consumables</h3>
-        <div v-if="consumables.length === 0" class="text-gray-400 italic">No consumables</div>
-        <div v-else class="space-y-2">
-          <div v-for="(item, index) in consumables" :key="index" 
-               class="bg-gray-700 p-2 rounded flex justify-between items-center">
-            <div>
-              <span class="font-medium text-white">{{ item.name }}</span>
-              <span v-if="item.quantity > 1" class="text-gray-400 ml-2">(×{{ item.quantity }})</span>
-            </div>
-            <div class="text-sm text-gray-400">{{ item.notes }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- General Equipment -->
-      <div class="bg-gray-800 p-4 rounded border border-gray-600">
-        <h3 class="text-lg font-semibold mb-3 text-white">Equipment & Gear</h3>
-        <div v-if="equipment.length === 0" class="text-gray-400 italic">No equipment</div>
-        <div v-else class="space-y-2">
-          <div v-for="(item, index) in equipment" :key="index" 
-               class="bg-gray-700 p-2 rounded flex justify-between items-center">
-            <div>
-              <span class="font-medium text-white">{{ item.name }}</span>
-              <span v-if="item.quantity > 1" class="text-gray-400 ml-2">(×{{ item.quantity }})</span>
-            </div>
-            <div class="text-sm text-gray-400">{{ item.notes }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- All Items (Legacy) -->
-      <details class="bg-gray-800 p-4 rounded border border-gray-600">
-        <summary class="cursor-pointer text-gray-400 hover:text-white">All Items (Unsorted)</summary>
-        <div class="mt-3 space-y-2">
-          <div v-for="(item, index) in characterState.inventory" :key="index" 
-               class="bg-gray-700 p-2 rounded flex justify-between items-center">
-            <div>
-              <span class="font-medium text-white">{{ item.name }}</span>
-              <span v-if="item.quantity > 1" class="text-gray-400 ml-2">(×{{ item.quantity }})</span>
-            </div>
-            <div class="text-sm text-gray-400">{{ item.notes }}</div>
-          </div>
-        </div>
-      </details>
+    <!-- Inventory Table -->
+    <div class="bg-gray-800 p-4 rounded border border-gray-600">
+      <h3 class="text-lg font-semibold mb-3 text-white">Inventory & Combat Actions</h3>
+      <table class="w-full text-sm border-collapse">
+        <thead>
+          <tr class="bg-gray-700">
+            <th class="p-2 text-left">Item</th>
+            <th class="p-2 text-center">Weight</th>
+            <th class="p-2 text-center">Attack</th>
+            <th class="p-2 text-center">Damage</th>
+            <th class="p-2 text-center">DC</th>
+            <th class="p-2 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in characterState.inventory" :key="index" class="even:bg-gray-750 hover:bg-gray-700">
+            <td class="p-2 font-medium">
+              {{ item.name }}
+              <span v-if="item.equipped" class="text-green-400 text-xs ml-1">(Equipped)</span>
+              <span v-if="item.quantity > 1" class="text-gray-400 text-xs ml-1">(×{{ item.quantity }})</span>
+            </td>
+            <td class="p-2 text-center text-gray-400">
+              {{ getItemWeight(item) }} lbs
+            </td>
+            <td class="p-2 text-center">{{ getItemAttackBonus(item) || '—' }}</td>
+            <td class="p-2 text-center">{{ getItemDamage(item) || '—' }}</td>
+            <td class="p-2 text-center">{{ item.dc || '—' }}</td>
+            <td class="p-2 text-center space-x-1">
+              <button 
+                v-if="isWeapon(item)"
+                @click="attackWithWeapon(item)"
+                class="px-2 py-1 bg-red-600 hover:bg-red-500 text-white rounded text-xs"
+              >
+                Attack
+              </button>
+              <button 
+                v-if="isWeapon(item)"
+                @click="rollWeaponDamage(item)"
+                class="px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white rounded text-xs"
+              >
+                Damage
+              </button>
+              <button 
+                @click="useItem(item)"
+                class="px-2 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-xs"
+              >
+                Use
+              </button>
+              <button 
+                @click="toggleEquipItem(item)"
+                class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs"
+              >
+                {{ item.equipped ? 'Unequip' : 'Equip' }}
+              </button>
+              <button 
+                @click="dropItem(index)"
+                class="px-2 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-xs"
+              >
+                Drop
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Inventory Notification Component -->
@@ -141,6 +125,12 @@
 import { ref, computed, onMounted, provide } from 'vue'
 import { characterState } from '../../characterState.js'
 import InventoryNotification from '../InventoryNotification.vue'
+import { useNarrativeChat } from '@/composables/useNarrativeChat'
+import { InventoryParser } from '@/utils/InventoryParser'
+import { DiceRoller } from '@/utils/DiceRoller'
+
+// Composables
+const { sendMessage } = useNarrativeChat()
 
 // Props
 const props = defineProps({
@@ -158,60 +148,76 @@ provide('addInventoryChange', (changes) => {
   inventoryNotifications.value?.addPendingChange(changes)
 })
 
-// Computed - Categorize items
-const weapons = computed(() => {
-  return characterState.inventory.filter(item => 
-    item.category === 'weapons' || 
-    item.name.toLowerCase().includes('sword') ||
-    item.name.toLowerCase().includes('bow') ||
-    item.name.toLowerCase().includes('dagger') ||
-    item.name.toLowerCase().includes('axe') ||
-    item.name.toLowerCase().includes('mace') ||
-    item.name.toLowerCase().includes('spear')
-  )
-})
+// Default weights for common items if weight is missing
+const defaultWeights = {
+  'backpack': 2,
+  'bedroll': 5,
+  'trail rations': 1, // per day
+  'rope': 10,
+  'torch': 1,
+  'waterskin': 4,
+  'potion': 0.1,
+  'scroll': 0.1,
+  'longsword': 4,
+  'shortsword': 2,
+  'dagger': 1,
+  'leather armor': 15,
+  'studded leather': 20,
+  'chain shirt': 25,
+  'scale mail': 30,
+  'shield': 6,
+  'arrows': 3, // per 20
+  'bolts': 1, // per 10
+}
 
-const armor = computed(() => {
-  return characterState.inventory.filter(item => 
-    item.category === 'armor' || 
-    item.name.toLowerCase().includes('armor') ||
-    item.name.toLowerCase().includes('shield') ||
-    item.name.toLowerCase().includes('mail') ||
-    item.name.toLowerCase().includes('plate')
-  )
-})
+// Helper function to get item weight
+function getItemWeight(item) {
+  // Use the same logic as in totalWeight
+  let weight = item.weight
+  if (weight === undefined || weight === null) {
+    const itemNameLower = item.name.toLowerCase()
+    for (const [key, defaultWeight] of Object.entries(defaultWeights)) {
+      if (itemNameLower.includes(key)) {
+        weight = defaultWeight
+        break
+      }
+    }
+    if (weight === undefined) {
+      weight = 0
+    }
+  }
+  
+  return (weight * (item.quantity || 1)).toFixed(1)
+}
 
-const consumables = computed(() => {
-  return characterState.inventory.filter(item => 
-    item.category === 'consumables' || 
-    item.name.toLowerCase().includes('potion') ||
-    item.name.toLowerCase().includes('scroll') ||
-    item.name.toLowerCase().includes('wand') ||
-    item.name.toLowerCase().includes('ration') ||
-    item.name.toLowerCase().includes('torch')
-  )
-})
-
-const equipment = computed(() => {
-  return characterState.inventory.filter(item => 
-    !weapons.value.includes(item) && 
-    !armor.value.includes(item) && 
-    !consumables.value.includes(item)
-  )
-})
-
-// Calculate totals
+// Computed - Total weight with default handling
 const totalWeight = computed(() => {
   return characterState.inventory.reduce((sum, item) => {
-    return sum + ((item.weight || 0) * (item.quantity || 1))
+    // Get weight from item or try to find default
+    let weight = item.weight
+    if (weight === undefined || weight === null) {
+      // Try to find a default weight based on item name
+      const itemNameLower = item.name.toLowerCase()
+      for (const [key, defaultWeight] of Object.entries(defaultWeights)) {
+        if (itemNameLower.includes(key)) {
+          weight = defaultWeight
+          break
+        }
+      }
+      // If still no weight found, default to 0
+      if (weight === undefined) {
+        weight = 0
+        console.warn(`No weight found for item: ${item.name}`)
+      }
+    }
+    
+    return sum + (weight * (item.quantity || 1))
   }, 0).toFixed(1)
 })
 
 const totalValue = computed(() => {
-  // Extract value from notes if present (e.g., "Worth 10 gp")
   return characterState.inventory.reduce((sum, item) => {
-    const match = item.notes?.match(/(\d+)\s*gp/i)
-    const value = match ? parseInt(match[1]) : 0
+    const value = item.value || 0
     return sum + (value * (item.quantity || 1))
   }, 0)
 })
@@ -252,6 +258,223 @@ const encumbranceClass = computed(() => {
   return 'text-red-400'
 })
 
+// Helper methods
+function isWeapon(item) {
+  return item.category === 'weapons' || 
+         item.type === 'weapon' ||
+         item.name.toLowerCase().includes('sword') ||
+         item.name.toLowerCase().includes('bow') ||
+         item.name.toLowerCase().includes('dagger') ||
+         item.name.toLowerCase().includes('axe') ||
+         item.name.toLowerCase().includes('mace') ||
+         item.name.toLowerCase().includes('spear') ||
+         item.damage // If it has damage property, it's likely a weapon
+}
+
+function getItemAttackBonus(item) {
+  if (item.attackBonus !== undefined) return `+${item.attackBonus}`
+  
+  // Default attack bonuses for common weapons
+  const weaponBonuses = {
+    'longsword': characterState.bab + (characterState.abilityMods?.STR || 0),
+    'shortsword': characterState.bab + (characterState.abilityMods?.STR || 0),
+    'dagger': characterState.bab + (characterState.abilityMods?.STR || 0),
+    'shortbow': characterState.bab + (characterState.abilityMods?.DEX || 0),
+    'longbow': characterState.bab + (characterState.abilityMods?.DEX || 0)
+  }
+  
+  const itemName = item.name.toLowerCase()
+  for (const [weapon, bonus] of Object.entries(weaponBonuses)) {
+    if (itemName.includes(weapon)) {
+      return bonus >= 0 ? `+${bonus}` : `${bonus}`
+    }
+  }
+  
+  return null
+}
+
+function getItemDamage(item) {
+  if (item.damage) return item.damage
+  
+  // Default damage for common weapons
+  const weaponDamage = {
+    'longsword': '1d8',
+    'shortsword': '1d6',
+    'dagger': '1d4',
+    'greataxe': '1d12',
+    'greatsword': '2d6',
+    'mace': '1d8',
+    'shortbow': '1d6',
+    'longbow': '1d8'
+  }
+  
+  const itemName = item.name.toLowerCase()
+  for (const [weapon, damage] of Object.entries(weaponDamage)) {
+    if (itemName.includes(weapon)) {
+      const strMod = characterState.abilityMods?.STR || 0
+      return strMod !== 0 ? `${damage}${strMod >= 0 ? '+' : ''}${strMod}` : damage
+    }
+  }
+  
+  return null
+}
+
+// Action methods
+async function attackWithWeapon(item) {
+  const attackBonus = parseInt(getItemAttackBonus(item)) || 0
+  const d20 = DiceRoller.roll('1d20')
+  const total = d20.total + attackBonus
+  
+  await sendMessage({
+    text: `I attack with my ${item.name}! Attack roll: ${d20.rolls[0]} + ${attackBonus} = ${total}`,
+    context: {
+      action: 'attack',
+      item: item.name,
+      roll: d20,
+      bonus: attackBonus,
+      total: total,
+      character: {
+        name: characterState.name,
+        class: characterState.classes[0]?.className,
+        level: characterState.classes[0]?.level
+      }
+    }
+  })
+}
+
+async function rollWeaponDamage(item) {
+  const damage = getItemDamage(item)
+  if (!damage) {
+    await sendMessage(`I cannot determine the damage for ${item.name}.`)
+    return
+  }
+  
+  // Parse damage string (e.g., "1d8+3")
+  const match = damage.match(/(\d+)d(\d+)([+-]\d+)?/)
+  if (match) {
+    const [_, numDice, dieSize, modifier] = match
+    const diceStr = `${numDice}d${dieSize}`
+    const roll = DiceRoller.roll(diceStr)
+    const mod = modifier ? parseInt(modifier) : 0
+    const total = roll.total + mod
+    
+    await sendMessage({
+      text: `Damage with ${item.name}: ${roll.rolls.join(', ')}${mod !== 0 ? ` ${mod >= 0 ? '+' : ''}${mod}` : ''} = ${total}`,
+      context: {
+        action: 'damage',
+        item: item.name,
+        roll: roll,
+        modifier: mod,
+        total: total
+      }
+    })
+  }
+}
+
+async function useItem(item) {
+  if (!item.quantity || item.quantity <= 0) return
+  
+  // Determine item effect based on name
+  let effect = ''
+  let mechanicalEffect = null
+  
+  if (item.name.toLowerCase().includes('healing potion') || item.name.toLowerCase().includes('cure')) {
+    effect = 'drink the healing potion, feeling warmth spread through my body'
+    mechanicalEffect = {
+      type: 'healing',
+      amount: '1d8+1',
+      target: 'self'
+    }
+  } else if (item.name.toLowerCase().includes('torch')) {
+    effect = 'light the torch, illuminating the area around me'
+    mechanicalEffect = {
+      type: 'light',
+      radius: '20 feet',
+      duration: '1 hour'
+    }
+  } else if (item.name.toLowerCase().includes('ration')) {
+    effect = 'consume some trail rations'
+    mechanicalEffect = {
+      type: 'sustenance',
+      duration: '1 day'
+    }
+  } else if (item.name.toLowerCase().includes('rope')) {
+    effect = 'ready the rope for use'
+    mechanicalEffect = {
+      type: 'equipment_ready',
+      item: 'rope'
+    }
+  } else {
+    effect = `use the ${item.name}`
+  }
+  
+  // Send to narrative system
+  await sendMessage({
+    text: `I ${effect}.`,
+    context: {
+      action: 'use_item',
+      item: item.name,
+      effect: mechanicalEffect,
+      character: {
+        name: characterState.name,
+        class: characterState.classes[0]?.className,
+        level: characterState.classes[0]?.level,
+        currentHp: characterState.hp,
+        maxHp: characterState.hpMax
+      }
+    }
+  })
+  
+  // Apply inventory change for consumables
+  if (item.category === 'consumables' || item.name.toLowerCase().includes('potion')) {
+    const change = {
+      itemsLost: [{
+        name: item.name,
+        quantity: 1
+      }]
+    }
+    inventoryNotifications.value?.addPendingChange(change)
+  }
+}
+
+async function toggleEquipItem(item) {
+  item.equipped = !item.equipped
+  
+  await sendMessage({
+    text: `I ${item.equipped ? 'equip' : 'unequip'} the ${item.name}.`,
+    context: {
+      action: item.equipped ? 'equip_item' : 'unequip_item',
+      item: item.name,
+      character: {
+        name: characterState.name
+      }
+    }
+  })
+}
+
+async function dropItem(index) {
+  const item = characterState.inventory[index]
+  if (!item) return
+  
+  await sendMessage({
+    text: `I drop the ${item.name}.`,
+    context: {
+      action: 'drop_item',
+      item: item.name,
+      quantity: item.quantity || 1
+    }
+  })
+  
+  // Remove from inventory
+  const change = {
+    itemsLost: [{
+      name: item.name,
+      quantity: item.quantity || 1
+    }]
+  }
+  inventoryNotifications.value?.addPendingChange(change)
+}
+
 // Event handlers
 function onInventoryChangesApplied({ change, result }) {
   console.log('Inventory changes applied:', change, result)
@@ -261,40 +484,24 @@ function onInventoryChangesRejected(changeId) {
   console.log('Inventory changes rejected:', changeId)
 }
 
-// Example: Expose method to add test inventory changes
-function addTestInventoryChange() {
-  inventoryNotifications.value?.addPendingChange({
-    itemsGained: [
-      { name: 'Healing Potion', quantity: 2, category: 'consumables' },
-      { name: 'Longsword +1', quantity: 1, category: 'weapons' }
-    ],
-    itemsLost: [],
-    moneyGained: { gp: 50, sp: 25 },
-    moneyLost: {}
-  })
+// Add custom styles for consistent appearance
+const customStyles = `
+.even\\:bg-gray-750:nth-child(even) {
+  background-color: rgb(45 45 55);
 }
+`
 
 // Lifecycle
 onMounted(() => {
-  // Any initialization needed
-})
-
-// Expose for testing
-defineExpose({
-  addTestInventoryChange
+  // Add custom styles
+  const style = document.createElement('style')
+  style.textContent = customStyles
+  document.head.appendChild(style)
 })
 </script>
 
 <style scoped>
 .inventory-container {
   @apply text-white;
-}
-
-details summary {
-  user-select: none;
-}
-
-details[open] summary {
-  @apply text-white mb-2;
 }
 </style>

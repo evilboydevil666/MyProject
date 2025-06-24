@@ -1,4 +1,26 @@
 <template>
+  <div class="character-details">
+    <!-- Builder Buttons -->
+    <div v-if="showBuilderButton" class="builder-buttons mb-4">
+      <button 
+        v-if="!characterState.name"
+        @click="$emit('open-builder')"
+        class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded mr-2"
+      >
+        🎭 Create Character
+      </button>
+      <button 
+        v-else
+        @click="$emit('level-up')"
+        class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded"
+      >
+        📈 Level Up
+      </button>
+    </div>
+
+    <!-- Rest of your existing CharacterDetails template -->
+    <!-- ... -->
+  </div>
   <div class="overview-container space-y-6 text-white">
 
     <!-- Overview Header -->
@@ -316,6 +338,19 @@ function addClass() {
 function removeClass(idx) {
   characterState.classes.splice(idx, 1)
 }
+// Add to your existing props
+const props = defineProps({
+  showBuilderButton: {
+    type: Boolean,
+    default: false
+  }
+  // ... your other props
+})
+
+// Add to your existing emits
+const emit = defineEmits(['open-builder', 'level-up'])
+
+// ... rest of your script
 </script>
 
 <style scoped>
