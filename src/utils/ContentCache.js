@@ -1,10 +1,12 @@
-// src/utils/contentCache.js
+// src/utils/ContentCache.js
 // Smart caching system for AI-generated content
 
 export class ContentCache {
   constructor() {
     this.cache = new Map()
     this.maxAge = 24 * 60 * 60 * 1000 // 24 hours
+    this.hits = 0
+    this.misses = 0
     this.loadFromStorage()
   }
 
@@ -27,11 +29,15 @@ export class ContentCache {
    */
   has(key) {
     const entry = this.cache.get(key)
-    if (!entry) return false
+    if (!entry) {
+      this.misses++
+      return false
+    }
     
     const age = Date.now() - entry.timestamp
     if (age > this.maxAge) {
       this.cache.delete(key)
+      this.misses++
       return false
     }
     
@@ -58,11 +64,33 @@ export class ContentCache {
    */
   get(key) {
     const entry = this.cache.get(key)
-    if (!entry) return null
+    if (!entry) {
+      this.misses++
+      return null
+    }
     
+    this.hits++
     entry.usageCount++
     
     // Return random variation if multiple exist
+    const content = Array.isArray(entry.content) 
+      ? entry.content[Math.floor(Math.random() * entry.content.length)]
+      : entry.content
+      
+    return content
+  }
+
+  /**
+   * Get stale content (for fallback)
+   */
+  getStale(key) {
+    const entry = this.cache.get(key)
+    if (!entry) return null
+    
+    // Return content regardless of age for fallback scenarios
+    this.hits++
+    entry.usageCount++
+    
     const content = Array.isArray(entry.content) 
       ? entry.content[Math.floor(Math.random() * entry.content.length)]
       : entry.content
@@ -147,11 +175,26 @@ export class ContentCache {
   }
 
   /**
+   * Get cache hit rate - NEW METHOD
+   */
+  getHitRate() {
+    const total = this.hits + this.misses
+    return total > 0 ? (this.hits / total) : 0
+  }
+
+  /**
    * Persistence
    */
   saveToStorage() {
     try {
-      const serialized = JSON.stringify([...this.cache.entries()])
+      const data = {
+        entries: [...this.cache.entries()],
+        stats: {
+          hits: this.hits,
+          misses: this.misses
+        }
+      }
+      const serialized = JSON.stringify(data)
       localStorage.setItem('rpg-narrator-content-cache', serialized)
     } catch (error) {
       console.warn('Failed to save content cache:', error)
@@ -162,8 +205,18 @@ export class ContentCache {
     try {
       const serialized = localStorage.getItem('rpg-narrator-content-cache')
       if (serialized) {
-        const entries = JSON.parse(serialized)
-        this.cache = new Map(entries)
+        const data = JSON.parse(serialized)
+        
+        // Load entries
+        if (data.entries) {
+          this.cache = new Map(data.entries)
+        }
+        
+        // Load stats
+        if (data.stats) {
+          this.hits = data.stats.hits || 0
+          this.misses = data.stats.misses || 0
+        }
         
         // Clean expired entries
         const now = Date.now()
@@ -176,6 +229,8 @@ export class ContentCache {
     } catch (error) {
       console.warn('Failed to load content cache:', error)
       this.cache = new Map()
+      this.hits = 0
+      this.misses = 0
     }
   }
 
@@ -184,14 +239,24 @@ export class ContentCache {
    */
   clear() {
     this.cache.clear()
+    this.hits = 0
+    this.misses = 0
     localStorage.removeItem('rpg-narrator-content-cache')
   }
 
   getCacheStats() {
+    const entries = this.cache.size
+    const totalHits = Array.from(this.cache.values()).reduce((sum, entry) => sum + entry.usageCount, 0)
+    const ages = Array.from(this.cache.values()).map(entry => entry.timestamp)
+    const oldestEntry = ages.length > 0 ? Math.min(...ages) : Date.now()
+    
     return {
-      entries: this.cache.size,
-      totalHits: Array.from(this.cache.values()).reduce((sum, entry) => sum + entry.usageCount, 0),
-      oldestEntry: Math.min(...Array.from(this.cache.values()).map(entry => entry.timestamp)),
+      entries: entries,
+      totalHits: totalHits,
+      hitRate: this.getHitRate(),
+      hits: this.hits,
+      misses: this.misses,
+      oldestEntry: oldestEntry,
       memorySize: JSON.stringify([...this.cache.entries()]).length
     }
   }
@@ -214,4 +279,8 @@ const sessionContent = await contentCache.batchGenerate([
   { type: 'encounter', context: { level: 5, type: 'combat' }, generator: generateEncounter },
   { type: 'location', context: { type: 'tavern', size: 'medium' }, generator: generateLocation }
 ])
+
+// Check cache performance
+const stats = contentCache.getCacheStats()
+console.log(`Cache hit rate: ${(stats.hitRate * 100).toFixed(1)}%`)
 */

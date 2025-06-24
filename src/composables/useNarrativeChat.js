@@ -8,7 +8,7 @@ export function useNarrativeChat() {
   
   // Check for API key
   const hasApiKey = computed(() => {
-    const key = localStorage.getItem('openai_api_key')
+    const key = localStorage.getItem('openai-api-key') // FIXED: Changed from 'openai_api_key'
     return !!key && key.startsWith('sk-')
   })
   
@@ -32,7 +32,7 @@ export function useNarrativeChat() {
     isLoading.value = true
     
     try {
-      const apiKey = localStorage.getItem('openai_api_key')
+      const apiKey = localStorage.getItem('openai-api-key') // FIXED: Changed from 'openai_api_key'
       
       // Build the prompt with context
       let systemPrompt = "You are a Pathfinder 1e game narrator. Respond to player actions with vivid, immersive narration."

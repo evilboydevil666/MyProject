@@ -19,8 +19,8 @@ export const characterState = reactive({
   skin: '',
   portrait: '',
 
-  // Class & Leveling
-  classes: [{ className: '', level: 1 }],
+  // Class & Leveling - FIXED: Added id to default class object
+  classes: [{ id: 1, className: '', level: 1 }],
   favoredClass: '',
   archetypes: [],
   experience: 0,      // Current XP

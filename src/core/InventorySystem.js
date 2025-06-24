@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import InventoryParser from '../utils/InventoryParser.js'
+import { InventoryParser } from '../utils/InventoryParser.js'
 
 export class InventorySystem {
   constructor(systems) {

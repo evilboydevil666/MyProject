@@ -174,7 +174,7 @@
 
 <script setup>
 import { ref, onUnmounted } from 'vue'
-import InventoryParser from '../utils/inventoryParser.js'
+import { InventoryParser } from '../utils/InventoryParser.js' // FIXED: Capital 'I' and named import
 
 // Props
 const props = defineProps({

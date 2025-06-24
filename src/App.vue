@@ -31,7 +31,7 @@
       class="narration-container"
       :character-state="characterState"
     />
-
+   
     <!-- MODALS -->
     <WebChatModal v-if="showWebChat" @close="showWebChat = false" />
     <NotificationModal 

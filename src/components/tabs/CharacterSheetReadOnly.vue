@@ -104,13 +104,14 @@
     <div class="border border-green-500 p-4 rounded">
       <h3 class="text-lg font-semibold mb-2">Classes</h3>
       <div class="space-y-2">
-        <div v-for="(cls, idx) in characterState.classes" :key="idx" 
-             v-if="cls.className"
-             class="bg-gray-700 p-2 rounded flex justify-between items-center">
-          <span class="font-medium">{{ cls.className }}</span>
-          <span class="text-yellow-400 font-bold">Level {{ cls.level }}</span>
-        </div>
-        <div v-if="!characterState.classes.some(c => c.className)" 
+        <template v-for="(cls, idx) in (characterState.classes || [])" :key="cls?.id || idx">
+          <div v-if="cls?.className"
+               class="bg-gray-700 p-2 rounded flex justify-between items-center">
+            <span class="font-medium">{{ cls.className }}</span>
+            <span class="text-yellow-400 font-bold">Level {{ cls.level || 1 }}</span>
+          </div>
+        </template>
+        <div v-if="!characterState.classes?.length || !characterState.classes.some(c => c?.className)" 
              class="text-gray-400 italic">
           No classes selected
         </div>
@@ -267,9 +268,9 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['character-roll'])
 
-// Computed
+// Computed - FIXED: Added null safety
 const characterLevel = computed(() =>
-  characterState.classes.reduce((sum, c) => sum + (c.level || 0), 0)
+  (characterState.classes || []).reduce((sum, c) => sum + (c?.level || 0), 0)
 )
 
 const hpPercentage = computed(() => {

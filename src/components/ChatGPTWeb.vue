@@ -53,9 +53,9 @@
           <div>
             <label class="block mb-1">Model:</label>
             <select v-model="selectedModel" class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1">
-              <option value="gpt-4.1-nano">GPT-4.1 Nano (Fastest)</option>
-              <option value="gpt-4.1">GPT-4.1 (Best Quality)</option>
-              <option value="gpt-4-turbo">GPT-4 Turbo (Legacy)</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo (Fastest)</option>
+              <option value="gpt-4">GPT-4 (Best Quality)</option>
+              <option value="gpt-4-turbo">GPT-4 Turbo (Balanced)</option>
             </select>
           </div>
           <div>
@@ -410,14 +410,14 @@
 <script setup>
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { characterState } from '../characterState.js'
-import InventoryParser from '../utils/inventoryParser.js'
-import InventoryNotification from './InventoryNotification.vue'
+import { InventoryParser } from '../utils/InventoryParser.js' // FIXED: Capital 'I' and named import
+import InventoryNotification from './inventorynotification.vue' // FIXED: lowercase to match actual filename
 
 // ===== STATE MANAGEMENT =====
 const currentMode = ref('local') // 'local' or 'web-plus'
 const hasApiKey = ref(false)
 const tempApiKey = ref('')
-const selectedModel = ref('gpt-4.1-nano') // Updated to GPT-4.1 Nano as default
+const selectedModel = ref('gpt-3.5-turbo') // FIXED: Changed from 'gpt-4.1-nano'
 const temperature = ref(0.7)
 const autoInventoryEnabled = ref(true)
 const autoInventoryDelay = ref(10)
@@ -583,7 +583,7 @@ function addWelcomeMessage() {
   if (messages.value.length === 0) {
     messages.value.push({
       role: 'assistant',
-      content: `Welcome! I'm your Pathfinder 1e GM assistant powered by GPT-4.1, ready to help with rules, encounters, NPCs, and more.
+      content: `Welcome! I'm your Pathfinder 1e GM assistant, ready to help with rules, encounters, NPCs, and more.
 
 **Current Character**: ${characterState.name || 'Unnamed'} (Level ${totalLevel.value})
 
@@ -643,7 +643,7 @@ async function sendMessage() {
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: selectedModel.value, // Now using GPT-4.1 models
+        model: selectedModel.value, // FIXED: Now using valid model names
         messages: [
           { role: 'system', content: getSystemPrompt() },
           ...messages.value.slice(-10).map(m => ({ role: m.role, content: m.content }))
@@ -690,16 +690,16 @@ async function sendMessage() {
 function trackApiCost(usage) {
   if (!usage) return
   
-  // Updated costs for GPT-4.1 models (estimated)
+  // FIXED: Updated costs for actual OpenAI models
   const costs = {
-    'gpt-4.1-nano': { input: 0.15, output: 0.60 }, // per 1M tokens
-    'gpt-4.1': { input: 10.00, output: 30.00 },
-    'gpt-4-turbo': { input: 10.00, output: 30.00 }
+    'gpt-3.5-turbo': { input: 0.0015, output: 0.002 }, // per 1K tokens
+    'gpt-4': { input: 0.03, output: 0.06 },
+    'gpt-4-turbo': { input: 0.01, output: 0.03 }
   }
   
-  const modelCosts = costs[selectedModel.value] || costs['gpt-4.1-nano']
-  const inputCost = (usage.prompt_tokens / 1000000) * modelCosts.input
-  const outputCost = (usage.completion_tokens / 1000000) * modelCosts.output
+  const modelCosts = costs[selectedModel.value] || costs['gpt-3.5-turbo']
+  const inputCost = (usage.prompt_tokens / 1000) * modelCosts.input
+  const outputCost = (usage.completion_tokens / 1000) * modelCosts.output
   
   apiCost.value += inputCost + outputCost
 }

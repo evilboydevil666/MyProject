@@ -1,7 +1,7 @@
 // src/utils/EnhancedAPIManager.js
 // Advanced API management with cost optimization and intelligent routing
 import { ContentCache } from '../utils/ContentCache.js'
-import { characterState } from '../characterState.js' // Added missing import
+import { characterState } from '../characterState.js'
 
 export class EnhancedAPIManager {
   constructor() {
@@ -181,18 +181,18 @@ export class EnhancedAPIManager {
       budget = 'standard'
     } = request
 
-    // Cost-conscious selection
+    // Cost-conscious selection - FIXED: Using actual OpenAI model names
     if (budget === 'minimal' && !requiresLatestModel) {
-      return 'gpt 4.1 nano'
+      return 'gpt-3.5-turbo'
     }
 
     // High complexity or latest model required
     if (complexity === 'high' || requiresLatestModel || maxTokens > 2000) {
-      return 'gpt 4.1'
+      return 'gpt-4'
     }
 
     // Default balanced option
-    return this.settings.defaultModel || 'gpt 4.1'
+    return this.settings.defaultModel || 'gpt-3.5-turbo'
   }
 
   /**
@@ -215,7 +215,7 @@ export class EnhancedAPIManager {
       console.log('Fallback: Using cheaper model')
       return await this.executeRequest({
         ...request,
-        model: 'gpt 4.1 nano'
+        model: 'gpt-3.5-turbo' // FIXED: Using actual model name
       })
     }
 
@@ -287,14 +287,15 @@ Create practical, ready-to-use content that fits this character and campaign.`
   /**
    * Cost estimation and tracking
    */
-  estimateCost(maxTokens, model = 'gpt 4.1') {
+  estimateCost(maxTokens, model = 'gpt-3.5-turbo') {
+    // FIXED: Using actual OpenAI pricing
     const pricing = {
-      'gpt 4.1': { input: 0.01, output: 0.03 }, // per 1K tokens
-      'gpt 4.1 mini': { input: 0.005, output: 0.015 },
-      'gpt 4.1 nano': { input: 0.001, output: 0.002 }
+      'gpt-4': { input: 0.03, output: 0.06 }, // per 1K tokens
+      'gpt-4-turbo': { input: 0.01, output: 0.03 },
+      'gpt-3.5-turbo': { input: 0.0015, output: 0.002 }
     }
 
-    const rates = pricing[model] || pricing['gpt 4.1']
+    const rates = pricing[model] || pricing['gpt-3.5-turbo']
     const estimatedInput = 500 // Approximate input tokens
     const estimatedOutput = maxTokens * 0.8 // Estimate actual vs max
 
@@ -302,13 +303,14 @@ Create practical, ready-to-use content that fits this character and campaign.`
   }
 
   calculateActualCost(usage, model) {
+    // FIXED: Using actual OpenAI pricing
     const pricing = {
-      'gpt 4.1': { input: 0.01, output: 0.03 },
-      'gpt 4.1 mini': { input: 0.005, output: 0.015 },
-      'gpt 4.1 nano': { input: 0.001, output: 0.002 }
+      'gpt-4': { input: 0.03, output: 0.06 },
+      'gpt-4-turbo': { input: 0.01, output: 0.03 },
+      'gpt-3.5-turbo': { input: 0.0015, output: 0.002 }
     }
 
-    const rates = pricing[model] || pricing['gpt 4.1']
+    const rates = pricing[model] || pricing['gpt-3.5-turbo']
     return ((usage.prompt_tokens * rates.input) + (usage.completion_tokens * rates.output)) / 1000
   }
 
@@ -320,13 +322,19 @@ Create practical, ready-to-use content that fits this character and campaign.`
       const saved = localStorage.getItem('rpg-narrator-api-settings')
       return saved ? JSON.parse(saved) : {
         dailyBudget: 10.00,
-        defaultModel: 'gpt 4.1',
+        defaultModel: 'gpt-3.5-turbo', // FIXED: Default to actual model
         maxRequestsPerMinute: 20,
         enableCaching: true,
         enableFallbacks: true
       }
     } catch {
-      return {}
+      return {
+        dailyBudget: 10.00,
+        defaultModel: 'gpt-3.5-turbo',
+        maxRequestsPerMinute: 20,
+        enableCaching: true,
+        enableFallbacks: true
+      }
     }
   }
 
@@ -338,10 +346,19 @@ Create practical, ready-to-use content that fits this character and campaign.`
    * Usage analytics - FIXED with safe access
    */
   getUsageStats() {
+    // Get cache stats safely
+    let cacheHitRate = 0
+    if (this.contentCache && typeof this.contentCache.getCacheStats === 'function') {
+      const cacheStats = this.contentCache.getCacheStats()
+      if (cacheStats && cacheStats.totalHits !== undefined && cacheStats.entries !== undefined) {
+        cacheHitRate = cacheStats.entries > 0 ? (cacheStats.totalHits / cacheStats.entries) : 0
+      }
+    }
+    
     return {
       totalCost: this.costTracker.getTotalCost(),
       requestCount: this.costTracker.getRequestCount(),
-      cacheHitRate: this.contentCache?.getHitRate?.() || 0, // FIXED: Safe access with optional chaining
+      cacheHitRate: cacheHitRate, // FIXED: Now calculates hit rate properly
       averageCostPerRequest: this.costTracker.getAverageCost(),
       dailyBudgetUsed: this.costTracker.getDailyUsage(),
       topRequestTypes: this.costTracker.getTopRequestTypes()
