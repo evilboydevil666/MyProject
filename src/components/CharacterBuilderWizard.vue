@@ -1,6 +1,7 @@
 <template>
   <div class="character-builder-wizard-backdrop">
-    <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg max-w-7xl mx-auto shadow-2xl border border-gray-700">
+    <div class="character-builder-wizard-container">
+      <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg shadow-2xl border border-gray-700 backdrop-blur-sm bg-opacity-95">
       <!-- Header -->
       <div class="mb-6">
         <h2 class="text-3xl font-bold text-blue-300 mb-2">
@@ -8,11 +9,11 @@
         </h2>
         <div class="flex items-center gap-4 text-sm text-gray-400">
           <div>
-            <span>Step {{ currentStep + 1 }} of {{ totalSteps }}</span>
+            <span class="text-lg font-semibold text-white">Step {{ currentStep + 1 }} of {{ totalSteps }}</span>
           </div>
-          <div class="flex-1 bg-gray-700 rounded-full h-2">
+          <div class="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
             <div 
-              class="bg-blue-500 h-full rounded-full transition-all duration-300"
+              class="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full transition-all duration-300 shadow-sm"
               :style="{ width: `${((currentStep + 1) / totalSteps) * 100}%` }"
             ></div>
           </div>
@@ -24,17 +25,17 @@
         <!-- Step 1: Mode Selection (Creation Only) -->
         <div v-if="!isLevelUp && currentStep === 0" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Choose Creation Method</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button 
               @click="creationMode = 'guided'; nextStep()"
-              class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-blue-500 transition-all"
+              class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-blue-500 transition-all hover:shadow-lg hover:shadow-blue-500/30"
             >
               <h4 class="text-lg font-bold text-green-300 mb-2">🎯 Guided Creation</h4>
               <p class="text-sm">Step-by-step character creation with recommendations</p>
             </button>
             <button 
               @click="creationMode = 'quick'; generateQuickCharacter()"
-              class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-purple-500 transition-all"
+              class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-purple-500 transition-all hover:shadow-lg hover:shadow-purple-500/30"
             >
               <h4 class="text-lg font-bold text-purple-300 mb-2">⚡ Quick Build</h4>
               <p class="text-sm">Generate a balanced character instantly</p>
@@ -56,8 +57,8 @@
                 :class="[
                   'px-4 py-2 rounded transition-all',
                   selectedRaceCategory === category 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    ? 'bg-green-700 text-white shadow-md border border-green-400' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600'
                 ]"
               >
                 {{ category }} ({{ getRacesByCategory(category).length }})
@@ -71,25 +72,34 @@
               <p>No races found for {{ selectedRaceCategory }} category.</p>
               <p class="text-sm mt-2">Check console for debugging information.</p>
             </div>
-            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
               <div 
                 v-for="race in filteredRaces" 
                 :key="race.id"
                 @click="selectRace(race)"
                 :class="[
-                  'race-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-102 relative',
-                  selectedRace?.id === race.id ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500'
+                  'race-card p-4 rounded-lg cursor-pointer transition-all',
+                  selectedRace?.id === race.id 
+                    ? 'bg-green-800 border-2 border-green-400 shadow-md' 
+                    : 'bg-gray-800 border-2 border-gray-600 hover:border-gray-500 hover:bg-gray-750'
                 ]"
               >
-                <h4 class="font-bold text-green-300">{{ race.name }}</h4>
-                <div v-if="selectedRace?.id === race.id" class="absolute top-2 right-2 text-green-400 text-2xl">
-                  ✓
-                </div>
-                <p class="text-xs text-gray-400 mt-1">{{ race.size }} {{ race.type }}</p>
+                <h4 class="font-bold" :class="selectedRace?.id === race.id ? 'text-green-200' : 'text-green-300'">
+                  {{ race.name }}
+                </h4>
+                <p class="text-xs mt-1" :class="selectedRace?.id === race.id ? 'text-green-300' : 'text-gray-400'">
+                  {{ race.size }} {{ race.type }}
+                </p>
                 <div class="mt-2 text-xs">
-                  <p class="text-blue-300">{{ formatAbilityMods(race.abilityMods) }}</p>
-                  <p class="text-gray-400 mt-1">Speed: {{ race.speed }} ft.</p>
-                  <p class="text-gray-400">{{ getRaceTraitSummary(race) }}</p>
+                  <p :class="selectedRace?.id === race.id ? 'text-green-200' : 'text-blue-300'">
+                    {{ formatAbilityMods(race.abilityMods) }}
+                  </p>
+                  <p class="mt-1" :class="selectedRace?.id === race.id ? 'text-green-300' : 'text-gray-400'">
+                    Speed: {{ race.speed }} ft.
+                  </p>
+                  <p :class="selectedRace?.id === race.id ? 'text-green-300' : 'text-gray-400'">
+                    {{ getRaceTraitSummary(race) }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -117,24 +127,31 @@
               </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-1">
               <div 
                 v-for="cls in availableClasses" 
                 :key="cls.id"
                 @click="selectClass(cls)"
                 :class="[
-                  'class-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-102 relative',
-                  selectedClass?.id === cls.id ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500'
+                  'class-card p-4 rounded-lg cursor-pointer transition-all',
+                  selectedClass?.id === cls.id 
+                    ? 'bg-green-800 border-2 border-green-400 shadow-md' 
+                    : 'bg-gray-800 border-2 border-gray-600 hover:border-gray-500 hover:bg-gray-750'
                 ]"
               >
-                <h4 class="font-bold text-green-300">{{ cls.name }}</h4>
-                <div v-if="selectedClass?.id === cls.id" class="absolute top-2 right-2 text-green-400 text-2xl">
-                  ✓
-                </div>
-                <p class="text-xs text-gray-400">{{ cls.hitDie }} HD, {{ cls.bab }} BAB</p>
+                <h4 class="font-bold" :class="selectedClass?.id === cls.id ? 'text-green-200' : 'text-green-300'">
+                  {{ cls.name }}
+                </h4>
+                <p class="text-xs mt-1" :class="selectedClass?.id === cls.id ? 'text-green-300' : 'text-gray-400'">
+                  {{ cls.hitDie }} HD, {{ cls.bab }} BAB
+                </p>
                 <div class="mt-2 text-xs">
-                  <p>{{ cls.skillPoints }} + Int skill points</p>
-                  <p class="text-blue-300 mt-1">{{ cls.primaryAbility }}</p>
+                  <p :class="selectedClass?.id === cls.id ? 'text-green-300' : ''">
+                    {{ cls.skillPoints }} + Int skill points
+                  </p>
+                  <p class="mt-1" :class="selectedClass?.id === cls.id ? 'text-green-200' : 'text-blue-300'">
+                    {{ cls.primaryAbility }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -155,8 +172,10 @@
                 :key="method"
                 @click="abilityMethod = method"
                 :class="[
-                  'px-4 py-2 rounded',
-                  abilityMethod === method ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                  'px-4 py-2 rounded transition-all',
+                  abilityMethod === method 
+                    ? 'bg-green-700 text-white shadow-md border border-green-400' 
+                    : 'bg-gray-700 hover:bg-gray-600 border border-gray-600'
                 ]"
               >
                 {{ method === 'standard' ? 'Standard Array' : method === 'roll' ? 'Roll 4d6' : 'Point Buy' }}
@@ -256,35 +275,36 @@
 
           <!-- Hit Point Rolling -->
           <div v-else class="space-y-4">
-            <div class="bg-gray-800 p-6 rounded-lg text-center">
-              <p class="text-lg mb-4">Rolling hit points for {{ selectedClass?.name || 'Unknown Class' }} ({{ selectedClass?.hitDie || 'd?' }})</p>
+            <div class="bg-gray-800 p-6 rounded-lg text-center border border-gray-700">
+              <p class="text-lg mb-4">Rolling hit points for <span class="text-green-300 font-bold">{{ selectedClass?.name || 'Unknown Class' }}</span> (<span class="text-blue-300">{{ selectedClass?.hitDie || 'd?' }}</span>)</p>
               
               <div v-if="!hitPointsRolled" class="space-y-4">
                 <button 
                   @click="rollHitPoints"
-                  class="bg-green-600 hover:bg-green-500 px-6 py-3 rounded-lg text-lg font-semibold"
+                  class="bg-green-600 hover:bg-green-500 px-6 py-3 rounded-lg text-lg font-semibold transition-all hover:shadow-lg hover:shadow-green-500/30"
                 >
                   🎲 Roll Hit Points
                 </button>
-                <p class="text-sm text-gray-400">Or take average: {{ getAverageHP() }}</p>
+                <p class="text-sm text-gray-400">Or take average: <span class="text-white font-bold">{{ getAverageHP() }}</span></p>
                 <button 
                   @click="takeAverageHP"
-                  class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded"
+                  class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded transition-all hover:shadow-md"
                 >
                   Take Average
                 </button>
               </div>
 
               <div v-else class="space-y-4">
-                <div class="text-3xl font-bold text-green-300">
+                <div class="text-3xl font-bold text-green-300 animate-pulse">
                   {{ hitPointRoll }}
                 </div>
                 <p class="text-sm text-gray-400">
-                  + {{ getAbilityModifier(getFinalAbilityScore('CON')) }} (CON modifier)
-                  {{ selectedClass?.name === 'Barbarian' ? '+ 4 (Favored Class)' : '+ 1 (Favored Class)' }}
+                  + <span class="text-white">{{ getAbilityModifier(getFinalAbilityScore('CON')) }}</span> (CON modifier)
+                  <span v-if="selectedClass?.name === 'Barbarian'">+ <span class="text-white">4</span> (Favored Class)</span>
+                  <span v-else>+ <span class="text-white">1</span> (Favored Class)</span>
                 </p>
-                <p class="text-xl font-semibold">
-                  Total: +{{ getTotalHPGain() }} HP
+                <p class="text-xl font-semibold bg-green-900 bg-opacity-50 rounded p-2 inline-block">
+                  Total: <span class="text-green-300">+{{ getTotalHPGain() }} HP</span>
                 </p>
               </div>
             </div>
@@ -295,30 +315,37 @@
         <div v-else-if="(!isLevelUp && currentStep === 4) || (isLevelUp && currentStep === 2)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Allocate Skill Points</h3>
           
-          <div class="mb-4 p-3 bg-gray-800 rounded flex justify-between items-center">
+          <div class="mb-4 p-3 bg-gray-800 rounded flex justify-between items-center border border-gray-700">
             <div>
               <p class="text-sm text-gray-400">Skill Points Available:</p>
-              <p class="text-2xl font-bold text-green-300">{{ skillPointsRemaining }} / {{ totalSkillPoints }}</p>
+              <p class="text-2xl font-bold" :class="skillPointsRemaining > 0 ? 'text-green-300' : 'text-gray-500'">
+                {{ skillPointsRemaining }} / {{ totalSkillPoints }}
+              </p>
               <p v-if="totalSkillPoints === 0" class="text-xs text-yellow-400 mt-1">Select a class to see skill points</p>
             </div>
             <div class="text-sm text-gray-400">
-              <p v-if="selectedClass">Class Skills: {{ selectedClass.skillPoints }} + {{ getAbilityModifier(getFinalAbilityScore('INT')) }} (INT)</p>
+              <p v-if="selectedClass">Class Skills: <span class="text-white">{{ selectedClass.skillPoints }}</span> + <span class="text-white">{{ getAbilityModifier(getFinalAbilityScore('INT')) }}</span> (INT)</p>
               <p v-else class="text-yellow-400">Please select a class first</p>
-              <p v-if="selectedRace?.name === 'Human'">+1 (Human bonus)</p>
+              <p v-if="selectedRace?.name === 'Human'">+<span class="text-white">1</span> (Human bonus)</p>
             </div>
           </div>
 
-          <div class="skills-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div class="skills-list grid grid-cols-1 md:grid-cols-2 gap-2">
             <div 
               v-for="skill in availableSkills" 
               :key="skill.name"
-              class="bg-gray-800 p-4 rounded flex items-center justify-between"
+              :class="[
+                'p-4 rounded flex items-center justify-between transition-all',
+                isClassSkill(skill) 
+                  ? 'bg-gray-750 border border-green-700' 
+                  : 'bg-gray-800 border border-gray-700'
+              ]"
             >
               <div class="flex-1 min-w-0 pr-2">
                 <p class="font-medium">
                   {{ skill.name }}
                   <span class="text-xs text-gray-400 ml-1">({{ skill.ability }})</span>
-                  <span v-if="isClassSkill(skill)" class="text-xs text-green-400 ml-1">●</span>
+                  <span v-if="isClassSkill(skill)" class="text-xs text-green-400 ml-1">● Class Skill</span>
                 </p>
                 <p class="text-xs text-gray-400 truncate">{{ skill.description }}</p>
               </div>
@@ -350,8 +377,13 @@
         <div v-else-if="(!isLevelUp && currentStep === 5) || (isLevelUp && currentStep === 3)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Choose Feats</h3>
           
-          <div class="mb-4 p-3 bg-gray-800 rounded">
-            <p class="text-sm text-gray-400">Feats Available: <span class="font-bold text-green-300">{{ featsRemaining }}</span></p>
+          <div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
+            <p class="text-sm text-gray-400">
+              Feats Remaining: 
+              <span class="font-bold text-2xl" :class="featsRemaining - selectedFeats.length > 0 ? 'text-green-300' : 'text-gray-500'">
+                {{ featsRemaining - selectedFeats.length }}
+              </span>
+            </p>
             <div class="text-xs text-gray-400 mt-1">
               <p v-if="!isLevelUp || currentLevel === 0">• 1 feat at 1st level</p>
               <p v-if="selectedRace?.name === 'Human'">• 1 bonus feat (Human)</p>
@@ -368,28 +400,29 @@
             />
           </div>
 
-          <div class="feats-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+          <div class="feats-list grid grid-cols-1 md:grid-cols-2 gap-3 p-1">
             <div 
               v-for="feat in filteredFeats" 
               :key="feat.name"
               @click="toggleFeat(feat)"
               :class="[
-                'feat-card p-4 bg-gray-800 rounded cursor-pointer transition-all transform hover:scale-102',
-                selectedFeats.includes(feat.name) ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500',
+                'feat-card p-4 rounded cursor-pointer transition-all',
+                selectedFeats.includes(feat.name) 
+                  ? 'bg-green-800 border-2 border-green-400 shadow-md' 
+                  : 'bg-gray-800 border-2 border-gray-600 hover:border-gray-500 hover:bg-gray-750',
                 !meetsPrerequisites(feat) ? 'opacity-50 cursor-not-allowed' : ''
               ]"
             >
-              <div class="flex justify-between items-start">
-                <div class="flex-1">
-                  <h4 class="font-bold">{{ feat.name }}</h4>
-                  <p class="text-xs text-gray-400 mt-1">{{ feat.description }}</p>
-                  <p v-if="feat.prerequisites" class="text-xs text-yellow-400 mt-1">
-                    Requires: {{ feat.prerequisites }}
-                  </p>
-                </div>
-                <div v-if="selectedFeats.includes(feat.name)" class="ml-2 text-green-400">
-                  ✓
-                </div>
+              <div>
+                <h4 class="font-bold" :class="selectedFeats.includes(feat.name) ? 'text-green-200' : ''">
+                  {{ feat.name }}
+                </h4>
+                <p class="text-xs mt-1" :class="selectedFeats.includes(feat.name) ? 'text-green-300' : 'text-gray-400'">
+                  {{ feat.description }}
+                </p>
+                <p v-if="feat.prerequisites" class="text-xs mt-1" :class="selectedFeats.includes(feat.name) ? 'text-yellow-200' : 'text-yellow-400'">
+                  Requires: {{ feat.prerequisites }}
+                </p>
               </div>
             </div>
           </div>
@@ -399,47 +432,273 @@
         <div v-else-if="!isLevelUp && currentStep === 6" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Starting Equipment</h3>
           
-          <div class="mb-4 p-3 bg-gray-800 rounded">
-            <p class="text-sm text-gray-400">Starting Gold: <span class="font-bold text-yellow-300">{{ startingGold }} gp</span></p>
+          <!-- Gold Display -->
+          <div class="mb-4 p-4 bg-gray-800 rounded border border-gray-700">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <p class="text-sm text-gray-400">Starting Gold:</p>
+                <div class="flex flex-col items-center">
+                  <div class="flex items-center gap-2">
+                    <p class="text-xl font-bold text-yellow-300">{{ Math.floor(actualStartingGold) }} gp</p>
+                    <button 
+                      @click="rollStartingGold"
+                      class="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded"
+                      :title="`Roll for starting gold (${getStartingGoldFormula()})`"
+                    >
+                      🎲
+                    </button>
+                  </div>
+                  <span v-if="selectedClass && !goldRollMessage" class="text-xs text-gray-500 mt-1">({{ getStartingGoldFormula() }})</span>
+                </div>
+              </div>
+              <div>
+                <p class="text-sm text-gray-400">Spent:</p>
+                <p class="text-xl font-semibold text-red-400">
+                  {{ totalEquipmentCost < 1 ? totalEquipmentCost.toFixed(1) : totalEquipmentCost.toFixed(0) }} gp
+                </p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-400">Remaining:</p>
+                <p class="text-xl font-bold" :class="actualRemainingGold >= 0 ? 'text-green-300' : 'text-red-400'">
+                  {{ actualRemainingGold < 1 && actualRemainingGold > 0 ? actualRemainingGold.toFixed(1) : Math.floor(actualRemainingGold) }} gp
+                </p>
+              </div>
+              <div>
+                <p class="text-sm text-gray-400">Total Weight:</p>
+                <p class="text-xl font-semibold" :class="totalEquipmentWeight > getCarryingCapacity() ? 'text-red-400' : 'text-gray-300'">
+                  {{ totalEquipmentWeight.toFixed(1) }} lbs
+                </p>
+              </div>
+            </div>
+            <div v-if="goldRollMessage" class="mt-3 text-center">
+              <p class="text-xs text-green-400 animate-pulse">{{ goldRollMessage }}</p>
+            </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Quick Packs -->
-            <div>
-              <h4 class="font-semibold mb-2">Quick Equipment Packs</h4>
-              <div class="space-y-2">
-                <button 
-                  v-for="pack in equipmentPacks" 
-                  :key="pack.name"
-                  @click="selectEquipmentPack(pack)"
-                  class="w-full p-3 bg-gray-800 hover:bg-gray-700 rounded text-left transition-all"
+          <div class="space-y-4">
+            <!-- Equipment Categories and List -->
+            <div class="space-y-4">
+              <!-- Category Tabs -->
+              <div class="flex gap-2 flex-wrap mb-4">
+                <button
+                  v-for="category in equipmentCategories"
+                  :key="category"
+                  @click="selectedEquipmentCategory = category"
+                  :class="[
+                    'px-4 py-2 rounded transition-all',
+                    selectedEquipmentCategory === category 
+                      ? 'bg-green-700 text-white shadow-md border border-green-400' 
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600'
+                  ]"
                 >
-                  <p class="font-medium">{{ pack.name }}</p>
-                  <p class="text-xs text-gray-400">{{ pack.cost }} gp</p>
+                  {{ category }}
                 </button>
+              </div>
+
+              <!-- Search -->
+              <div class="mb-3">
+                <input 
+                  v-model="equipmentSearch"
+                  placeholder="Search equipment..."
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+
+              <!-- Equipment List -->
+              <div class="equipment-list-container bg-gray-800 rounded p-4 border border-gray-700">
+                <!-- Class Recommendations -->
+                <div v-if="selectedClass && getRecommendedItems().length > 0" class="mb-4 p-3 bg-blue-900 bg-opacity-30 rounded border border-blue-700">
+                  <h5 class="text-sm font-semibold text-blue-300 mb-2">Recommended for {{ selectedClass.name }}:</h5>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="item in getRecommendedItems()"
+                      :key="item.name"
+                      @click="addEquipmentByName(item.name)"
+                      :disabled="actualRemainingGold < item.cost"
+                      :class="[
+                        'px-3 py-1 rounded text-xs transition-all whitespace-nowrap',
+                        actualRemainingGold >= item.cost
+                          ? 'bg-blue-700 hover:bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                      ]"
+                    >
+                      {{ item.name }} ({{ item.cost }}gp)
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto pr-2">
+                  <div 
+                    v-for="item in filteredEquipment" 
+                    :key="item.name"
+                    class="flex items-center justify-between p-3 bg-gray-750 hover:bg-gray-700 rounded border border-gray-600 transition-all min-h-[60px]"
+                  >
+                    <div class="flex-1 pr-3 min-w-0">
+                      <p class="font-medium truncate">{{ item.name }}</p>
+                      <p class="text-xs text-gray-400 truncate">{{ item.description || item.type }}</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                      <span class="text-yellow-300 font-semibold whitespace-nowrap">
+                        {{ item.cost < 1 ? item.cost.toFixed(1) : item.cost }} gp
+                      </span>
+                      <button
+                        @click="addEquipment(item)"
+                        :disabled="actualRemainingGold < item.cost"
+                        :class="[
+                          'px-3 py-1 rounded text-sm transition-all whitespace-nowrap',
+                          actualRemainingGold >= item.cost
+                            ? 'bg-green-600 hover:bg-green-500 text-white'
+                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        ]"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="filteredEquipment.length === 0" class="text-center py-8 text-gray-500">
+                    No equipment found
+                  </div>
+                </div>
+                
+                <!-- Add Custom Item - MOVED HERE -->
+                <div class="mt-4 bg-gray-700 rounded p-4 border border-gray-600">
+                  <h4 class="font-semibold mb-3 text-blue-300">Add Custom Item</h4>
+                  <div class="grid grid-cols-1 gap-2">
+                    <div class="grid grid-cols-2 gap-2">
+                      <input 
+                        v-model="customItemName"
+                        placeholder="Item name"
+                        class="bg-gray-600 border border-gray-500 rounded px-3 py-2 text-sm"
+                      />
+                      <input 
+                        v-model.number="customItemCost"
+                        type="number"
+                        placeholder="Cost (gp)"
+                        min="0"
+                        step="0.1"
+                        class="bg-gray-600 border border-gray-500 rounded px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <button
+                      @click="addCustomItem"
+                      :disabled="!customItemName || customItemCost < 0 || actualRemainingGold < customItemCost"
+                      :class="[
+                        'px-4 py-2 rounded text-sm font-medium transition-all w-full',
+                        customItemName && customItemCost >= 0 && actualRemainingGold >= customItemCost
+                          ? 'bg-green-600 hover:bg-green-500 text-white'
+                          : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      ]"
+                    >
+                      Add Custom Item
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Packs -->
+              <div class="mt-4 overflow-hidden">
+                <h4 class="font-semibold mb-2 text-blue-300">Quick Equipment Packs</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button 
+                    v-for="pack in equipmentPacks" 
+                    :key="pack.name"
+                    @click="selectEquipmentPack(pack)"
+                    :disabled="actualRemainingGold < pack.cost"
+                    :class="[
+                      'p-4 rounded text-left transition-all border-2 min-h-[100px] hover:brightness-110',
+                      actualRemainingGold >= pack.cost
+                        ? 'bg-gray-800 hover:bg-gray-700 border-gray-600 hover:border-green-500'
+                        : 'bg-gray-900 border-gray-700 cursor-not-allowed opacity-50'
+                    ]"
+                  >
+                    <p class="font-medium text-sm mb-1">{{ pack.name }}</p>
+                    <p class="text-xs text-gray-400 mb-2 line-clamp-2">{{ pack.description }}</p>
+                    <p class="text-sm text-yellow-300 font-semibold">
+                      {{ pack.cost < 1 ? pack.cost.toFixed(1) : pack.cost }} gp
+                    </p>
+                  </button>
+                </div>
               </div>
             </div>
 
             <!-- Selected Equipment -->
-            <div>
-              <h4 class="font-semibold mb-2">Your Equipment</h4>
-              <div class="bg-gray-800 p-3 rounded space-y-1 max-h-64 overflow-y-auto">
-                <div v-if="selectedEquipment.length === 0" class="text-gray-500 text-sm">
-                  No equipment selected
+            <div class="mt-6">
+              <div class="bg-gray-800 p-4 rounded border border-gray-700">
+                <h4 class="font-semibold mb-3 text-green-300">Your Equipment</h4>
+                <div class="space-y-1 max-h-64 overflow-y-auto">
+                  <div v-if="selectedEquipment.length === 0" class="text-gray-500 text-sm text-center py-8">
+                    No equipment selected
+                  </div>
+                  <div 
+                    v-for="(item, index) in selectedEquipment" 
+                    :key="`${item.name}-${index}`" 
+                    class="flex items-center justify-between p-2 bg-gray-750 rounded group hover:bg-gray-700 transition-all min-h-[50px]"
+                  >
+                    <div class="flex-1 min-w-0 pr-2">
+                      <p class="text-sm font-medium truncate">{{ item.name }}</p>
+                      <p class="text-xs text-gray-400">
+                        {{ ((item.weight || 0) * (item.quantity || 1)).toFixed(1) }} lbs
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                      <!-- Quantity controls -->
+                      <div class="flex items-center gap-1">
+                        <button 
+                          @click="adjustItemQuantity(item, -1)"
+                          :disabled="item.quantity <= 1"
+                          class="text-xs bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-1 rounded"
+                        >
+                          -
+                        </button>
+                        <span class="text-xs w-6 text-center">{{ item.quantity || 1 }}</span>
+                        <button 
+                          @click="adjustItemQuantity(item, 1)"
+                          :disabled="actualRemainingGold < item.cost"
+                          class="text-xs bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-1 rounded"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <span class="text-yellow-300 text-sm w-12 text-right">
+                        {{ (item.cost * (item.quantity || 1)) < 1 ? (item.cost * (item.quantity || 1)).toFixed(1) : (item.cost * (item.quantity || 1)).toFixed(0) }}
+                      </span>
+                      <button 
+                        @click="removeEquipment(index)"
+                        class="text-red-400 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div v-for="(item, index) in selectedEquipment" :key="index" class="flex justify-between text-sm">
-                  <span>{{ item.name }}</span>
-                  <span class="text-yellow-300">{{ item.cost }} gp</span>
-                </div>
-                <div v-if="selectedEquipment.length > 0" class="border-t border-gray-700 pt-1 mt-2">
+                
+                <!-- Totals -->
+                <div v-if="selectedEquipment.length > 0" class="border-t border-gray-700 pt-3 mt-3">
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-400">Items:</span>
+                    <span>{{ selectedEquipment.reduce((sum, item) => sum + (item.quantity || 1), 0) }}</span>
+                  </div>
+                  <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-400">Total Weight:</span>
+                    <span :class="totalEquipmentWeight > getCarryingCapacity() ? 'text-red-400 font-bold' : ''">
+                      {{ totalEquipmentWeight.toFixed(1) }} lbs
+                    </span>
+                  </div>
                   <div class="flex justify-between font-semibold">
-                    <span>Total:</span>
-                    <span class="text-yellow-300">{{ totalEquipmentCost }} gp</span>
+                    <span>Total Cost:</span>
+                    <span class="text-yellow-300">
+                      {{ totalEquipmentCost < 1 ? totalEquipmentCost.toFixed(1) : totalEquipmentCost.toFixed(0) }} gp
+                    </span>
                   </div>
-                  <div class="flex justify-between text-sm text-gray-400">
-                    <span>Remaining:</span>
-                    <span>{{ startingGold - totalEquipmentCost }} gp</span>
+                  <div v-if="totalEquipmentWeight > getCarryingCapacity()" class="mt-2 text-xs text-red-400">
+                    ⚠️ Over carrying capacity! ({{ getCarryingCapacity() }} lbs light load)
                   </div>
+                  <button
+                    @click="clearEquipment"
+                    class="w-full mt-3 bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded text-sm transition-all"
+                  >
+                    Clear All
+                  </button>
                 </div>
               </div>
             </div>
@@ -585,8 +844,8 @@
                   :class="[
                     'p-2 rounded text-sm font-medium transition-all',
                     characterDetails.alignment === align 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-700 hover:bg-gray-600'
+                      ? 'bg-green-700 text-white shadow-lg shadow-green-500/50 border border-green-400' 
+                      : 'bg-gray-700 hover:bg-gray-600 border border-gray-600'
                   ]"
                 >
                   {{ align }}
@@ -618,7 +877,7 @@
               <p class="text-sm text-gray-400 mb-2">
                 Bonus languages ({{ getBonusLanguages() }} available{{ selectedRace ? '' : ' - select a race first' }}):
               </p>
-              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
                 <label 
                   v-for="lang in getAvailableLanguages()" 
                   :key="lang"
@@ -689,52 +948,54 @@
         <div v-else-if="(!isLevelUp && currentStep === 8) || (isLevelUp && currentStep === 4)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Summary</h3>
           
-          <div class="bg-gray-800 p-4 rounded-lg space-y-3">
+          <div class="bg-gray-800 p-4 rounded-lg space-y-3 border border-gray-700">
             <h4 class="font-bold text-green-300 text-lg">
               {{ isLevelUp ? 'Level Up Complete!' : 'Character Complete!' }}
             </h4>
             
             <div v-if="!isLevelUp" class="space-y-2">
-              <p><strong>Name:</strong> {{ characterDetails.name || 'Unnamed Hero' }}</p>
-              <p><strong>Race:</strong> {{ selectedRace?.name }}</p>
-              <p><strong>Class:</strong> {{ selectedClass?.name }} 1</p>
-              <p><strong>Alignment:</strong> {{ characterDetails.alignment }}</p>
-              <p v-if="characterDetails.deity"><strong>Deity:</strong> {{ characterDetails.deity }}</p>
+              <div class="grid grid-cols-2 gap-2">
+                <p><strong class="text-gray-400">Name:</strong> <span class="text-white">{{ characterDetails.name || 'Unnamed Hero' }}</span></p>
+                <p><strong class="text-gray-400">Race:</strong> <span class="text-white">{{ selectedRace?.name }}</span></p>
+                <p><strong class="text-gray-400">Class:</strong> <span class="text-white">{{ selectedClass?.name }} 1</span></p>
+                <p><strong class="text-gray-400">Alignment:</strong> <span class="text-white">{{ characterDetails.alignment }}</span></p>
+              </div>
+              <p v-if="characterDetails.deity"><strong class="text-gray-400">Deity:</strong> <span class="text-white">{{ characterDetails.deity }}</span></p>
               
               <!-- Physical Description -->
-              <div v-if="characterDetails.age || characterDetails.height || characterDetails.weight">
-                <p class="font-semibold mb-1">Physical Description:</p>
-                <div class="text-sm ml-4">
-                  <p v-if="characterDetails.age">Age: {{ characterDetails.age }}</p>
-                  <p v-if="characterDetails.gender">Gender: {{ characterDetails.gender }}</p>
-                  <p v-if="characterDetails.height">Height: {{ characterDetails.height }}</p>
-                  <p v-if="characterDetails.weight">Weight: {{ characterDetails.weight }}</p>
-                  <p v-if="characterDetails.eyes">Eyes: {{ characterDetails.eyes }}</p>
-                  <p v-if="characterDetails.hair">Hair: {{ characterDetails.hair }}</p>
+              <div v-if="characterDetails.age || characterDetails.height || characterDetails.weight" class="bg-gray-750 p-3 rounded">
+                <p class="font-semibold mb-1 text-blue-300">Physical Description:</p>
+                <div class="text-sm ml-4 grid grid-cols-2 gap-1">
+                  <p v-if="characterDetails.age"><span class="text-gray-400">Age:</span> {{ characterDetails.age }}</p>
+                  <p v-if="characterDetails.gender"><span class="text-gray-400">Gender:</span> {{ characterDetails.gender }}</p>
+                  <p v-if="characterDetails.height"><span class="text-gray-400">Height:</span> {{ characterDetails.height }}</p>
+                  <p v-if="characterDetails.weight"><span class="text-gray-400">Weight:</span> {{ characterDetails.weight }}</p>
+                  <p v-if="characterDetails.eyes"><span class="text-gray-400">Eyes:</span> {{ characterDetails.eyes }}</p>
+                  <p v-if="characterDetails.hair"><span class="text-gray-400">Hair:</span> {{ characterDetails.hair }}</p>
                 </div>
               </div>
               
-              <div>
-                <p class="font-semibold mb-1">Ability Scores:</p>
+              <div class="bg-gray-750 p-3 rounded">
+                <p class="font-semibold mb-1 text-blue-300">Ability Scores:</p>
                 <div class="grid grid-cols-3 gap-2 text-sm ml-4">
                   <span v-for="ability in abilities" :key="ability">
-                    {{ ability }}: {{ getFinalAbilityScore(ability) }} 
-                    ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
+                    <span class="text-gray-400">{{ ability }}:</span> {{ getFinalAbilityScore(ability) }} 
+                    <span class="text-green-300">({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})</span>
                   </span>
                 </div>
               </div>
               
               <p v-if="characterDetails.languages.length > 0">
-                <strong>Languages:</strong> {{ characterDetails.languages.join(', ') }}
+                <strong class="text-gray-400">Languages:</strong> <span class="text-white">{{ characterDetails.languages.join(', ') }}</span>
               </p>
             </div>
             
             <div v-else class="space-y-2">
-              <p><strong>New Level:</strong> {{ selectedClass?.name }} {{ getClassLevel(selectedClass?.name) + 1 }}</p>
-              <p><strong>Total Character Level:</strong> {{ currentLevel + 1 }}</p>
-              <p><strong>Hit Points Gained:</strong> +{{ getTotalHPGain() }}</p>
-              <p><strong>Skill Points Spent:</strong> {{ totalSkillPoints - skillPointsRemaining }}</p>
-              <p v-if="selectedFeats.length > 0"><strong>New Feats:</strong> {{ selectedFeats.join(', ') }}</p>
+              <p><strong class="text-gray-400">New Level:</strong> <span class="text-white">{{ selectedClass?.name }} {{ getClassLevel(selectedClass?.name) + 1 }}</span></p>
+              <p><strong class="text-gray-400">Total Character Level:</strong> <span class="text-white">{{ currentLevel + 1 }}</span></p>
+              <p><strong class="text-gray-400">Hit Points Gained:</strong> <span class="text-green-300">+{{ getTotalHPGain() }}</span></p>
+              <p><strong class="text-gray-400">Skill Points Spent:</strong> <span class="text-white">{{ totalSkillPoints - skillPointsRemaining }}</span></p>
+              <p v-if="selectedFeats.length > 0"><strong class="text-gray-400">New Feats:</strong> <span class="text-white">{{ selectedFeats.join(', ') }}</span></p>
             </div>
           </div>
         </div>
@@ -745,7 +1006,7 @@
         <button 
           @click="previousStep"
           :disabled="currentStep === 0"
-          class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded"
+          class="bg-gray-600 hover:bg-gray-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded transition-all hover:shadow-md"
         >
           ← Previous
         </button>
@@ -760,28 +1021,46 @@
           
           <button 
             @click="cancel"
-            class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded"
+            class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded transition-all hover:shadow-md"
           >
             Cancel
           </button>
           <button 
             @click="nextStep"
             :disabled="!canProceed"
-            class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded"
+            class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded transition-all hover:shadow-md disabled:hover:shadow-none"
           >
             {{ currentStep === totalSteps - 1 ? 'Finish' : 'Next →' }}
           </button>
         </div>
+      </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { characterState } from '@/characterState.js'
 // Import the race data from pathfinderRaces.js - Try different import paths
 import { pathfinderRaces, getAllRaces, getRaceById } from '@/data/pathfinderRaces.js'
+
+/* 
+ * Integration with Inventory System:
+ * 
+ * When the character creation is complete, the parent component should:
+ * 
+ * 1. Process the equipment array from characterData.equipment
+ * 2. Use InventoryParser to add items to the character's inventory:
+ *    const changes = {
+ *      itemsGained: characterData.equipment,
+ *      moneyGained: characterData.startingMoney
+ *    }
+ *    await InventoryParser.applyInventoryChanges(changes, true)
+ * 
+ * 3. Apply other character attributes (race, class, abilities, skills, feats)
+ * 4. Handle any errors appropriately
+ */
 
 // Debug log the imports
 console.log('Imported pathfinderRaces:', pathfinderRaces)
@@ -893,11 +1172,199 @@ const featFilter = ref('')
 const featsRemaining = ref(1)
 
 // Equipment
-const startingGold = ref(150)
 const selectedEquipment = ref([])
+const selectedEquipmentCategory = ref('Weapons')
+const equipmentSearch = ref('')
+const customItemName = ref('')
+const customItemCost = ref(0)
+const actualStartingGold = ref(0)
+const goldRollMessage = ref('')
+
+// Calculate starting gold based on class
+const startingGold = computed(() => {
+  if (!selectedClass.value) return 0
+  
+  // Starting wealth by class (average values)
+  const classWealth = {
+    'Fighter': 175,      // 5d4 × 10 gp
+    'Wizard': 70,        // 2d4 × 10 gp
+    'Rogue': 140,        // 4d4 × 10 gp
+    'Cleric': 140,       // 4d4 × 10 gp
+    'Barbarian': 105,    // 3d4 × 10 gp
+    'Ranger': 175,       // 5d4 × 10 gp
+    'Bard': 105,         // 3d4 × 10 gp
+    'Druid': 70,         // 2d4 × 10 gp
+    'Monk': 17,          // 1d4 × 10 gp
+    'Paladin': 175,      // 5d4 × 10 gp
+    'Sorcerer': 70,      // 2d4 × 10 gp
+    'default': 150       // Default for unknown classes
+  }
+  
+  const baseGold = classWealth[selectedClass.value.name] || classWealth.default
+  
+  // Set actual starting gold to base if not already set
+  if (actualStartingGold.value === 0 && baseGold > 0) {
+    actualStartingGold.value = baseGold
+  }
+  
+  return baseGold
+})
+
+// Starting gold dice by class
+const startingGoldDice = {
+  'Fighter': { dice: 5, sides: 4, multiplier: 10 },
+  'Wizard': { dice: 2, sides: 4, multiplier: 10 },
+  'Rogue': { dice: 4, sides: 4, multiplier: 10 },
+  'Cleric': { dice: 4, sides: 4, multiplier: 10 },
+  'Barbarian': { dice: 3, sides: 4, multiplier: 10 },
+  'Ranger': { dice: 5, sides: 4, multiplier: 10 },
+  'Bard': { dice: 3, sides: 4, multiplier: 10 },
+  'Druid': { dice: 2, sides: 4, multiplier: 10 },
+  'Monk': { dice: 1, sides: 4, multiplier: 10 },
+  'Paladin': { dice: 5, sides: 4, multiplier: 10 },
+  'Sorcerer': { dice: 2, sides: 4, multiplier: 10 },
+  'default': { dice: 4, sides: 4, multiplier: 10 }
+}
 
 // Data - Now using imported race data
 const raceCategories = ['Core', 'Featured', 'Uncommon']
+const equipmentCategories = ['Weapons', 'Armor', 'Gear', 'Magic Items']
+
+// Equipment data
+const equipmentData = {
+  Weapons: [
+    // Simple Weapons
+    { name: 'Dagger', cost: 2, type: 'Simple Light', damage: '1d4', description: 'P or S, 19-20/x2', weight: 1 },
+    { name: 'Light Mace', cost: 5, type: 'Simple Light', damage: '1d6', description: 'B, x2', weight: 4 },
+    { name: 'Sickle', cost: 6, type: 'Simple Light', damage: '1d6', description: 'S, x2', weight: 2 },
+    { name: 'Club', cost: 0, type: 'Simple One-Handed', damage: '1d6', description: 'B, x2', weight: 3 },
+    { name: 'Heavy Mace', cost: 12, type: 'Simple One-Handed', damage: '1d8', description: 'B, x2', weight: 8 },
+    { name: 'Morningstar', cost: 8, type: 'Simple One-Handed', damage: '1d8', description: 'B and P, x2', weight: 6 },
+    { name: 'Shortspear', cost: 1, type: 'Simple One-Handed', damage: '1d6', description: 'P, x2', weight: 3 },
+    { name: 'Longspear', cost: 5, type: 'Simple Two-Handed', damage: '1d8', description: 'P, x3, reach', weight: 9 },
+    { name: 'Quarterstaff', cost: 0, type: 'Simple Two-Handed', damage: '1d6/1d6', description: 'B, x2', weight: 4 },
+    { name: 'Spear', cost: 2, type: 'Simple Two-Handed', damage: '1d8', description: 'P, x3', weight: 6 },
+    // Martial Weapons
+    { name: 'Handaxe', cost: 6, type: 'Martial Light', damage: '1d6', description: 'S, x3', weight: 3 },
+    { name: 'Light Hammer', cost: 1, type: 'Martial Light', damage: '1d4', description: 'B, x2', weight: 2 },
+    { name: 'Short Sword', cost: 10, type: 'Martial Light', damage: '1d6', description: 'P, 19-20/x2', weight: 2 },
+    { name: 'Battleaxe', cost: 10, type: 'Martial One-Handed', damage: '1d8', description: 'S, x3', weight: 6 },
+    { name: 'Longsword', cost: 15, type: 'Martial One-Handed', damage: '1d8', description: 'S, 19-20/x2', weight: 4 },
+    { name: 'Rapier', cost: 20, type: 'Martial One-Handed', damage: '1d6', description: 'P, 18-20/x2', weight: 2 },
+    { name: 'Scimitar', cost: 15, type: 'Martial One-Handed', damage: '1d6', description: 'S, 18-20/x2', weight: 4 },
+    { name: 'Warhammer', cost: 12, type: 'Martial One-Handed', damage: '1d8', description: 'B, x3', weight: 5 },
+    { name: 'Falchion', cost: 75, type: 'Martial Two-Handed', damage: '2d4', description: 'S, 18-20/x2', weight: 8 },
+    { name: 'Glaive', cost: 8, type: 'Martial Two-Handed', damage: '1d10', description: 'S, x3, reach', weight: 10 },
+    { name: 'Greataxe', cost: 20, type: 'Martial Two-Handed', damage: '1d12', description: 'S, x3', weight: 12 },
+    { name: 'Greatsword', cost: 50, type: 'Martial Two-Handed', damage: '2d6', description: 'S, 19-20/x2', weight: 8 },
+    { name: 'Halberd', cost: 10, type: 'Martial Two-Handed', damage: '1d10', description: 'P or S, x3', weight: 12 },
+    { name: 'Scythe', cost: 18, type: 'Martial Two-Handed', damage: '2d4', description: 'P or S, x4', weight: 10 },
+    // Ranged Weapons
+    { name: 'Crossbow, light', cost: 35, type: 'Simple Ranged', damage: '1d8', description: 'P, 19-20/x2, 80 ft.', weight: 4 },
+    { name: 'Dart', cost: 0.5, type: 'Simple Ranged', damage: '1d4', description: 'P, x2, 20 ft.', weight: 0.5 },
+    { name: 'Javelin', cost: 1, type: 'Simple Ranged', damage: '1d6', description: 'P, x2, 30 ft.', weight: 2 },
+    { name: 'Sling', cost: 0, type: 'Simple Ranged', damage: '1d4', description: 'B, x2, 50 ft.', weight: 0 },
+    { name: 'Shortbow', cost: 30, type: 'Martial Ranged', damage: '1d6', description: 'P, x3, 60 ft.', weight: 2 },
+    { name: 'Longbow', cost: 75, type: 'Martial Ranged', damage: '1d8', description: 'P, x3, 100 ft.', weight: 3 },
+    // Ammunition
+    { name: 'Arrows (20)', cost: 1, type: 'Ammunition', description: 'For bow', weight: 3 },
+    { name: 'Bolts (10)', cost: 1, type: 'Ammunition', description: 'For crossbow', weight: 1 },
+    { name: 'Sling bullets (10)', cost: 0.1, type: 'Ammunition', description: 'For sling', weight: 5 }
+  ],
+  Armor: [
+    // Light Armor
+    { name: 'Padded', cost: 5, type: 'Light Armor', description: 'AC +1, Max Dex +8', weight: 10 },
+    { name: 'Leather', cost: 10, type: 'Light Armor', description: 'AC +2, Max Dex +6', weight: 15 },
+    { name: 'Studded leather', cost: 25, type: 'Light Armor', description: 'AC +3, Max Dex +5', weight: 20 },
+    { name: 'Chain shirt', cost: 100, type: 'Light Armor', description: 'AC +4, Max Dex +4', weight: 25 },
+    // Medium Armor
+    { name: 'Hide', cost: 15, type: 'Medium Armor', description: 'AC +4, Max Dex +4', weight: 25 },
+    { name: 'Scale mail', cost: 50, type: 'Medium Armor', description: 'AC +5, Max Dex +3', weight: 30 },
+    { name: 'Chainmail', cost: 150, type: 'Medium Armor', description: 'AC +6, Max Dex +2', weight: 40 },
+    { name: 'Breastplate', cost: 200, type: 'Medium Armor', description: 'AC +6, Max Dex +3', weight: 30 },
+    // Heavy Armor
+    { name: 'Splint mail', cost: 200, type: 'Heavy Armor', description: 'AC +7, Max Dex +0', weight: 45 },
+    { name: 'Banded mail', cost: 250, type: 'Heavy Armor', description: 'AC +7, Max Dex +1', weight: 35 },
+    { name: 'Half-plate', cost: 600, type: 'Heavy Armor', description: 'AC +8, Max Dex +0', weight: 50 },
+    { name: 'Full plate', cost: 1500, type: 'Heavy Armor', description: 'AC +9, Max Dex +1', weight: 50 },
+    // Shields
+    { name: 'Buckler', cost: 5, type: 'Shield', description: 'AC +1, -1 penalty to attack', weight: 5 },
+    { name: 'Shield, light wooden', cost: 3, type: 'Shield', description: 'AC +1', weight: 5 },
+    { name: 'Shield, light steel', cost: 9, type: 'Shield', description: 'AC +1', weight: 6 },
+    { name: 'Shield, heavy wooden', cost: 7, type: 'Shield', description: 'AC +2', weight: 10 },
+    { name: 'Shield, heavy steel', cost: 20, type: 'Shield', description: 'AC +2', weight: 15 },
+    { name: 'Shield, tower', cost: 30, type: 'Shield', description: 'AC +4, can provide cover', weight: 45 }
+  ],
+  Gear: [
+    // Adventuring Gear
+    { name: 'Backpack', cost: 2, type: 'Container', description: 'Holds gear', weight: 2 },
+    { name: 'Bedroll', cost: 0.1, type: 'Camping', description: 'For sleeping', weight: 5 },
+    { name: 'Blanket, winter', cost: 0.5, type: 'Camping', description: 'Warmth in cold', weight: 3 },
+    { name: 'Caltrops', cost: 1, type: 'Trap', description: 'Slows pursuers', weight: 2 },
+    { name: 'Candle', cost: 0.01, type: 'Light', description: '1 hour, 5 ft.', weight: 0 },
+    { name: 'Chalk (1 piece)', cost: 0.01, type: 'Writing', description: 'For marking', weight: 0 },
+    { name: 'Crowbar', cost: 2, type: 'Tool', description: '+2 to Strength checks', weight: 5 },
+    { name: 'Flask', cost: 0.03, type: 'Container', description: 'Holds 1 pint', weight: 1.5 },
+    { name: 'Flint and steel', cost: 1, type: 'Fire', description: 'Starts fires', weight: 0 },
+    { name: 'Grappling hook', cost: 1, type: 'Climbing', description: 'For climbing', weight: 4 },
+    { name: 'Hammer', cost: 0.5, type: 'Tool', description: 'Pound things', weight: 2 },
+    { name: 'Ink (1 oz. vial)', cost: 8, type: 'Writing', description: 'For writing', weight: 0 },
+    { name: 'Inkpen', cost: 0.1, type: 'Writing', description: 'For writing', weight: 0 },
+    { name: 'Lantern, hooded', cost: 7, type: 'Light', description: '30 ft., 6 hours', weight: 2 },
+    { name: 'Lock, simple', cost: 20, type: 'Security', description: 'DC 20 to pick', weight: 1 },
+    { name: 'Lock, average', cost: 40, type: 'Security', description: 'DC 25 to pick', weight: 1 },
+    { name: 'Manacles', cost: 15, type: 'Restraint', description: 'DC 26 to break', weight: 2 },
+    { name: 'Mirror, small steel', cost: 10, type: 'Tool', description: 'See behind you', weight: 0.5 },
+    { name: 'Oil (1-pint flask)', cost: 0.1, type: 'Light', description: 'Fuel for lantern', weight: 1 },
+    { name: 'Paper (sheet)', cost: 0.4, type: 'Writing', description: 'For writing', weight: 0 },
+    { name: 'Parchment (sheet)', cost: 0.2, type: 'Writing', description: 'For writing', weight: 0 },
+    { name: 'Piton', cost: 0.1, type: 'Climbing', description: 'Spike for climbing', weight: 0.5 },
+    { name: 'Pole, 10-foot', cost: 0.05, type: 'Tool', description: 'Prod things', weight: 8 },
+    { name: 'Pouch, belt', cost: 1, type: 'Container', description: 'Small storage', weight: 0.5 },
+    { name: 'Rations, trail (per day)', cost: 0.5, type: 'Food', description: 'One day of food', weight: 1 },
+    { name: 'Rope, hempen (50 ft.)', cost: 1, type: 'Climbing', description: 'For climbing', weight: 10 },
+    { name: 'Rope, silk (50 ft.)', cost: 10, type: 'Climbing', description: 'Lighter, stronger', weight: 5 },
+    { name: 'Sack', cost: 0.1, type: 'Container', description: 'Holds items', weight: 0.5 },
+    { name: 'Sealing wax', cost: 1, type: 'Writing', description: 'Seal letters', weight: 1 },
+    { name: 'Signet ring', cost: 5, type: 'Writing', description: 'Personal seal', weight: 0 },
+    { name: 'Spellbook, blank', cost: 15, type: 'Magic', description: '100 pages', weight: 3 },
+    { name: 'Tent', cost: 10, type: 'Camping', description: 'Sleeps 2', weight: 20 },
+    { name: 'Torch', cost: 0.01, type: 'Light', description: '20 ft., 1 hour', weight: 1 },
+    { name: 'Vial', cost: 1, type: 'Container', description: 'Holds 1 ounce', weight: 0.1 },
+    { name: 'Waterskin', cost: 1, type: 'Container', description: 'Holds water', weight: 4 },
+    { name: 'Whetstone', cost: 0.02, type: 'Tool', description: 'Sharpen blades', weight: 1 },
+    // Thieves' Tools
+    { name: 'Thieves\' tools', cost: 30, type: 'Tool', description: 'Pick locks, disarm traps', weight: 1 },
+    // Healer's Kit
+    { name: 'Healer\'s kit', cost: 50, type: 'Healing', description: '10 uses, +2 Heal checks', weight: 1 },
+    { name: 'Bandages', cost: 5, type: 'Healing', description: 'Basic wound care', weight: 0.5 },
+    // Holy Symbols
+    { name: 'Holy symbol, wooden', cost: 1, type: 'Divine Focus', description: 'For divine spells', weight: 0 },
+    { name: 'Holy symbol, silver', cost: 25, type: 'Divine Focus', description: 'For divine spells', weight: 1 },
+    // Spell Components
+    { name: 'Spell component pouch', cost: 5, type: 'Arcane Focus', description: 'Material components', weight: 2 },
+    // Clothing
+    { name: 'Traveler\'s outfit', cost: 1, type: 'Clothing', description: 'Sturdy clothes', weight: 5 },
+    { name: 'Scholar\'s outfit', cost: 5, type: 'Clothing', description: 'Robes and cap', weight: 6 },
+    { name: 'Cleric\'s vestments', cost: 5, type: 'Clothing', description: 'Religious garb', weight: 6 },
+    { name: 'Explorer\'s outfit', cost: 10, type: 'Clothing', description: 'Rugged gear', weight: 8 },
+    { name: 'Noble\'s outfit', cost: 75, type: 'Clothing', description: 'Fine clothes', weight: 10 }
+  ],
+  'Magic Items': [
+    { name: 'Potion of Cure Light Wounds', cost: 50, type: 'Potion', description: 'Heals 1d8+1 HP', weight: 0.1 },
+    { name: 'Scroll of Magic Missile', cost: 25, type: 'Scroll', description: '1d4+1 force damage', weight: 0 },
+    { name: 'Alchemist\'s fire', cost: 20, type: 'Alchemical', description: '1d6 fire damage', weight: 1 },
+    { name: 'Acid (flask)', cost: 10, type: 'Alchemical', description: '1d6 acid damage', weight: 1 },
+    { name: 'Antitoxin (vial)', cost: 50, type: 'Alchemical', description: '+5 to Fort saves vs poison', weight: 0 },
+    { name: 'Everburning torch', cost: 110, type: 'Magic Light', description: 'Permanent light', weight: 1 },
+    { name: 'Holy water (flask)', cost: 25, type: 'Divine', description: '2d4 damage to undead', weight: 1 },
+    { name: 'Smokestick', cost: 20, type: 'Alchemical', description: 'Creates smoke cloud', weight: 0.5 },
+    { name: 'Sunrod', cost: 2, type: 'Alchemical', description: '30 ft. light, 6 hours', weight: 1 },
+    { name: 'Tanglefoot bag', cost: 50, type: 'Alchemical', description: 'Entangles target', weight: 4 },
+    { name: 'Thunderstone', cost: 30, type: 'Alchemical', description: 'Sonic blast, deafens', weight: 1 },
+    { name: 'Tindertwig', cost: 1, type: 'Alchemical', description: 'Instant fire', weight: 0 }
+  ]
+}
 
 // Temporary fallback races if import fails
 const fallbackRaces = {
@@ -1105,23 +1572,83 @@ const availableFeats = [
 const equipmentPacks = [
   {
     name: 'Adventurer\'s Pack',
-    cost: 50,
-    items: ['Backpack', 'Bedroll', 'Belt pouch', 'Flint and steel', 'Hemp rope (50 ft)', 'Torches (10)', 'Trail rations (5 days)', 'Waterskin']
+    cost: 9,  // Discounted bundle price
+    description: 'Basic adventuring gear for dungeon delving',
+    items: [
+      { name: 'Backpack', cost: 2, quantity: 1, category: 'gear', weight: 2 },
+      { name: 'Bedroll', cost: 0.1, quantity: 1, category: 'gear', weight: 5 },
+      { name: 'Pouch, belt', cost: 1, quantity: 1, category: 'gear', weight: 0.5 },
+      { name: 'Flint and steel', cost: 1, quantity: 1, category: 'gear', weight: 0 },
+      { name: 'Rope, hempen (50 ft.)', cost: 1, quantity: 1, category: 'gear', weight: 10 },
+      { name: 'Torch', cost: 0.01, quantity: 10, category: 'gear', weight: 1 },
+      { name: 'Rations, trail (per day)', cost: 0.5, quantity: 5, category: 'gear', weight: 1 },
+      { name: 'Waterskin', cost: 1, quantity: 1, category: 'gear', weight: 4 }
+    ]
   },
   {
     name: 'Warrior\'s Kit',
-    cost: 100,
-    items: ['Longsword', 'Shield', 'Scale mail', 'Backpack', 'Bedroll', 'Trail rations (3 days)']
+    cost: 65,  // Discounted from 76.1
+    description: 'Essential combat equipment for fighters',
+    items: [
+      { name: 'Longsword', cost: 15, quantity: 1, category: 'weapons', weight: 4 },
+      { name: 'Shield, heavy wooden', cost: 7, quantity: 1, category: 'armor', weight: 10 },
+      { name: 'Scale mail', cost: 50, quantity: 1, category: 'armor', weight: 30 },
+      { name: 'Backpack', cost: 2, quantity: 1, category: 'gear', weight: 2 },
+      { name: 'Bedroll', cost: 0.1, quantity: 1, category: 'gear', weight: 5 },
+      { name: 'Rations, trail (per day)', cost: 0.5, quantity: 3, category: 'gear', weight: 1 }
+    ]
   },
   {
     name: 'Archer\'s Kit',
-    cost: 80,
-    items: ['Shortbow', 'Arrows (40)', 'Leather armor', 'Backpack', 'Bedroll', 'Trail rations (3 days)']
+    cost: 40,  // Discounted from 54.1
+    description: 'Ranged combat gear for marksmen',
+    items: [
+      { name: 'Shortbow', cost: 30, quantity: 1, category: 'weapons', weight: 2 },
+      { name: 'Arrows (20)', cost: 1, quantity: 2, category: 'weapons', weight: 3 },
+      { name: 'Leather', cost: 10, quantity: 1, category: 'armor', weight: 15 },
+      { name: 'Backpack', cost: 2, quantity: 1, category: 'gear', weight: 2 },
+      { name: 'Bedroll', cost: 0.1, quantity: 1, category: 'gear', weight: 5 },
+      { name: 'Rations, trail (per day)', cost: 0.5, quantity: 3, category: 'gear', weight: 1 }
+    ]
   },
   {
     name: 'Scholar\'s Kit',
-    cost: 40,
-    items: ['Spellbook', 'Ink and pen', 'Parchment (10 sheets)', 'Scholar\'s outfit', 'Backpack', 'Scroll case']
+    cost: 24,  // Discounted from 28.35
+    description: 'Essential tools for wizards and scholars',
+    items: [
+      { name: 'Spellbook, blank', cost: 15, quantity: 1, category: 'gear', weight: 3 },
+      { name: 'Ink (1 oz. vial)', cost: 8, quantity: 1, category: 'gear', weight: 0 },
+      { name: 'Inkpen', cost: 0.1, quantity: 1, category: 'gear', weight: 0 },
+      { name: 'Parchment (sheet)', cost: 0.2, quantity: 10, category: 'gear', weight: 0 },
+      { name: 'Backpack', cost: 2, quantity: 1, category: 'gear', weight: 2 },
+      { name: 'Scroll case', cost: 1, quantity: 1, category: 'gear', weight: 0.5 }
+    ]
+  },
+  {
+    name: 'Priest\'s Pack',
+    cost: 28,  // Discounted from 32.1
+    description: 'Divine focus and healing supplies',
+    items: [
+      { name: 'Holy symbol, wooden', cost: 1, quantity: 1, category: 'gear', weight: 0 },
+      { name: 'Holy water (flask)', cost: 25, quantity: 1, category: 'magic', weight: 1 },
+      { name: 'Bandages', cost: 5, quantity: 1, category: 'gear', weight: 0.5 },
+      { name: 'Candle', cost: 0.01, quantity: 10, category: 'gear', weight: 0 },
+      { name: 'Parchment (sheet)', cost: 0.2, quantity: 5, category: 'gear', weight: 0 }
+    ]
+  },
+  {
+    name: 'Burglar\'s Pack',
+    cost: 50,  // Discounted from 61.5
+    description: 'Tools for rogues and infiltrators',
+    items: [
+      { name: 'Thieves\' tools', cost: 30, quantity: 1, category: 'tools', weight: 1 },
+      { name: 'Rope, silk (50 ft.)', cost: 10, quantity: 1, category: 'gear', weight: 5 },
+      { name: 'Grappling hook', cost: 1, quantity: 1, category: 'gear', weight: 4 },
+      { name: 'Crowbar', cost: 2, quantity: 1, category: 'tools', weight: 5 },
+      { name: 'Lantern, hooded', cost: 7, quantity: 1, category: 'gear', weight: 2 },
+      { name: 'Oil (1-pint flask)', cost: 0.1, quantity: 3, category: 'gear', weight: 1 },
+      { name: 'Caltrops', cost: 1, quantity: 1, category: 'gear', weight: 2 }
+    ]
   }
 ]
 
@@ -1170,7 +1697,36 @@ const pointBuyRemaining = computed(() => {
 })
 
 const totalEquipmentCost = computed(() => {
-  return selectedEquipment.value.reduce((sum, item) => sum + item.cost, 0)
+  return selectedEquipment.value.reduce((sum, item) => sum + (item.cost * (item.quantity || 1)), 0)
+})
+
+const totalEquipmentWeight = computed(() => {
+  return selectedEquipment.value.reduce((sum, item) => sum + ((item.weight || 0) * (item.quantity || 1)), 0)
+})
+
+const remainingGold = computed(() => {
+  return startingGold.value - totalEquipmentCost.value
+})
+
+const actualRemainingGold = computed(() => {
+  return actualStartingGold.value - totalEquipmentCost.value
+})
+
+const filteredEquipment = computed(() => {
+  const category = selectedEquipmentCategory.value
+  const search = equipmentSearch.value.toLowerCase()
+  
+  let items = equipmentData[category] || []
+  
+  if (search) {
+    items = items.filter(item => 
+      item.name.toLowerCase().includes(search) ||
+      (item.description && item.description.toLowerCase().includes(search)) ||
+      (item.type && item.type.toLowerCase().includes(search))
+    )
+  }
+  
+  return items
 })
 
 const filteredFeats = computed(() => {
@@ -1415,7 +1971,219 @@ function toggleFeat(feat) {
 }
 
 function selectEquipmentPack(pack) {
-  selectedEquipment.value = pack.items.map(name => ({ name, cost: 10 })) // Simplified
+  // Check if we can afford the pack
+  if (actualRemainingGold.value < pack.cost) {
+    return
+  }
+  
+  // Map equipment categories to inventory system categories
+  const categoryMap = {
+    'weapons': 'weapons',
+    'armor': 'armor',
+    'gear': 'miscellaneous',
+    'tools': 'tools',
+    'magic': 'magic',
+    'Custom': 'miscellaneous'
+  }
+  
+  // Add all items from the pack
+  pack.items.forEach(packItem => {
+    const existingItem = selectedEquipment.value.find(item => item.name === packItem.name)
+    if (existingItem) {
+      existingItem.quantity += packItem.quantity
+    } else {
+      selectedEquipment.value.push({
+        ...packItem,
+        category: categoryMap[packItem.category] || packItem.category || 'miscellaneous',
+        id: Date.now() + Math.random() // Unique ID for React key
+      })
+    }
+  })
+}
+
+function addEquipment(item) {
+  // Check if we can afford it
+  if (actualRemainingGold.value < item.cost) {
+    return
+  }
+  
+  // Map equipment categories to inventory system categories
+  const categoryMap = {
+    'weapons': 'weapons',
+    'armor': 'armor',
+    'gear': 'miscellaneous',
+    'tools': 'tools',
+    'magic': 'magic',
+    'Container': 'miscellaneous',
+    'Camping': 'miscellaneous',
+    'Light': 'miscellaneous',
+    'Tool': 'tools',
+    'Food': 'consumables',
+    'Healing': 'consumables',
+    'Divine Focus': 'miscellaneous',
+    'Arcane Focus': 'miscellaneous',
+    'Clothing': 'miscellaneous',
+    'Potion': 'consumables',
+    'Scroll': 'consumables',
+    'Alchemical': 'consumables',
+    'Custom': 'miscellaneous'
+  }
+  
+  // Check if we already have this item
+  const existingItem = selectedEquipment.value.find(selected => selected.name === item.name)
+  
+  if (existingItem) {
+    existingItem.quantity = (existingItem.quantity || 1) + 1
+  } else {
+    selectedEquipment.value.push({
+      ...item,
+      quantity: 1,
+      category: categoryMap[item.type] || item.category || 'miscellaneous',
+      id: Date.now() + Math.random()
+    })
+  }
+}
+
+function getRecommendedItems() {
+  if (!selectedClass.value) return []
+  
+  const recommendations = {
+    'Fighter': [
+      { name: 'Longsword', cost: 15 },
+      { name: 'Scale mail', cost: 50 },
+      { name: 'Shield, heavy wooden', cost: 7 },
+      { name: 'Backpack', cost: 2 }
+    ],
+    'Wizard': [
+      { name: 'Spellbook, blank', cost: 15 },
+      { name: 'Spell component pouch', cost: 5 },
+      { name: 'Dagger', cost: 2 },
+      { name: 'Backpack', cost: 2 }
+    ],
+    'Rogue': [
+      { name: 'Short Sword', cost: 10 },
+      { name: 'Leather', cost: 10 },
+      { name: 'Thieves\' tools', cost: 30 },
+      { name: 'Backpack', cost: 2 }
+    ],
+    'Cleric': [
+      { name: 'Heavy Mace', cost: 12 },
+      { name: 'Scale mail', cost: 50 },
+      { name: 'Holy symbol, wooden', cost: 1 },
+      { name: 'Backpack', cost: 2 }
+    ],
+    'Barbarian': [
+      { name: 'Greataxe', cost: 20 },
+      { name: 'Hide', cost: 15 },
+      { name: 'Backpack', cost: 2 },
+      { name: 'Bedroll', cost: 0.1 }
+    ],
+    'Ranger': [
+      { name: 'Longbow', cost: 75 },
+      { name: 'Arrows (20)', cost: 1 },
+      { name: 'Longsword', cost: 15 },
+      { name: 'Studded leather', cost: 25 }
+    ]
+  }
+  
+  return recommendations[selectedClass.value.name] || []
+}
+
+function addEquipmentByName(itemName) {
+  // Find the item in all equipment categories
+  for (const category of Object.values(equipmentData)) {
+    const item = category.find(i => i.name === itemName)
+    if (item) {
+      addEquipment(item)
+      return
+    }
+  }
+}
+
+function addCustomItem() {
+  if (!customItemName.value || customItemCost.value < 0) return
+  
+  // Check if we can afford it
+  if (actualRemainingGold.value < customItemCost.value) {
+    return
+  }
+  
+  const customItem = {
+    name: customItemName.value,
+    cost: customItemCost.value,
+    quantity: 1,
+    category: 'miscellaneous',
+    type: 'Custom',
+    description: 'Custom item',
+    weight: 0,
+    id: Date.now() + Math.random()
+  }
+  
+  selectedEquipment.value.push(customItem)
+  
+  // Clear the form
+  customItemName.value = ''
+  customItemCost.value = 0
+}
+
+function adjustItemQuantity(item, delta) {
+  const newQuantity = (item.quantity || 1) + delta
+  
+  if (delta > 0 && actualRemainingGold.value < item.cost) {
+    return // Can't afford another one
+  }
+  
+  if (newQuantity >= 1) {
+    item.quantity = newQuantity
+  }
+}
+
+function removeEquipment(index) {
+  selectedEquipment.value.splice(index, 1)
+}
+
+function clearEquipment() {
+  selectedEquipment.value = []
+}
+
+function getStartingGoldFormula() {
+  if (!selectedClass.value) return ''
+  const goldDice = startingGoldDice[selectedClass.value.name] || startingGoldDice.default
+  return `${goldDice.dice}d${goldDice.sides} × ${goldDice.multiplier}`
+}
+
+function rollStartingGold() {
+  if (!selectedClass.value) return
+  
+  const goldDice = startingGoldDice[selectedClass.value.name] || startingGoldDice.default
+  let total = 0
+  let rolls = []
+  
+  for (let i = 0; i < goldDice.dice; i++) {
+    const roll = Math.floor(Math.random() * goldDice.sides) + 1
+    rolls.push(roll)
+    total += roll
+  }
+  
+  actualStartingGold.value = total * goldDice.multiplier
+  goldRollMessage.value = `Rolled ${rolls.join('+')} = ${total} × ${goldDice.multiplier} = ${actualStartingGold.value}gp`
+  
+  // Clear message after 5 seconds
+  setTimeout(() => {
+    goldRollMessage.value = ''
+  }, 5000)
+}
+
+function getCarryingCapacity() {
+  const str = getFinalAbilityScore('STR')
+  // Light load capacities by Strength score
+  const capacities = {
+    1: 3, 2: 6, 3: 10, 4: 13, 5: 16, 6: 20, 7: 23, 8: 26, 9: 30, 10: 33,
+    11: 38, 12: 43, 13: 50, 14: 58, 15: 66, 16: 76, 17: 86, 18: 100, 19: 116,
+    20: 133, 21: 153, 22: 173, 23: 200, 24: 233, 25: 266, 26: 306, 27: 346,
+    28: 400, 29: 466, 30: 532
+  }
+  return capacities[str] || 33 // Default to STR 10 if not found
 }
 
 function getClassLevel(className) {
@@ -1629,6 +2397,40 @@ function previousStep() {
 }
 
 function completeCharacter() {
+  // Map equipment categories to inventory system categories
+  const categoryMap = {
+    'weapons': 'weapons',
+    'armor': 'armor',
+    'gear': 'miscellaneous',
+    'tools': 'tools',
+    'magic': 'magic',
+    'Container': 'miscellaneous',
+    'Camping': 'miscellaneous',
+    'Light': 'miscellaneous',
+    'Tool': 'tools',
+    'Food': 'consumables',
+    'Healing': 'consumables',
+    'Divine Focus': 'miscellaneous',
+    'Arcane Focus': 'miscellaneous',
+    'Clothing': 'miscellaneous',
+    'Potion': 'consumables',
+    'Scroll': 'consumables',
+    'Alchemical': 'consumables',
+    'Custom': 'miscellaneous'
+  }
+  
+  // Format equipment for inventory system
+  const formattedEquipment = selectedEquipment.value.map(item => ({
+    name: item.name,
+    quantity: item.quantity || 1,
+    category: categoryMap[item.type] || item.category || 'miscellaneous',
+    type: item.type || '',
+    value: item.cost,
+    weight: item.weight || 0,
+    equipped: false,
+    notes: item.description || ''
+  }))
+  
   const characterData = {
     mode: props.mode,
     ...characterDetails.value, // Include all character details
@@ -1641,7 +2443,13 @@ function completeCharacter() {
     }, {}),
     skills: { ...skillRanks.value },
     feats: [...selectedFeats.value],
-    equipment: [...selectedEquipment.value],
+    equipment: formattedEquipment,
+    startingMoney: {
+      pp: 0,
+      gp: Math.max(0, Math.floor(actualStartingGold.value - totalEquipmentCost.value)),
+      sp: 0,
+      cp: 0
+    },
     hitPointsGained: isLevelUp.value ? getTotalHPGain() : null
   }
   
@@ -1683,9 +2491,21 @@ onMounted(() => {
     characterDetails.value.languages = ['Common']
   }
 })
+
+// Watch for class selection to set starting gold
+watch(selectedClass, (newClass) => {
+  if (newClass && actualStartingGold.value === 0) {
+    actualStartingGold.value = startingGold.value
+  }
+})
 </script>
 
 <style scoped>
+/* Global box sizing for all elements in component */
+* {
+  box-sizing: border-box;
+}
+
 /* Backdrop for modal-like appearance */
 .character-builder-wizard-backdrop {
   position: fixed;
@@ -1693,13 +2513,32 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.75);
+  background: 
+    linear-gradient(to right, 
+      rgba(59, 130, 246, 0.05) 0, 
+      rgba(59, 130, 246, 0.05) 50px,
+      transparent 50px,
+      transparent calc(100% - 50px),
+      rgba(59, 130, 246, 0.05) calc(100% - 50px),
+      rgba(59, 130, 246, 0.05) 100%
+    ),
+    rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 50;
-  padding: 1rem;
+  padding: 2rem 50px; /* Added 50px left/right padding */
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* Wizard container wrapper */
+.character-builder-wizard-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 /* Main wizard container */
@@ -1710,7 +2549,9 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 0; /* Prevent flex item from overflowing */
+  width: 100%;
+  box-sizing: border-box;
+  contain: layout style; /* CSS containment */
 }
 
 /* Step content container - scrollable */
@@ -1720,14 +2561,25 @@ onMounted(() => {
   overflow-x: hidden;
   min-height: 300px;
   max-height: calc(90vh - 200px);
-  padding-right: 0.5rem;
+  padding-right: 1rem; /* Increased padding */
+  padding-left: 0.5rem; /* Added left padding */
   padding-bottom: 1rem; /* Add padding to prevent content cutoff */
+  width: 100%; /* Ensure content stays within container */
+  box-sizing: border-box;
+  position: relative; /* For proper containment */
+}
+
+/* Ensure children don't overflow */
+.step-content-container > * {
+  max-width: 100%;
 }
 
 /* Race and class selection containers */
 .race-selection-container,
 .class-selection-container {
   width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* Clickable cards */
@@ -1739,12 +2591,15 @@ onMounted(() => {
   z-index: 1;
   overflow: hidden; /* Prevent content overflow */
   word-wrap: break-word; /* Break long words */
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
 .race-card:hover,
 .class-card:hover,
 .feat-card:hover {
   z-index: 2;
+  /* No transform on hover to prevent overflow */
 }
 
 /* Fix for click events */
@@ -1760,6 +2615,27 @@ onMounted(() => {
   max-height: 400px;
   overflow-y: auto;
   padding-right: 0.5rem;
+  box-sizing: border-box;
+}
+
+/* Custom scrollbar for the backdrop */
+.character-builder-wizard-backdrop::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.character-builder-wizard-backdrop::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.5);
+  border-radius: 4px;
+}
+
+.character-builder-wizard-backdrop::-webkit-scrollbar-thumb {
+  background: #4B5563;
+  border-radius: 4px;
+}
+
+.character-builder-wizard-backdrop::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
 }
 
 /* Custom scrollbar for the step content */
@@ -1808,20 +2684,101 @@ button, div {
   transition: all 0.2s ease;
 }
 
+/* Content sections */
+.space-y-4 {
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
 /* Enhanced section backgrounds */
 .space-y-4 > div[class*="bg-gray-800"] {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-/* Hover scale for cards */
-.transform.hover\:scale-102:hover {
-  transform: scale(1.02);
+/* Custom hover color for better visibility */
+.hover\:bg-gray-750:hover {
+  background-color: #2d3748;
+}
+
+/* Custom background color */
+.bg-gray-750 {
+  background-color: #2d3748;
+}
+
+/* Grid containment */
+.grid {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Equipment list container */
+.equipment-list-container {
+  min-height: 400px;
+  max-height: 500px;
+  overflow: hidden;
+  position: relative;
+}
+
+.equipment-list-container > div {
+  scrollbar-width: thin;
+  scrollbar-color: #4B5563 #1F2937;
+}
+
+.equipment-list-container > div::-webkit-scrollbar {
+  width: 8px;
+}
+
+.equipment-list-container > div::-webkit-scrollbar-track {
+  background: #1F2937;
+  border-radius: 4px;
+}
+
+.equipment-list-container > div::-webkit-scrollbar-thumb {
+  background: #4B5563;
+  border-radius: 4px;
+}
+
+.equipment-list-container > div::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}
+
+/* Selected card highlight - contained and subtle */
+.race-card.bg-green-800,
+.class-card.bg-green-800,
+.feat-card.bg-green-800 {
+  box-shadow: inset 0 0 0 2px rgba(34, 197, 94, 0.5);
+  border-color: #10b981 !important; /* Brighter green border */
+}
+
+/* Line clamp utility for text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 850px) {
   .character-builder-wizard-backdrop {
-    padding: 0.5rem;
+    padding: 1rem 30px; /* Reduced padding on smaller screens */
+    /* Update gradient for 30px padding */
+    background: 
+      linear-gradient(to right, 
+        rgba(59, 130, 246, 0.05) 0, 
+        rgba(59, 130, 246, 0.05) 30px,
+        transparent 30px,
+        transparent calc(100% - 30px),
+        rgba(59, 130, 246, 0.05) calc(100% - 30px),
+        rgba(59, 130, 246, 0.05) 100%
+      ),
+      rgba(0, 0, 0, 0.75);
+  }
+  
+  .character-builder-wizard-container {
+    max-width: 100%;
   }
   
   .character-builder-wizard {
@@ -1835,6 +2792,32 @@ button, div {
   .skills-list,
   .feats-list {
     max-height: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  .character-builder-wizard-backdrop {
+    padding: 1rem 20px; /* Minimal padding on mobile */
+    /* Update gradient for 20px padding */
+    background: 
+      linear-gradient(to right, 
+        rgba(59, 130, 246, 0.05) 0, 
+        rgba(59, 130, 246, 0.05) 20px,
+        transparent 20px,
+        transparent calc(100% - 20px),
+        rgba(59, 130, 246, 0.05) calc(100% - 20px),
+        rgba(59, 130, 246, 0.05) 100%
+      ),
+      rgba(0, 0, 0, 0.75);
+  }
+  
+  .character-builder-wizard {
+    padding: 1rem;
+  }
+  
+  /* Stack all grids on mobile */
+  .grid {
+    grid-template-columns: 1fr !important;
   }
 }
 </style>
