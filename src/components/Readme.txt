@@ -41,6 +41,14 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/router/inde
 Directory: src/services/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/services/AIService.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/services/StorageService.js
+
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/pathfinderClasses.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/pathfinderData.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/pathfinderFeats.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/pathfinderRaces.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/spellDataManager.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/test-races.html
+
 Directory: src/utils/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/ContentCache.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/ContentFormatter.js

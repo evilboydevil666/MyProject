@@ -1,13 +1,15 @@
 <template>
-  <div class="character-builder-overlay">
-    <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg shadow-2xl border border-gray-700">
+  <div class="character-builder-wizard-backdrop">
+    <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg max-w-7xl mx-auto shadow-2xl border border-gray-700">
       <!-- Header -->
       <div class="mb-6">
         <h2 class="text-3xl font-bold text-blue-300 mb-2">
           {{ isLevelUp ? '📈 Level Up Wizard' : '🎭 Character Builder' }}
         </h2>
         <div class="flex items-center gap-4 text-sm text-gray-400">
-          <span>Step {{ currentStep + 1 }} of {{ totalSteps }}</span>
+          <div>
+            <span>Step {{ currentStep + 1 }} of {{ totalSteps }}</span>
+          </div>
           <div class="flex-1 bg-gray-700 rounded-full h-2">
             <div 
               class="bg-blue-500 h-full rounded-full transition-all duration-300"
@@ -17,12 +19,12 @@
         </div>
       </div>
 
-      <!-- Step Content - Scrollable container -->
+      <!-- Step Content - FIXED: Added scrollable container -->
       <div class="step-content-container mb-6">
         <!-- Step 1: Mode Selection (Creation Only) -->
         <div v-if="!isLevelUp && currentStep === 0" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Choose Creation Method</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <button 
               @click="creationMode = 'guided'; nextStep()"
               class="p-6 bg-gray-800 hover:bg-gray-700 rounded-lg border-2 border-gray-600 hover:border-blue-500 transition-all"
@@ -44,94 +46,91 @@
         <div v-else-if="!isLevelUp && currentStep === 1" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Choose Your Race</h3>
           
-          <!-- Race Categories -->
+          <!-- Race Category Tabs -->
           <div class="mb-4">
             <div class="flex gap-2 flex-wrap">
-              <button 
+              <button
                 v-for="category in raceCategories"
                 :key="category"
                 @click="selectedRaceCategory = category"
                 :class="[
-                  'px-3 py-1 rounded text-sm',
-                  selectedRaceCategory === category ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                  'px-4 py-2 rounded transition-all',
+                  selectedRaceCategory === category 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 ]"
               >
-                {{ category }}
+                {{ category }} ({{ getRacesByCategory(category).length }})
               </button>
             </div>
           </div>
           
-          <!-- Race Grid -->
+          <!-- Race Selection -->
           <div class="race-selection-container">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div v-if="filteredRaces.length === 0" class="text-center py-8 text-gray-400">
+              <p>No races found for {{ selectedRaceCategory }} category.</p>
+              <p class="text-sm mt-2">Check console for debugging information.</p>
+            </div>
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               <div 
                 v-for="race in filteredRaces" 
                 :key="race.id"
                 @click="selectRace(race)"
                 :class="[
-                  'race-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-105',
+                  'race-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-102 relative',
                   selectedRace?.id === race.id ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500'
                 ]"
               >
                 <h4 class="font-bold text-green-300">{{ race.name }}</h4>
+                <div v-if="selectedRace?.id === race.id" class="absolute top-2 right-2 text-green-400 text-2xl">
+                  ✓
+                </div>
                 <p class="text-xs text-gray-400 mt-1">{{ race.size }} {{ race.type }}</p>
                 <div class="mt-2 text-xs">
                   <p class="text-blue-300">{{ formatAbilityMods(race.abilityMods) }}</p>
-                  <p class="text-gray-400 mt-1">{{ race.traits.slice(0, 2).join(', ') }}{{ race.traits.length > 2 ? '...' : '' }}</p>
+                  <p class="text-gray-400 mt-1">Speed: {{ race.speed }} ft.</p>
+                  <p class="text-gray-400">{{ getRaceTraitSummary(race) }}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Step 2b: Class Selection (Level Up) -->
-        <div v-else-if="isLevelUp && currentStep === 0" class="space-y-4">
-          <h3 class="text-xl font-semibold mb-4">Choose Class for Level {{ currentLevel + 1 }}</h3>
+        <!-- Step 3: Class Selection (Creation) or Step 1: Class Selection (Level Up) -->
+        <div v-else-if="(!isLevelUp && currentStep === 2) || (isLevelUp && currentStep === 0)" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">
+            {{ isLevelUp ? 'Choose Class for Level ' + (currentLevel + 1) : 'Choose Your Class' }}
+          </h3>
           
-          <!-- Current Classes -->
-          <div class="mb-4 p-3 bg-gray-800 rounded">
-            <p class="text-sm text-gray-400">Current Classes:</p>
-            <div class="flex gap-2 mt-1 flex-wrap">
-              <span 
-                v-for="cls in currentClasses" 
-                :key="cls.className"
-                class="px-2 py-1 bg-gray-700 rounded text-sm"
-              >
-                {{ cls.className }} {{ cls.level }}
-              </span>
-            </div>
-          </div>
-          
-          <!-- Class Categories -->
-          <div class="mb-4">
-            <div class="flex gap-2 flex-wrap">
-              <button 
-                v-for="category in classCategories"
-                :key="category"
-                @click="selectedClassCategory = category"
-                :class="[
-                  'px-3 py-1 rounded text-sm',
-                  selectedClassCategory === category ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
-                ]"
-              >
-                {{ category }}
-              </button>
-            </div>
-          </div>
-          
-          <!-- Class Grid -->
+          <!-- Class Selection -->
           <div class="class-selection-container">
+            <div v-if="isLevelUp" class="mb-4 p-3 bg-gray-800 rounded">
+              <p class="text-sm text-gray-400">Current Classes:</p>
+              <div class="flex gap-2 mt-1 flex-wrap">
+                <span 
+                  v-for="cls in currentClasses" 
+                  :key="cls.className"
+                  class="px-2 py-1 bg-gray-700 rounded text-sm"
+                >
+                  {{ cls.className }} {{ cls.level }}
+                </span>
+              </div>
+            </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <div 
-                v-for="cls in filteredClasses" 
+                v-for="cls in availableClasses" 
                 :key="cls.id"
                 @click="selectClass(cls)"
                 :class="[
-                  'class-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-105',
+                  'class-card p-4 bg-gray-800 rounded-lg cursor-pointer transition-all transform hover:scale-102 relative',
                   selectedClass?.id === cls.id ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500'
                 ]"
               >
                 <h4 class="font-bold text-green-300">{{ cls.name }}</h4>
+                <div v-if="selectedClass?.id === cls.id" class="absolute top-2 right-2 text-green-400 text-2xl">
+                  ✓
+                </div>
                 <p class="text-xs text-gray-400">{{ cls.hitDie }} HD, {{ cls.bab }} BAB</p>
                 <div class="mt-2 text-xs">
                   <p>{{ cls.skillPoints }} + Int skill points</p>
@@ -142,8 +141,8 @@
           </div>
         </div>
 
-        <!-- Step 3: Ability Scores (Creation) / Hit Points (Level Up) -->
-        <div v-else-if="(!isLevelUp && currentStep === 2) || (isLevelUp && currentStep === 1)" class="space-y-4">
+        <!-- Step 4: Ability Scores (Creation) / Hit Points (Level Up) -->
+        <div v-else-if="(!isLevelUp && currentStep === 3) || (isLevelUp && currentStep === 1)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">
             {{ isLevelUp ? 'Roll Hit Points' : 'Determine Ability Scores' }}
           </h3>
@@ -258,7 +257,7 @@
           <!-- Hit Point Rolling -->
           <div v-else class="space-y-4">
             <div class="bg-gray-800 p-6 rounded-lg text-center">
-              <p class="text-lg mb-4">Rolling hit points for {{ selectedClass.name }} ({{ selectedClass.hitDie }})</p>
+              <p class="text-lg mb-4">Rolling hit points for {{ selectedClass?.name || 'Unknown Class' }} ({{ selectedClass?.hitDie || 'd?' }})</p>
               
               <div v-if="!hitPointsRolled" class="space-y-4">
                 <button 
@@ -282,7 +281,7 @@
                 </div>
                 <p class="text-sm text-gray-400">
                   + {{ getAbilityModifier(getFinalAbilityScore('CON')) }} (CON modifier)
-                  {{ selectedClass.name === 'Barbarian' ? '+ 4 (Favored Class)' : '+ 1 (Favored Class)' }}
+                  {{ selectedClass?.name === 'Barbarian' ? '+ 4 (Favored Class)' : '+ 1 (Favored Class)' }}
                 </p>
                 <p class="text-xl font-semibold">
                   Total: +{{ getTotalHPGain() }} HP
@@ -292,36 +291,38 @@
           </div>
         </div>
 
-        <!-- Step 4: Skills -->
-        <div v-else-if="(!isLevelUp && currentStep === 3) || (isLevelUp && currentStep === 2)" class="space-y-4">
+        <!-- Step 5: Skills -->
+        <div v-else-if="(!isLevelUp && currentStep === 4) || (isLevelUp && currentStep === 2)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Allocate Skill Points</h3>
           
           <div class="mb-4 p-3 bg-gray-800 rounded flex justify-between items-center">
             <div>
               <p class="text-sm text-gray-400">Skill Points Available:</p>
               <p class="text-2xl font-bold text-green-300">{{ skillPointsRemaining }} / {{ totalSkillPoints }}</p>
+              <p v-if="totalSkillPoints === 0" class="text-xs text-yellow-400 mt-1">Select a class to see skill points</p>
             </div>
             <div class="text-sm text-gray-400">
-              <p>Class Skills: {{ selectedClass.skillPoints }} + {{ getAbilityModifier(getFinalAbilityScore('INT')) }} (INT)</p>
+              <p v-if="selectedClass">Class Skills: {{ selectedClass.skillPoints }} + {{ getAbilityModifier(getFinalAbilityScore('INT')) }} (INT)</p>
+              <p v-else class="text-yellow-400">Please select a class first</p>
               <p v-if="selectedRace?.name === 'Human'">+1 (Human bonus)</p>
             </div>
           </div>
 
-          <div class="skills-list grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div class="skills-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <div 
               v-for="skill in availableSkills" 
               :key="skill.name"
-              class="bg-gray-800 p-3 rounded flex items-center justify-between"
+              class="bg-gray-800 p-4 rounded flex items-center justify-between"
             >
-              <div class="flex-1">
+              <div class="flex-1 min-w-0 pr-2">
                 <p class="font-medium">
                   {{ skill.name }}
                   <span class="text-xs text-gray-400 ml-1">({{ skill.ability }})</span>
                   <span v-if="isClassSkill(skill)" class="text-xs text-green-400 ml-1">●</span>
                 </p>
-                <p class="text-xs text-gray-400">{{ skill.description }}</p>
+                <p class="text-xs text-gray-400 truncate">{{ skill.description }}</p>
               </div>
-              <div class="flex items-center gap-2 ml-4">
+              <div class="flex items-center gap-2 ml-4 flex-shrink-0">
                 <button 
                   @click="adjustSkillRanks(skill, -1)"
                   :disabled="(skillRanks[skill.name] || 0) <= 0"
@@ -345,8 +346,8 @@
           </div>
         </div>
 
-        <!-- Step 5: Feats -->
-        <div v-else-if="(!isLevelUp && currentStep === 4) || (isLevelUp && currentStep === 3)" class="space-y-4">
+        <!-- Step 6: Feats -->
+        <div v-else-if="(!isLevelUp && currentStep === 5) || (isLevelUp && currentStep === 3)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Choose Feats</h3>
           
           <div class="mb-4 p-3 bg-gray-800 rounded">
@@ -355,7 +356,7 @@
               <p v-if="!isLevelUp || currentLevel === 0">• 1 feat at 1st level</p>
               <p v-if="selectedRace?.name === 'Human'">• 1 bonus feat (Human)</p>
               <p v-if="isLevelUp && (currentLevel + 1) % 2 === 1">• 1 feat (odd level)</p>
-              <p v-if="hasBonusFeats()">• {{ getBonusFeatsCount() }} bonus feat(s) ({{ selectedClass.name }})</p>
+              <p v-if="hasBonusFeats()">• {{ getBonusFeatsCount() }} bonus feat(s) ({{ selectedClass?.name || 'Unknown' }})</p>
             </div>
           </div>
 
@@ -367,13 +368,13 @@
             />
           </div>
 
-          <div class="feats-list grid grid-cols-1 gap-2">
+          <div class="feats-list grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             <div 
               v-for="feat in filteredFeats" 
               :key="feat.name"
               @click="toggleFeat(feat)"
               :class="[
-                'feat-card p-3 bg-gray-800 rounded cursor-pointer transition-all transform hover:scale-102',
+                'feat-card p-4 bg-gray-800 rounded cursor-pointer transition-all transform hover:scale-102',
                 selectedFeats.includes(feat.name) ? 'border-2 border-blue-500 bg-gray-700' : 'border-2 border-gray-600 hover:border-gray-500',
                 !meetsPrerequisites(feat) ? 'opacity-50 cursor-not-allowed' : ''
               ]"
@@ -394,129 +395,298 @@
           </div>
         </div>
 
-        <!-- Step 6: Equipment Shopping (Creation Only) -->
-        <div v-else-if="!isLevelUp && currentStep === 5" class="space-y-4">
-          <h3 class="text-xl font-semibold mb-4">Purchase Starting Equipment</h3>
+        <!-- Step 7: Equipment (Creation Only) -->
+        <div v-else-if="!isLevelUp && currentStep === 6" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Starting Equipment</h3>
           
-          <!-- Gold Display -->
-          <div class="mb-4 p-3 bg-gray-800 rounded flex justify-between items-center">
-            <div>
-              <p class="text-sm text-gray-400">Starting Gold:</p>
-              <p class="text-2xl font-bold text-yellow-300">{{ startingGold }} gp</p>
-            </div>
-            <div>
-              <p class="text-sm text-gray-400">Spent:</p>
-              <p class="text-xl font-bold text-red-300">{{ totalEquipmentCost }} gp</p>
-            </div>
-            <div>
-              <p class="text-sm text-gray-400">Remaining:</p>
-              <p class="text-xl font-bold text-green-300">{{ startingGold - totalEquipmentCost }} gp</p>
-            </div>
+          <div class="mb-4 p-3 bg-gray-800 rounded">
+            <p class="text-sm text-gray-400">Starting Gold: <span class="font-bold text-yellow-300">{{ startingGold }} gp</span></p>
           </div>
 
-          <!-- Equipment Categories -->
-          <div class="mb-4">
-            <div class="flex gap-2 flex-wrap">
-              <button 
-                v-for="category in equipmentCategories"
-                :key="category"
-                @click="selectedEquipmentCategory = category"
-                :class="[
-                  'px-3 py-1 rounded text-sm',
-                  selectedEquipmentCategory === category ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
-                ]"
-              >
-                {{ category }}
-              </button>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <!-- Available Items -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Quick Packs -->
             <div>
-              <h4 class="font-semibold mb-2">Available Items</h4>
-              <div class="bg-gray-800 p-3 rounded max-h-96 overflow-y-auto">
-                <div 
-                  v-for="item in affordableItems" 
-                  :key="item.name"
-                  @click="purchaseItem(item)"
-                  class="flex justify-between items-center p-2 hover:bg-gray-700 rounded cursor-pointer"
+              <h4 class="font-semibold mb-2">Quick Equipment Packs</h4>
+              <div class="space-y-2">
+                <button 
+                  v-for="pack in equipmentPacks" 
+                  :key="pack.name"
+                  @click="selectEquipmentPack(pack)"
+                  class="w-full p-3 bg-gray-800 hover:bg-gray-700 rounded text-left transition-all"
                 >
-                  <div class="flex-1">
-                    <p class="font-medium">{{ item.name }}</p>
-                    <p class="text-xs text-gray-400">{{ item.description }}</p>
-                  </div>
-                  <div class="ml-4 text-right whitespace-nowrap">
-                    <p class="text-yellow-300 font-medium">{{ item.cost }} gp</p>
-                    <p class="text-xs text-gray-400">{{ item.weight }} lb</p>
-                  </div>
-                </div>
-                <div v-if="affordableItems.length === 0" class="text-gray-500 text-center py-4">
-                  No items available in this category within budget
-                </div>
+                  <p class="font-medium">{{ pack.name }}</p>
+                  <p class="text-xs text-gray-400">{{ pack.cost }} gp</p>
+                </button>
               </div>
             </div>
 
-            <!-- Purchased Items -->
+            <!-- Selected Equipment -->
             <div>
               <h4 class="font-semibold mb-2">Your Equipment</h4>
-              <div class="bg-gray-800 p-3 rounded max-h-96 overflow-y-auto">
-                <div v-if="selectedEquipment.length === 0" class="text-gray-500 text-sm text-center py-4">
-                  No equipment purchased yet
+              <div class="bg-gray-800 p-3 rounded space-y-1 max-h-64 overflow-y-auto">
+                <div v-if="selectedEquipment.length === 0" class="text-gray-500 text-sm">
+                  No equipment selected
                 </div>
-                <div 
-                  v-for="(item, index) in selectedEquipment" 
-                  :key="index"
-                  class="flex justify-between items-center p-2 hover:bg-gray-700 rounded"
-                >
-                  <div class="flex-1">
-                    <p class="font-medium">{{ item.name }}</p>
-                    <p class="text-xs text-gray-400">
-                      {{ item.quantity }}x @ {{ item.cost }} gp each
-                    </p>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span class="text-yellow-300">{{ item.cost * item.quantity }} gp</span>
-                    <button 
-                      @click="removeItem(index)"
-                      class="text-red-400 hover:text-red-300 text-sm"
-                    >
-                      ✕
-                    </button>
-                  </div>
+                <div v-for="(item, index) in selectedEquipment" :key="index" class="flex justify-between text-sm">
+                  <span>{{ item.name }}</span>
+                  <span class="text-yellow-300">{{ item.cost }} gp</span>
                 </div>
-                
-                <!-- Totals -->
-                <div v-if="selectedEquipment.length > 0" class="border-t border-gray-700 pt-2 mt-2">
+                <div v-if="selectedEquipment.length > 0" class="border-t border-gray-700 pt-1 mt-2">
                   <div class="flex justify-between font-semibold">
-                    <span>Total Weight:</span>
-                    <span>{{ totalEquipmentWeight }} lbs</span>
+                    <span>Total:</span>
+                    <span class="text-yellow-300">{{ totalEquipmentCost }} gp</span>
+                  </div>
+                  <div class="flex justify-between text-sm text-gray-400">
+                    <span>Remaining:</span>
+                    <span>{{ startingGold - totalEquipmentCost }} gp</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Quick Packs Option -->
-          <div class="mt-4">
-            <h4 class="font-semibold mb-2">Quick Equipment Packs</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              <button 
-                v-for="pack in equipmentPacks.filter(p => p.cost <= startingGold - totalEquipmentCost)" 
-                :key="pack.name"
-                @click="selectEquipmentPack(pack)"
-                class="p-3 bg-gray-800 hover:bg-gray-700 rounded text-left transition-all"
+        <!-- Step 8: Character Details (Creation Only) -->
+        <div v-else-if="!isLevelUp && currentStep === 7" class="space-y-4">
+          <h3 class="text-xl font-semibold mb-4">Character Details</h3>
+          
+          <div class="flex justify-end mb-4">
+            <button 
+              @click="generateRandomDetails"
+              class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded text-sm"
+            >
+              🎲 Generate Random Details
+            </button>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Basic Information -->
+            <div class="space-y-3">
+              <h4 class="font-semibold text-blue-300">Basic Information</h4>
+              
+              <div>
+                <label class="block text-sm font-medium mb-1">Character Name</label>
+                <input 
+                  v-model="characterDetails.name"
+                  type="text"
+                  placeholder="Enter character name"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+              
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium mb-1">Age</label>
+                  <input 
+                    v-model="characterDetails.age"
+                    type="text"
+                    placeholder="e.g., 25"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">Gender</label>
+                  <input 
+                    v-model="characterDetails.gender"
+                    type="text"
+                    placeholder="e.g., Female"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-sm font-medium mb-1">Height</label>
+                  <input 
+                    v-model="characterDetails.height"
+                    type="text"
+                    placeholder="e.g., 5'6''"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium mb-1">Weight</label>
+                  <input 
+                    v-model="characterDetails.weight"
+                    type="text"
+                    placeholder="e.g., 140 lbs"
+                    class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium mb-1">Homeland</label>
+                <input 
+                  v-model="characterDetails.homeland"
+                  type="text"
+                  placeholder="e.g., Absalom"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+            </div>
+            
+            <!-- Appearance -->
+            <div class="space-y-3">
+              <h4 class="font-semibold text-blue-300">Appearance</h4>
+              
+              <div>
+                <label class="block text-sm font-medium mb-1">Hair Color</label>
+                <input 
+                  v-model="characterDetails.hair"
+                  type="text"
+                  placeholder="e.g., Black"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium mb-1">Eye Color</label>
+                <input 
+                  v-model="characterDetails.eyes"
+                  type="text"
+                  placeholder="e.g., Brown"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium mb-1">Skin Color</label>
+                <input 
+                  v-model="characterDetails.skin"
+                  type="text"
+                  placeholder="e.g., Tan"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+              
+              <div>
+                <label class="block text-sm font-medium mb-1">Distinguishing Features</label>
+                <textarea 
+                  v-model="characterDetails.distinguishingFeatures"
+                  rows="3"
+                  placeholder="Scars, tattoos, or other notable features..."
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Alignment and Deity -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div>
+              <h4 class="font-semibold text-blue-300 mb-2">Alignment</h4>
+              <div class="grid grid-cols-3 gap-2">
+                <button 
+                  v-for="align in alignments"
+                  :key="align"
+                  @click="characterDetails.alignment = align"
+                  :class="[
+                    'p-2 rounded text-sm font-medium transition-all',
+                    characterDetails.alignment === align 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-gray-700 hover:bg-gray-600'
+                  ]"
+                >
+                  {{ align }}
+                </button>
+              </div>
+            </div>
+            
+            <div>
+              <h4 class="font-semibold text-blue-300 mb-2">Deity</h4>
+              <select 
+                v-model="characterDetails.deity"
+                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
               >
-                <p class="font-medium">{{ pack.name }}</p>
-                <p class="text-xs text-gray-400">{{ pack.cost }} gp</p>
-                <p class="text-xs text-blue-300 mt-1">{{ pack.items.length }} items</p>
-              </button>
+                <option value="">None / Undecided</option>
+                <option v-for="deity in deities" :key="deity.name" :value="deity.name">
+                  {{ deity.name }} ({{ deity.alignment }}) - {{ deity.domains }}
+                </option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- Languages -->
+          <div class="mt-4">
+            <h4 class="font-semibold text-blue-300 mb-2">Languages</h4>
+            <div class="bg-gray-800 p-3 rounded">
+              <p class="text-sm text-gray-400 mb-2">
+                Starting languages: {{ getStartingLanguages() }}
+              </p>
+              <p class="text-sm text-gray-400 mb-2">
+                Bonus languages ({{ getBonusLanguages() }} available{{ selectedRace ? '' : ' - select a race first' }}):
+              </p>
+              <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                <label 
+                  v-for="lang in getAvailableLanguages()" 
+                  :key="lang"
+                  class="flex items-center space-x-2"
+                >
+                  <input 
+                    type="checkbox"
+                    :value="lang"
+                    v-model="characterDetails.languages"
+                    :disabled="!canSelectLanguage(lang)"
+                    class="bg-gray-700 border-gray-600 rounded"
+                  />
+                  <span class="text-sm" :class="canSelectLanguage(lang) ? '' : 'text-gray-500'">
+                    {{ lang }}
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Personality -->
+          <div class="mt-4 space-y-3">
+            <h4 class="font-semibold text-blue-300">Personality & Background</h4>
+            
+            <div>
+              <label class="block text-sm font-medium mb-1">Personality Traits</label>
+              <textarea 
+                v-model="characterDetails.personalityTraits"
+                rows="2"
+                placeholder="Describe your character's personality..."
+                class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+              ></textarea>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-sm font-medium mb-1">Ideals</label>
+                <input 
+                  v-model="characterDetails.ideals"
+                  type="text"
+                  placeholder="What drives them?"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Bonds</label>
+                <input 
+                  v-model="characterDetails.bonds"
+                  type="text"
+                  placeholder="Important connections"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Flaws</label>
+                <input 
+                  v-model="characterDetails.flaws"
+                  type="text"
+                  placeholder="Weaknesses or vices"
+                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Summary -->
-        <div v-else-if="(!isLevelUp && currentStep === 6) || (isLevelUp && currentStep === 4)" class="space-y-4">
+        <div v-else-if="(!isLevelUp && currentStep === 8) || (isLevelUp && currentStep === 4)" class="space-y-4">
           <h3 class="text-xl font-semibold mb-4">Summary</h3>
           
           <div class="bg-gray-800 p-4 rounded-lg space-y-3">
@@ -525,28 +695,38 @@
             </h4>
             
             <div v-if="!isLevelUp" class="space-y-2">
-              <div class="mb-3">
-                <label class="block text-sm font-medium mb-1">Character Name:</label>
-                <input 
-                  v-model="characterName"
-                  placeholder="Enter character name..."
-                  class="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2"
-                />
-              </div>
+              <p><strong>Name:</strong> {{ characterDetails.name || 'Unnamed Hero' }}</p>
               <p><strong>Race:</strong> {{ selectedRace?.name }}</p>
               <p><strong>Class:</strong> {{ selectedClass?.name }} 1</p>
+              <p><strong>Alignment:</strong> {{ characterDetails.alignment }}</p>
+              <p v-if="characterDetails.deity"><strong>Deity:</strong> {{ characterDetails.deity }}</p>
+              
+              <!-- Physical Description -->
+              <div v-if="characterDetails.age || characterDetails.height || characterDetails.weight">
+                <p class="font-semibold mb-1">Physical Description:</p>
+                <div class="text-sm ml-4">
+                  <p v-if="characterDetails.age">Age: {{ characterDetails.age }}</p>
+                  <p v-if="characterDetails.gender">Gender: {{ characterDetails.gender }}</p>
+                  <p v-if="characterDetails.height">Height: {{ characterDetails.height }}</p>
+                  <p v-if="characterDetails.weight">Weight: {{ characterDetails.weight }}</p>
+                  <p v-if="characterDetails.eyes">Eyes: {{ characterDetails.eyes }}</p>
+                  <p v-if="characterDetails.hair">Hair: {{ characterDetails.hair }}</p>
+                </div>
+              </div>
+              
               <div>
                 <p class="font-semibold mb-1">Ability Scores:</p>
-                <div class="grid grid-cols-3 gap-2 text-sm">
+                <div class="grid grid-cols-3 gap-2 text-sm ml-4">
                   <span v-for="ability in abilities" :key="ability">
                     {{ ability }}: {{ getFinalAbilityScore(ability) }} 
                     ({{ getAbilityModifier(getFinalAbilityScore(ability)) >= 0 ? '+' : '' }}{{ getAbilityModifier(getFinalAbilityScore(ability)) }})
                   </span>
                 </div>
               </div>
-              <p><strong>Starting HP:</strong> {{ getStartingHP() }}</p>
-              <p><strong>Equipment Value:</strong> {{ totalEquipmentCost }} gp</p>
-              <p><strong>Remaining Gold:</strong> {{ startingGold - totalEquipmentCost }} gp</p>
+              
+              <p v-if="characterDetails.languages.length > 0">
+                <strong>Languages:</strong> {{ characterDetails.languages.join(', ') }}
+              </p>
             </div>
             
             <div v-else class="space-y-2">
@@ -560,7 +740,7 @@
         </div>
       </div>
 
-      <!-- Navigation -->
+      <!-- Navigation - Keep at bottom -->
       <div class="flex justify-between items-center pt-4 border-t border-gray-700">
         <button 
           @click="previousStep"
@@ -570,7 +750,14 @@
           ← Previous
         </button>
         
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
+          <!-- Error message -->
+          <div v-if="!canProceed" class="text-xs text-red-400 mr-4">
+            <p v-if="!isLevelUp && currentStep === 1 && !selectedRace">Select a race to continue</p>
+            <p v-else-if="currentStep === 2 && !selectedClass">Select a class to continue</p>
+            <p v-else>Complete this step to continue</p>
+          </div>
+          
           <button 
             @click="cancel"
             class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded"
@@ -580,7 +767,7 @@
           <button 
             @click="nextStep"
             :disabled="!canProceed"
-            class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 px-4 py-2 rounded"
+            class="bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 disabled:cursor-not-allowed px-4 py-2 rounded"
           >
             {{ currentStep === totalSteps - 1 ? 'Finish' : 'Next →' }}
           </button>
@@ -593,7 +780,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { characterState } from '@/characterState.js'
-import { pathfinderData } from '@/data/pathfinderData.js'
+// Import the race data from pathfinderRaces.js - Try different import paths
+import { pathfinderRaces, getAllRaces, getRaceById } from '@/data/pathfinderRaces.js'
+
+// Debug log the imports
+console.log('Imported pathfinderRaces:', pathfinderRaces)
 
 // Props
 const props = defineProps({
@@ -612,7 +803,6 @@ const emit = defineEmits(['complete', 'cancel'])
 const currentStep = ref(0)
 const isLevelUp = computed(() => props.mode === 'levelup')
 const creationMode = ref('guided')
-const characterName = ref('')
 
 // Race/Class selection
 const selectedRace = ref(null)
@@ -620,7 +810,64 @@ const selectedClass = ref(null)
 const currentClasses = ref([])
 const currentLevel = ref(0)
 const selectedRaceCategory = ref('Core')
-const selectedClassCategory = ref('Core')
+
+// Character details
+const characterDetails = ref({
+  name: '',
+  age: '',
+  gender: '',
+  height: '',
+  weight: '',
+  eyes: '',
+  hair: '',
+  skin: '',
+  deity: '',
+  homeland: '',
+  alignment: 'TN',
+  languages: [],  // Will be set based on race
+  personalityTraits: '',
+  ideals: '',
+  bonds: '',
+  flaws: '',
+  distinguishingFeatures: ''
+})
+
+// Common character data
+const alignments = [
+  'LG', 'NG', 'CG',
+  'LN', 'TN', 'CN',
+  'LE', 'NE', 'CE'
+]
+
+const commonLanguages = [
+  'Common', 'Dwarven', 'Elven', 'Giant', 'Gnome', 'Goblin', 
+  'Halfling', 'Orc', 'Abyssal', 'Celestial', 'Draconic', 
+  'Infernal', 'Sylvan', 'Undercommon', 'Aquan', 'Auran',
+  'Ignan', 'Terran', 'Aklo', 'Gnoll'
+]
+
+const deities = [
+  { name: 'Abadar', alignment: 'LN', domains: 'Cities, wealth, merchants' },
+  { name: 'Asmodeus', alignment: 'LE', domains: 'Tyranny, slavery, contracts' },
+  { name: 'Calistria', alignment: 'CN', domains: 'Trickery, lust, revenge' },
+  { name: 'Cayden Cailean', alignment: 'CG', domains: 'Freedom, ale, bravery' },
+  { name: 'Desna', alignment: 'CG', domains: 'Dreams, stars, travelers' },
+  { name: 'Erastil', alignment: 'LG', domains: 'Family, farming, hunting' },
+  { name: 'Gorum', alignment: 'CN', domains: 'Strength, battle, weapons' },
+  { name: 'Gozreh', alignment: 'TN', domains: 'Nature, weather, the sea' },
+  { name: 'Iomedae', alignment: 'LG', domains: 'Valor, rulership, justice' },
+  { name: 'Irori', alignment: 'LN', domains: 'History, knowledge, self-perfection' },
+  { name: 'Lamashtu', alignment: 'CE', domains: 'Madness, monsters, nightmares' },
+  { name: 'Nethys', alignment: 'TN', domains: 'Magic, destruction, knowledge' },
+  { name: 'Norgorber', alignment: 'NE', domains: 'Greed, secrets, murder' },
+  { name: 'Pharasma', alignment: 'TN', domains: 'Fate, death, prophecy' },
+  { name: 'Rovagug', alignment: 'CE', domains: 'Wrath, disaster, destruction' },
+  { name: 'Sarenrae', alignment: 'NG', domains: 'Sun, redemption, healing' },
+  { name: 'Shelyn', alignment: 'NG', domains: 'Beauty, art, love' },
+  { name: 'Torag', alignment: 'LG', domains: 'Forge, protection, strategy' },
+  { name: 'Urgathoa', alignment: 'NE', domains: 'Gluttony, disease, undeath' },
+  { name: 'Zon-Kuthon', alignment: 'LE', domains: 'Envy, pain, darkness' }
+]
 
 // Ability scores
 const abilityMethod = ref('standard')
@@ -648,436 +895,94 @@ const featsRemaining = ref(1)
 // Equipment
 const startingGold = ref(150)
 const selectedEquipment = ref([])
-const selectedEquipmentCategory = ref('Weapons')
 
-// Categories - Added "All" option for viewing everything
-const raceCategories = ['Core', 'Featured', 'Uncommon', 'Other', 'All']
-const classCategories = ['Core', 'Base', 'Hybrid', 'Occult', 'Alternate', 'All']
-const equipmentCategories = ['Weapons', 'Armor', 'Adventuring Gear', 'Tools', 'Magic Items', 'Consumables']
+// Data - Now using imported race data
+const raceCategories = ['Core', 'Featured', 'Uncommon']
 
-// Import data (expanded to include more races and classes)
-const availableRaces = pathfinderData?.races || [
-  // Core Races
-  {
-    id: 'human',
-    name: 'Human',
-    category: 'Core',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { any: 2 },
-    traits: ['Bonus Feat', 'Bonus Skill Points', 'Flexible'],
-    speed: 30
-  },
-  {
-    id: 'elf',
-    name: 'Elf',
-    category: 'Core',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CON: -2, INT: 2 },
-    traits: ['Low-Light Vision', 'Elven Immunities', 'Keen Senses'],
-    speed: 30
-  },
-  {
-    id: 'dwarf',
-    name: 'Dwarf',
-    category: 'Core',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { CON: 2, WIS: 2, CHA: -2 },
-    traits: ['Darkvision', 'Hardy', 'Stability'],
-    speed: 20
-  },
-  {
-    id: 'halfling',
-    name: 'Halfling',
-    category: 'Core',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, STR: -2, CHA: 2 },
-    traits: ['Small', 'Fearless', 'Lucky'],
-    speed: 20
-  },
-  {
-    id: 'half-orc',
-    name: 'Half-Orc',
-    category: 'Core',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { STR: 2 },
-    traits: ['Darkvision', 'Intimidating', 'Orc Ferocity'],
-    speed: 30
-  },
-  {
-    id: 'gnome',
-    name: 'Gnome',
-    category: 'Core',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { CON: 2, STR: -2, CHA: 2 },
-    traits: ['Small', 'Low-Light Vision', 'Gnome Magic'],
-    speed: 20
-  },
-  {
-    id: 'half-elf',
-    name: 'Half-Elf',
-    category: 'Core',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { any: 2 },
-    traits: ['Low-Light Vision', 'Adaptability', 'Elf Blood'],
-    speed: 30
-  },
-  // Featured Races
-  {
-    id: 'aasimar',
-    name: 'Aasimar',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { WIS: 2, CHA: 2 },
-    traits: ['Darkvision', 'Celestial Resistance', 'Skilled'],
-    speed: 30
-  },
-  {
-    id: 'tiefling',
-    name: 'Tiefling',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { DEX: 2, INT: 2, CHA: -2 },
-    traits: ['Darkvision', 'Fiendish Resistance', 'Skilled'],
-    speed: 30
-  },
-  {
-    id: 'catfolk',
-    name: 'Catfolk',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CHA: 2, WIS: -2 },
-    traits: ['Low-Light Vision', 'Cat\'s Luck', 'Natural Hunter'],
-    speed: 30
-  },
-  {
-    id: 'dhampir',
-    name: 'Dhampir',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CHA: 2, CON: -2 },
-    traits: ['Low-Light Vision', 'Undead Resistance', 'Negative Energy Affinity'],
-    speed: 30
-  },
-  {
-    id: 'drow',
-    name: 'Drow',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CHA: 2, CON: -2 },
-    traits: ['Darkvision', 'Spell Resistance', 'Light Blindness'],
-    speed: 30
-  },
-  {
-    id: 'fetchling',
-    name: 'Fetchling',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { DEX: 2, CHA: 2, WIS: -2 },
-    traits: ['Darkvision', 'Shadow Blending', 'Skilled'],
-    speed: 30
-  },
-  {
-    id: 'goblin',
-    name: 'Goblin',
-    category: 'Featured',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 4, STR: -2, CHA: -2 },
-    traits: ['Darkvision', 'Fast', 'Skilled'],
-    speed: 30
-  },
-  {
-    id: 'hobgoblin',
-    name: 'Hobgoblin',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CON: 2 },
-    traits: ['Darkvision', 'Sneaky', 'Militaristic'],
-    speed: 30
-  },
-  {
-    id: 'ifrit',
-    name: 'Ifrit',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { DEX: 2, CHA: 2, WIS: -2 },
-    traits: ['Darkvision', 'Fire Affinity', 'Fire Resistance'],
-    speed: 30
-  },
-  {
-    id: 'kobold',
-    name: 'Kobold',
-    category: 'Featured',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, STR: -4, CON: -2 },
-    traits: ['Darkvision', 'Crafty', 'Light Sensitivity'],
-    speed: 30
-  },
-  {
-    id: 'orc',
-    name: 'Orc',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { STR: 4, INT: -2, WIS: -2, CHA: -2 },
-    traits: ['Darkvision', 'Ferocity', 'Light Sensitivity'],
-    speed: 30
-  },
-  {
-    id: 'oread',
-    name: 'Oread',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { STR: 2, WIS: 2, CHA: -2 },
-    traits: ['Darkvision', 'Earth Affinity', 'Acid Resistance'],
-    speed: 20
-  },
-  {
-    id: 'ratfolk',
-    name: 'Ratfolk',
-    category: 'Featured',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, INT: 2, STR: -2 },
-    traits: ['Darkvision', 'Tinker', 'Rodent Empathy'],
-    speed: 20
-  },
-  {
-    id: 'sylph',
-    name: 'Sylph',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { DEX: 2, INT: 2, CON: -2 },
-    traits: ['Darkvision', 'Air Affinity', 'Electricity Resistance'],
-    speed: 30
-  },
-  {
-    id: 'tengu',
-    name: 'Tengu',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, WIS: 2, CON: -2 },
-    traits: ['Low-Light Vision', 'Sneaky', 'Natural Weapons'],
-    speed: 30
-  },
-  {
-    id: 'undine',
-    name: 'Undine',
-    category: 'Featured',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { DEX: 2, WIS: 2, STR: -2 },
-    traits: ['Darkvision', 'Water Affinity', 'Cold Resistance'],
-    speed: 30
-  },
-  // Uncommon Races
-  {
-    id: 'changeling',
-    name: 'Changeling',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { WIS: 2, CHA: 2, CON: -2 },
-    traits: ['Darkvision', 'Hulver', 'Sea Lungs'],
-    speed: 30
-  },
-  {
-    id: 'duergar',
-    name: 'Duergar',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { CON: 2, WIS: 2, CHA: -4 },
-    traits: ['Darkvision', 'Duergar Immunities', 'Stability'],
-    speed: 20
-  },
-  {
-    id: 'gillman',
-    name: 'Gillman',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { CON: 2, CHA: 2, WIS: -2 },
-    traits: ['Amphibious', 'Enchantment Resistance', 'Water Dependent'],
-    speed: 30
-  },
-  {
-    id: 'grippli',
-    name: 'Grippli',
-    category: 'Uncommon',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, WIS: 2, STR: -2 },
-    traits: ['Darkvision', 'Camouflage', 'Jumper'],
-    speed: 30
-  },
-  {
-    id: 'kitsune',
-    name: 'Kitsune',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CHA: 2, STR: -2 },
-    traits: ['Low-Light Vision', 'Change Shape', 'Kitsune Magic'],
-    speed: 30
-  },
-  {
-    id: 'merfolk',
-    name: 'Merfolk',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CON: 2, CHA: 2 },
-    traits: ['Aquatic', 'Amphibious', 'Low-Light Vision'],
-    speed: 5
-  },
-  {
-    id: 'nagaji',
-    name: 'Nagaji',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { STR: 2, CHA: 2, INT: -2 },
-    traits: ['Low-Light Vision', 'Armored Scales', 'Resistant'],
-    speed: 30
-  },
-  {
-    id: 'samsaran',
-    name: 'Samsaran',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { INT: 2, WIS: 2, CON: -2 },
-    traits: ['Low-Light Vision', 'Lifebound', 'Samsaran Magic'],
-    speed: 30
-  },
-  {
-    id: 'strix',
-    name: 'Strix',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CHA: -2 },
-    traits: ['Darkvision', 'Flight', 'Hatred'],
-    speed: 30
-  },
-  {
-    id: 'suli',
-    name: 'Suli',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Outsider',
-    abilityMods: { STR: 2, CHA: 2, INT: -2 },
-    traits: ['Low-Light Vision', 'Elemental Resistance', 'Elemental Assault'],
-    speed: 30
-  },
-  {
-    id: 'svirfneblin',
-    name: 'Svirfneblin',
-    category: 'Uncommon',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, WIS: 2, STR: -2, CHA: -4 },
-    traits: ['Darkvision', 'Spell Resistance', 'Svirfneblin Magic'],
-    speed: 20
-  },
-  {
-    id: 'vanara',
-    name: 'Vanara',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, WIS: 2, CHA: -2 },
-    traits: ['Low-Light Vision', 'Nimble', 'Prehensile Tail'],
-    speed: 30
-  },
-  {
-    id: 'vishkanya',
-    name: 'Vishkanya',
-    category: 'Uncommon',
-    size: 'Medium',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, CHA: 2, WIS: -2 },
-    traits: ['Low-Light Vision', 'Keen Senses', 'Poison Use'],
-    speed: 30
-  },
-  {
-    id: 'wayang',
-    name: 'Wayang',
-    category: 'Uncommon',
-    size: 'Small',
-    type: 'Humanoid',
-    abilityMods: { DEX: 2, INT: 2, WIS: -2 },
-    traits: ['Darkvision', 'Light and Dark', 'Shadow Magic'],
-    speed: 20
+// Temporary fallback races if import fails
+const fallbackRaces = {
+  core: [
+    {
+      id: 'human',
+      name: 'Human',
+      size: 'Medium',
+      type: 'Humanoid (human)',
+      speed: 30,
+      abilityMods: { any: 2 },
+      languages: {
+        starting: ['Common'],
+        bonus: 'Any (except secret languages)'
+      },
+      racialTraits: [
+        { name: 'Bonus Feat', description: 'Humans select one extra feat at 1st level.' },
+        { name: 'Skilled', description: 'Humans gain an additional skill rank at first level and one additional rank whenever they gain a level.' }
+      ]
+    },
+    {
+      id: 'elf',
+      name: 'Elf',
+      size: 'Medium',
+      type: 'Humanoid (elf)',
+      speed: 30,
+      abilityMods: { DEX: 2, CON: -2, INT: 2 },
+      languages: {
+        starting: ['Common', 'Elven'],
+        bonus: ['Celestial', 'Draconic', 'Gnoll', 'Gnome', 'Goblin', 'Orc', 'Sylvan']
+      },
+      racialTraits: [
+        { name: 'Low-Light Vision', description: 'Elves can see twice as far as humans in dim light.' },
+        { name: 'Elven Immunities', description: 'Immune to magic sleep effects, +2 racial saving throw bonus against enchantment.' }
+      ]
+    },
+    {
+      id: 'dwarf',
+      name: 'Dwarf',
+      size: 'Medium',
+      type: 'Humanoid (dwarf)',
+      speed: 20,
+      abilityMods: { CON: 2, WIS: 2, CHA: -2 },
+      languages: {
+        starting: ['Common', 'Dwarven'],
+        bonus: ['Giant', 'Gnome', 'Goblin', 'Orc', 'Terran', 'Undercommon']
+      },
+      racialTraits: [
+        { name: 'Darkvision', description: 'Dwarves can see in the dark up to 60 feet.' },
+        { name: 'Hardy', description: '+2 racial bonus on saving throws against poison, spells, and spell-like abilities.' }
+      ]
+    }
+  ],
+  featured: [],
+  uncommon: []
+}
+
+// Get races by category with fallback
+const getRacesByCategory = (category) => {
+  try {
+    const categoryKey = category.toLowerCase()
+    if (pathfinderRaces && pathfinderRaces[categoryKey]) {
+      const races = pathfinderRaces[categoryKey] || []
+      console.log(`Found ${races.length} races in ${category} category`)
+      return races
+    }
+    console.warn(`No races found for category: ${category}`)
+    return fallbackRaces[categoryKey] || []
+  } catch (error) {
+    console.error('Error loading races:', error)
+    return fallbackRaces[category.toLowerCase()] || []
   }
-]
+}
 
-const availableClasses = pathfinderData?.classes || [
-  // Core Classes
-  {
-    id: 'barbarian',
-    name: 'Barbarian',
-    category: 'Core',
-    hitDie: 'd12',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'STR',
-    classSkills: ['Acrobatics', 'Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (nature)', 'Perception', 'Ride', 'Survival', 'Swim']
-  },
-  {
-    id: 'bard',
-    name: 'Bard',
-    category: 'Core',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 6,
-    primaryAbility: 'CHA',
-    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (all)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Spellcraft', 'Stealth', 'Use Magic Device']
-  },
-  {
-    id: 'cleric',
-    name: 'Cleric',
-    category: 'Core',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 2,
-    primaryAbility: 'WIS',
-    classSkills: ['Appraise', 'Craft', 'Diplomacy', 'Heal', 'Knowledge (arcana)', 'Knowledge (history)', 'Knowledge (nobility)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Profession', 'Sense Motive', 'Spellcraft']
-  },
-  {
-    id: 'druid',
-    name: 'Druid',
-    category: 'Core',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'WIS',
-    classSkills: ['Climb', 'Craft', 'Fly', 'Handle Animal', 'Heal', 'Knowledge (geography)', 'Knowledge (nature)', 'Perception', 'Profession', 'Ride', 'Spellcraft', 'Survival', 'Swim']
-  },
+// Filtered races based on selected category
+const filteredRaces = computed(() => {
+  const races = getRacesByCategory(selectedRaceCategory.value)
+  console.log('Filtered races:', races) // Debug log
+  return races
+})
+
+const availableClasses = [
   {
     id: 'fighter',
     name: 'Fighter',
-    category: 'Core',
     hitDie: 'd10',
     bab: 'Full',
     skillPoints: 2,
@@ -1086,59 +991,8 @@ const availableClasses = pathfinderData?.classes || [
     bonusFeats: true
   },
   {
-    id: 'monk',
-    name: 'Monk',
-    category: 'Core',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'WIS',
-    classSkills: ['Acrobatics', 'Climb', 'Craft', 'Escape Artist', 'Intimidate', 'Knowledge (history)', 'Knowledge (religion)', 'Perception', 'Perform', 'Profession', 'Ride', 'Sense Motive', 'Stealth', 'Swim']
-  },
-  {
-    id: 'paladin',
-    name: 'Paladin',
-    category: 'Core',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 2,
-    primaryAbility: 'CHA',
-    classSkills: ['Craft', 'Diplomacy', 'Handle Animal', 'Heal', 'Knowledge (nobility)', 'Knowledge (religion)', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft']
-  },
-  {
-    id: 'ranger',
-    name: 'Ranger',
-    category: 'Core',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 6,
-    primaryAbility: 'STR or DEX',
-    classSkills: ['Climb', 'Craft', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (geography)', 'Knowledge (nature)', 'Perception', 'Profession', 'Ride', 'Spellcraft', 'Stealth', 'Survival', 'Swim']
-  },
-  {
-    id: 'rogue',
-    name: 'Rogue',
-    category: 'Core',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 8,
-    primaryAbility: 'DEX',
-    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (local)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Stealth', 'Swim', 'Use Magic Device']
-  },
-  {
-    id: 'sorcerer',
-    name: 'Sorcerer',
-    category: 'Core',
-    hitDie: 'd6',
-    bab: '1/2',
-    skillPoints: 2,
-    primaryAbility: 'CHA',
-    classSkills: ['Appraise', 'Bluff', 'Craft', 'Fly', 'Intimidate', 'Knowledge (arcana)', 'Profession', 'Spellcraft', 'Use Magic Device']
-  },
-  {
     id: 'wizard',
     name: 'Wizard',
-    category: 'Core',
     hitDie: 'd6',
     bab: '1/2',
     skillPoints: 2,
@@ -1146,279 +1000,45 @@ const availableClasses = pathfinderData?.classes || [
     classSkills: ['Appraise', 'Craft', 'Fly', 'Knowledge (all)', 'Linguistics', 'Profession', 'Spellcraft'],
     bonusFeats: true
   },
-  // Base Classes
   {
-    id: 'alchemist',
-    name: 'Alchemist',
-    category: 'Base',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'INT',
-    classSkills: ['Appraise', 'Craft', 'Disable Device', 'Fly', 'Heal', 'Knowledge (arcana)', 'Knowledge (nature)', 'Perception', 'Profession', 'Sleight of Hand', 'Spellcraft', 'Survival', 'Use Magic Device']
-  },
-  {
-    id: 'cavalier',
-    name: 'Cavalier',
-    category: 'Base',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'STR',
-    classSkills: ['Bluff', 'Climb', 'Craft', 'Diplomacy', 'Handle Animal', 'Intimidate', 'Profession', 'Ride', 'Sense Motive', 'Swim']
-  },
-  {
-    id: 'gunslinger',
-    name: 'Gunslinger',
-    category: 'Base',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'DEX',
-    classSkills: ['Acrobatics', 'Bluff', 'Climb', 'Craft', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (engineering)', 'Knowledge (local)', 'Perception', 'Profession', 'Ride', 'Sleight of Hand', 'Survival', 'Swim']
-  },
-  {
-    id: 'inquisitor',
-    name: 'Inquisitor',
-    category: 'Base',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 6,
-    primaryAbility: 'WIS',
-    classSkills: ['Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disguise', 'Heal', 'Intimidate', 'Knowledge (arcana)', 'Knowledge (dungeoneering)', 'Knowledge (nature)', 'Knowledge (planes)', 'Knowledge (religion)', 'Perception', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft', 'Stealth', 'Survival', 'Swim']
-  },
-  {
-    id: 'magus',
-    name: 'Magus',
-    category: 'Base',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 2,
-    primaryAbility: 'INT',
-    classSkills: ['Climb', 'Craft', 'Fly', 'Intimidate', 'Knowledge (arcana)', 'Knowledge (dungeoneering)', 'Knowledge (planes)', 'Profession', 'Ride', 'Spellcraft', 'Swim', 'Use Magic Device']
-  },
-  {
-    id: 'oracle',
-    name: 'Oracle',
-    category: 'Base',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'CHA',
-    classSkills: ['Craft', 'Diplomacy', 'Heal', 'Knowledge (history)', 'Knowledge (planes)', 'Knowledge (religion)', 'Profession', 'Sense Motive', 'Spellcraft']
-  },
-  {
-    id: 'summoner',
-    name: 'Summoner',
-    category: 'Base',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 2,
-    primaryAbility: 'CHA',
-    classSkills: ['Craft', 'Fly', 'Handle Animal', 'Knowledge (all)', 'Linguistics', 'Profession', 'Ride', 'Spellcraft', 'Use Magic Device']
-  },
-  {
-    id: 'witch',
-    name: 'Witch',
-    category: 'Base',
-    hitDie: 'd6',
-    bab: '1/2',
-    skillPoints: 2,
-    primaryAbility: 'INT',
-    classSkills: ['Craft', 'Fly', 'Heal', 'Intimidate', 'Knowledge (arcana)', 'Knowledge (history)', 'Knowledge (nature)', 'Knowledge (planes)', 'Profession', 'Spellcraft', 'Use Magic Device']
-  },
-  // Hybrid Classes
-  {
-    id: 'arcanist',
-    name: 'Arcanist',
-    category: 'Hybrid',
-    hitDie: 'd6',
-    bab: '1/2',
-    skillPoints: 2,
-    primaryAbility: 'INT',
-    classSkills: ['Appraise', 'Craft', 'Fly', 'Knowledge (all)', 'Linguistics', 'Profession', 'Spellcraft', 'Use Magic Device']
-  },
-  {
-    id: 'bloodrager',
-    name: 'Bloodrager',
-    category: 'Hybrid',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'STR',
-    classSkills: ['Acrobatics', 'Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (arcana)', 'Perception', 'Ride', 'Spellcraft', 'Survival', 'Swim']
-  },
-  {
-    id: 'brawler',
-    name: 'Brawler',
-    category: 'Hybrid',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'STR',
-    classSkills: ['Acrobatics', 'Climb', 'Craft', 'Escape Artist', 'Handle Animal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (local)', 'Perception', 'Profession', 'Ride', 'Sense Motive', 'Swim']
-  },
-  {
-    id: 'hunter',
-    name: 'Hunter',
-    category: 'Hybrid',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 6,
-    primaryAbility: 'WIS',
-    classSkills: ['Climb', 'Craft', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (geography)', 'Knowledge (nature)', 'Perception', 'Profession', 'Ride', 'Spellcraft', 'Stealth', 'Survival', 'Swim']
-  },
-  {
-    id: 'investigator',
-    name: 'Investigator',
-    category: 'Hybrid',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 6,
-    primaryAbility: 'INT',
-    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Escape Artist', 'Heal', 'Intimidate', 'Knowledge (all)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Spellcraft', 'Stealth', 'Use Magic Device']
-  },
-  {
-    id: 'shaman',
-    name: 'Shaman',
-    category: 'Hybrid',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'WIS',
-    classSkills: ['Craft', 'Diplomacy', 'Fly', 'Handle Animal', 'Heal', 'Knowledge (nature)', 'Knowledge (planes)', 'Knowledge (religion)', 'Profession', 'Ride', 'Spellcraft', 'Survival']
-  },
-  {
-    id: 'skald',
-    name: 'Skald',
-    category: 'Hybrid',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'CHA',
-    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Escape Artist', 'Handle Animal', 'Intimidate', 'Knowledge (all)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft', 'Swim', 'Use Magic Device']
-  },
-  {
-    id: 'slayer',
-    name: 'Slayer',
-    category: 'Hybrid',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 6,
-    primaryAbility: 'STR or DEX',
-    classSkills: ['Acrobatics', 'Bluff', 'Climb', 'Craft', 'Disguise', 'Heal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (geography)', 'Knowledge (local)', 'Perception', 'Profession', 'Ride', 'Sense Motive', 'Stealth', 'Survival', 'Swim']
-  },
-  {
-    id: 'swashbuckler',
-    name: 'Swashbuckler',
-    category: 'Hybrid',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'DEX',
-    classSkills: ['Acrobatics', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Escape Artist', 'Intimidate', 'Knowledge (local)', 'Knowledge (nobility)', 'Perception', 'Perform', 'Profession', 'Ride', 'Sense Motive', 'Swim']
-  },
-  {
-    id: 'warpriest',
-    name: 'Warpriest',
-    category: 'Hybrid',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 2,
-    primaryAbility: 'WIS',
-    classSkills: ['Climb', 'Craft', 'Diplomacy', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (engineering)', 'Knowledge (religion)', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft', 'Survival', 'Swim']
-  },
-  // Occult Classes
-  {
-    id: 'kineticist',
-    name: 'Kineticist',
-    category: 'Occult',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'CON',
-    classSkills: ['Acrobatics', 'Craft', 'Heal', 'Intimidate', 'Perception', 'Profession', 'Stealth', 'Use Magic Device']
-  },
-  {
-    id: 'medium',
-    name: 'Medium',
-    category: 'Occult',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'CHA',
-    classSkills: ['Bluff', 'Craft', 'Diplomacy', 'Heal', 'Intimidate', 'Knowledge (arcana)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Spellcraft', 'Use Magic Device']
-  },
-  {
-    id: 'mesmerist',
-    name: 'Mesmerist',
-    category: 'Occult',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 6,
-    primaryAbility: 'CHA',
-    classSkills: ['Appraise', 'Bluff', 'Craft', 'Diplomacy', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (arcana)', 'Knowledge (dungeoneering)', 'Knowledge (history)', 'Knowledge (local)', 'Knowledge (nobility)', 'Knowledge (religion)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Spellcraft', 'Stealth', 'Use Magic Device']
-  },
-  {
-    id: 'occultist',
-    name: 'Occultist',
-    category: 'Occult',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'INT',
-    classSkills: ['Appraise', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Fly', 'Knowledge (arcana)', 'Knowledge (engineering)', 'Knowledge (history)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Perception', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Spellcraft', 'Use Magic Device']
-  },
-  {
-    id: 'psychic',
-    name: 'Psychic',
-    category: 'Occult',
-    hitDie: 'd6',
-    bab: '1/2',
-    skillPoints: 2,
-    primaryAbility: 'INT',
-    classSkills: ['Bluff', 'Craft', 'Diplomacy', 'Fly', 'Intimidate', 'Knowledge (all)', 'Linguistics', 'Perception', 'Profession', 'Sense Motive', 'Spellcraft']
-  },
-  {
-    id: 'spiritualist',
-    name: 'Spiritualist',
-    category: 'Occult',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 4,
-    primaryAbility: 'WIS',
-    classSkills: ['Bluff', 'Craft', 'Fly', 'Heal', 'Intimidate', 'Knowledge (arcana)', 'Knowledge (dungeoneering)', 'Knowledge (history)', 'Knowledge (nature)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Profession', 'Sense Motive', 'Spellcraft', 'Use Magic Device']
-  },
-  // Alternate Classes
-  {
-    id: 'antipaladin',
-    name: 'Antipaladin',
-    category: 'Alternate',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 2,
-    primaryAbility: 'CHA',
-    classSkills: ['Bluff', 'Craft', 'Disguise', 'Handle Animal', 'Intimidate', 'Knowledge (religion)', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft', 'Stealth']
-  },
-  {
-    id: 'ninja',
-    name: 'Ninja',
-    category: 'Alternate',
+    id: 'rogue',
+    name: 'Rogue',
     hitDie: 'd8',
     bab: '3/4',
     skillPoints: 8,
     primaryAbility: 'DEX',
-    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (local)', 'Knowledge (nobility)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Stealth', 'Swim', 'Use Magic Device']
+    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (local)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Stealth', 'Swim', 'Use Magic Device'],
+    bonusFeats: false
   },
   {
-    id: 'samurai',
-    name: 'Samurai',
-    category: 'Alternate',
-    hitDie: 'd10',
+    id: 'cleric',
+    name: 'Cleric',
+    hitDie: 'd8',
+    bab: '3/4',
+    skillPoints: 2,
+    primaryAbility: 'WIS',
+    classSkills: ['Appraise', 'Craft', 'Diplomacy', 'Heal', 'Knowledge (arcana)', 'Knowledge (history)', 'Knowledge (nobility)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Profession', 'Sense Motive', 'Spellcraft'],
+    bonusFeats: false
+  },
+  {
+    id: 'barbarian',
+    name: 'Barbarian',
+    hitDie: 'd12',
     bab: 'Full',
     skillPoints: 4,
     primaryAbility: 'STR',
-    classSkills: ['Bluff', 'Climb', 'Craft', 'Diplomacy', 'Handle Animal', 'Intimidate', 'Profession', 'Ride', 'Sense Motive', 'Swim']
+    classSkills: ['Acrobatics', 'Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (nature)', 'Perception', 'Ride', 'Survival', 'Swim'],
+    bonusFeats: false
+  },
+  {
+    id: 'ranger',
+    name: 'Ranger',
+    hitDie: 'd10',
+    bab: 'Full',
+    skillPoints: 6,
+    primaryAbility: 'STR or DEX',
+    classSkills: ['Climb', 'Craft', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (geography)', 'Knowledge (nature)', 'Perception', 'Profession', 'Ride', 'Spellcraft', 'Stealth', 'Survival', 'Swim'],
+    bonusFeats: false
   }
 ]
 
@@ -1461,317 +1081,80 @@ const availableSkills = [
 ]
 
 const availableFeats = [
-  { name: 'Acrobatic', description: '+2 on Acrobatics and Fly', prerequisites: null },
-  { name: 'Agile Maneuvers', description: 'Use DEX for combat maneuvers', prerequisites: null },
-  { name: 'Alertness', description: '+2 on Perception and Sense Motive', prerequisites: null },
-  { name: 'Animal Affinity', description: '+2 on Handle Animal and Ride', prerequisites: null },
-  { name: 'Arcane Strike', description: '+1 damage with magic weapons', prerequisites: 'Ability to cast arcane spells' },
-  { name: 'Armor Proficiency (Light)', description: 'No penalties for wearing light armor', prerequisites: null },
-  { name: 'Armor Proficiency (Medium)', description: 'No penalties for wearing medium armor', prerequisites: 'Light Armor Proficiency' },
-  { name: 'Armor Proficiency (Heavy)', description: 'No penalties for wearing heavy armor', prerequisites: 'Medium Armor Proficiency' },
-  { name: 'Athletic', description: '+2 on Climb and Swim', prerequisites: null },
-  { name: 'Blind-Fight', description: 'Re-roll miss chances in melee', prerequisites: null },
-  { name: 'Catch Off-Guard', description: 'No penalties for improvised weapons', prerequisites: null },
-  { name: 'Combat Casting', description: '+4 on concentration checks for defensive casting', prerequisites: null },
-  { name: 'Combat Expertise', description: 'Trade attack bonus for AC', prerequisites: 'INT 13' },
-  { name: 'Combat Reflexes', description: 'Additional attacks of opportunity', prerequisites: 'DEX 13' },
-  { name: 'Dazzling Display', description: 'Intimidate all foes within 30 feet', prerequisites: 'Weapon Focus' },
-  { name: 'Deadly Aim', description: 'Trade ranged attack bonus for damage', prerequisites: 'DEX 13, BAB +1' },
-  { name: 'Deceitful', description: '+2 on Bluff and Disguise', prerequisites: null },
-  { name: 'Deft Hands', description: '+2 on Disable Device and Sleight of Hand', prerequisites: null },
-  { name: 'Dodge', description: '+1 dodge bonus to AC', prerequisites: 'DEX 13' },
-  { name: 'Endurance', description: '+4 on checks to avoid fatigue', prerequisites: null },
-  { name: 'Eschew Materials', description: 'Cast spells without material components', prerequisites: null },
-  { name: 'Exotic Weapon Proficiency', description: 'Use exotic weapon without penalty', prerequisites: 'BAB +1' },
-  { name: 'Extra Channel', description: 'Channel energy two additional times per day', prerequisites: 'Channel energy' },
-  { name: 'Extra Ki', description: 'Increase ki pool by 2', prerequisites: 'Ki pool' },
-  { name: 'Extra Mercy', description: 'Add one mercy to lay on hands', prerequisites: 'Lay on hands' },
-  { name: 'Extra Performance', description: '6 additional rounds of bardic performance per day', prerequisites: 'Bardic performance' },
-  { name: 'Extra Rage', description: '6 additional rounds of rage per day', prerequisites: 'Rage' },
-  { name: 'Great Fortitude', description: '+2 bonus on Fortitude saves', prerequisites: null },
-  { name: 'Improved Bull Rush', description: '+2 on bull rush, no attack of opportunity', prerequisites: 'Power Attack' },
-  { name: 'Improved Channel', description: '+2 DC on channel energy', prerequisites: 'Channel energy' },
-  { name: 'Improved Counterspell', description: 'Counterspell with similar spell', prerequisites: null },
-  { name: 'Improved Critical', description: 'Double threat range of weapon', prerequisites: 'Weapon proficiency, BAB +8' },
-  { name: 'Improved Disarm', description: '+2 on disarm, no attack of opportunity', prerequisites: 'Combat Expertise' },
-  { name: 'Improved Familiar', description: 'Gain a more powerful familiar', prerequisites: 'Familiar' },
-  { name: 'Improved Grapple', description: '+2 on grapple, no attack of opportunity', prerequisites: 'Improved Unarmed Strike' },
-  { name: 'Improved Initiative', description: '+4 bonus on initiative', prerequisites: null },
-  { name: 'Improved Natural Armor', description: '+1 natural armor bonus', prerequisites: 'Natural armor' },
-  { name: 'Improved Natural Attack', description: 'Increase natural weapon damage', prerequisites: 'Natural weapon' },
-  { name: 'Improved Overrun', description: '+2 on overrun, no attack of opportunity', prerequisites: 'Power Attack' },
-  { name: 'Improved Shield Bash', description: 'Keep shield bonus when bashing', prerequisites: 'Shield Proficiency' },
-  { name: 'Improved Sunder', description: '+2 on sunder, no attack of opportunity', prerequisites: 'Power Attack' },
-  { name: 'Improved Trip', description: '+2 on trip, no attack of opportunity', prerequisites: 'Combat Expertise' },
-  { name: 'Improved Two-Weapon Fighting', description: 'Additional off-hand attack', prerequisites: 'Two-Weapon Fighting, BAB +6' },
-  { name: 'Improved Unarmed Strike', description: 'Unarmed attacks don\'t provoke attacks', prerequisites: null },
-  { name: 'Iron Will', description: '+2 bonus on Will saves', prerequisites: null },
-  { name: 'Leadership', description: 'Attract followers and a cohort', prerequisites: 'Character level 7th' },
-  { name: 'Lightning Reflexes', description: '+2 bonus on Reflex saves', prerequisites: null },
-  { name: 'Magical Aptitude', description: '+2 on Spellcraft and Use Magic Device', prerequisites: null },
-  { name: 'Martial Weapon Proficiency', description: 'Use martial weapon without penalty', prerequisites: null },
-  { name: 'Mobility', description: '+4 AC against attacks of opportunity', prerequisites: 'Dodge' },
-  { name: 'Mounted Combat', description: 'Avoid attacks on mount', prerequisites: 'Ride 1 rank' },
-  { name: 'Natural Spell', description: 'Cast spells in wild shape', prerequisites: 'Wild shape' },
-  { name: 'Nimble Moves', description: 'Ignore 5 feet of difficult terrain', prerequisites: 'DEX 13' },
-  { name: 'Persuasive', description: '+2 on Diplomacy and Intimidate', prerequisites: null },
-  { name: 'Point-Blank Shot', description: '+1 attack and damage with ranged weapons within 30 ft', prerequisites: null },
-  { name: 'Power Attack', description: 'Trade attack bonus for damage', prerequisites: 'STR 13, BAB +1' },
-  { name: 'Precise Shot', description: 'No penalty for shooting into melee', prerequisites: 'Point-Blank Shot' },
-  { name: 'Quick Draw', description: 'Draw weapon as free action', prerequisites: 'BAB +1' },
-  { name: 'Rapid Reload', description: 'Reload crossbow more quickly', prerequisites: null },
-  { name: 'Rapid Shot', description: 'Extra ranged attack', prerequisites: 'Point-Blank Shot' },
-  { name: 'Run', description: 'Run at 5x speed', prerequisites: null },
-  { name: 'Self-Sufficient', description: '+2 on Heal and Survival', prerequisites: null },
-  { name: 'Shield Focus', description: '+1 shield bonus to AC', prerequisites: 'Shield Proficiency' },
-  { name: 'Shield Proficiency', description: 'No penalties for using shields', prerequisites: null },
-  { name: 'Shot on the Run', description: 'Move, attack, move with ranged weapon', prerequisites: 'Mobility, Point-Blank Shot' },
-  { name: 'Simple Weapon Proficiency', description: 'Use simple weapons without penalty', prerequisites: null },
-  { name: 'Skill Focus', description: '+3 bonus on chosen skill', prerequisites: null },
-  { name: 'Spell Focus', description: '+1 DC for spells from chosen school', prerequisites: null },
-  { name: 'Spell Mastery', description: 'Prepare some spells without spellbook', prerequisites: 'Wizard level 1st' },
-  { name: 'Spell Penetration', description: '+2 on caster level checks to overcome SR', prerequisites: null },
-  { name: 'Spring Attack', description: 'Move, attack, move without provoking', prerequisites: 'Mobility, BAB +4' },
-  { name: 'Stand Still', description: 'Stop enemies from moving past', prerequisites: 'Combat Reflexes' },
-  { name: 'Stealthy', description: '+2 on Escape Artist and Stealth', prerequisites: null },
-  { name: 'Step Up', description: '5-foot step as immediate action', prerequisites: 'BAB +1' },
-  { name: 'Toughness', description: '+3 hit points, +1 per level after 3rd', prerequisites: null },
-  { name: 'Two-Weapon Defense', description: '+1 shield bonus when fighting with two weapons', prerequisites: 'Two-Weapon Fighting' },
-  { name: 'Two-Weapon Fighting', description: 'Reduce two-weapon fighting penalties', prerequisites: 'DEX 15' },
-  { name: 'Vital Strike', description: 'Deal extra weapon damage', prerequisites: 'BAB +6' },
-  { name: 'Weapon Finesse', description: 'Use DEX for attack with light weapons', prerequisites: null },
   { name: 'Weapon Focus', description: '+1 attack with chosen weapon', prerequisites: 'BAB +1' },
-  { name: 'Weapon Specialization', description: '+2 damage with chosen weapon', prerequisites: 'Fighter level 4th' }
-].sort((a, b) => a.name.localeCompare(b.name))
-
-// Equipment database already sorted alphabetically within categories
-const equipmentDatabase = pathfinderData?.equipment || {
-  'Weapons': [
-    // Simple Weapons
-    { name: 'Club', cost: 0, weight: 3, description: 'Simple one-handed weapon (1d6 B)' },
-    { name: 'Dagger', cost: 2, weight: 1, description: 'Simple light weapon (1d4 P/S)' },
-    { name: 'Dart', cost: 0.5, weight: 0.5, description: 'Simple ranged weapon (1d4 P)' },
-    { name: 'Heavy Crossbow', cost: 50, weight: 8, description: 'Simple ranged weapon (1d10 P)' },
-    { name: 'Javelin', cost: 1, weight: 2, description: 'Simple ranged weapon (1d6 P)' },
-    { name: 'Light Crossbow', cost: 35, weight: 4, description: 'Simple ranged weapon (1d8 P)' },
-    { name: 'Quarterstaff', cost: 0, weight: 4, description: 'Simple two-handed weapon (1d6 B)' },
-    { name: 'Sling', cost: 0, weight: 0, description: 'Simple ranged weapon (1d4 B)' },
-    { name: 'Spear', cost: 2, weight: 6, description: 'Simple two-handed weapon (1d8 P)' },
-    // Martial Weapons
-    { name: 'Arrows (20)', cost: 1, weight: 3, description: 'Ammunition for bows' },
-    { name: 'Battleaxe', cost: 10, weight: 6, description: 'Martial one-handed weapon (1d8 S)' },
-    { name: 'Bolts (10)', cost: 1, weight: 1, description: 'Ammunition for crossbows' },
-    { name: 'Falchion', cost: 75, weight: 8, description: 'Martial two-handed weapon (2d4 S)' },
-    { name: 'Flail', cost: 8, weight: 5, description: 'Martial one-handed weapon (1d8 B)' },
-    { name: 'Glaive', cost: 8, weight: 10, description: 'Martial two-handed weapon (1d10 S)' },
-    { name: 'Greataxe', cost: 20, weight: 12, description: 'Martial two-handed weapon (1d12 S)' },
-    { name: 'Greatclub', cost: 5, weight: 8, description: 'Martial two-handed weapon (1d10 B)' },
-    { name: 'Greatsword', cost: 50, weight: 8, description: 'Martial two-handed weapon (2d6 S)' },
-    { name: 'Halberd', cost: 10, weight: 12, description: 'Martial two-handed weapon (1d10 P/S)' },
-    { name: 'Heavy Pick', cost: 8, weight: 6, description: 'Martial one-handed weapon (1d6 P)' },
-    { name: 'Lance', cost: 10, weight: 10, description: 'Martial two-handed weapon (1d8 P)' },
-    { name: 'Longbow', cost: 75, weight: 3, description: 'Martial ranged weapon (1d8 P)' },
-    { name: 'Longsword', cost: 15, weight: 4, description: 'Martial one-handed weapon (1d8 S)' },
-    { name: 'Ranseur', cost: 10, weight: 12, description: 'Martial two-handed weapon (2d4 P)' },
-    { name: 'Rapier', cost: 20, weight: 2, description: 'Martial one-handed weapon (1d6 P)' },
-    { name: 'Scimitar', cost: 15, weight: 4, description: 'Martial one-handed weapon (1d6 S)' },
-    { name: 'Scythe', cost: 18, weight: 10, description: 'Martial two-handed weapon (2d4 P/S)' },
-    { name: 'Shortbow', cost: 30, weight: 2, description: 'Martial ranged weapon (1d6 P)' },
-    { name: 'Trident', cost: 15, weight: 4, description: 'Martial one-handed weapon (1d8 P)' },
-    { name: 'Warhammer', cost: 12, weight: 5, description: 'Martial one-handed weapon (1d8 B)' }
-  ].sort((a, b) => a.name.localeCompare(b.name)),
-  
-  'Armor': [
-    // Light Armor
-    { name: 'Chain Shirt', cost: 100, weight: 25, description: 'Light armor (+4 AC, max Dex +4)' },
-    { name: 'Leather', cost: 10, weight: 15, description: 'Light armor (+2 AC, max Dex +6)' },
-    { name: 'Padded', cost: 5, weight: 10, description: 'Light armor (+1 AC, max Dex +8)' },
-    { name: 'Studded Leather', cost: 25, weight: 20, description: 'Light armor (+3 AC, max Dex +5)' },
-    // Medium Armor
-    { name: 'Breastplate', cost: 200, weight: 30, description: 'Medium armor (+6 AC, max Dex +3)' },
-    { name: 'Chainmail', cost: 150, weight: 40, description: 'Medium armor (+6 AC, max Dex +2)' },
-    { name: 'Hide', cost: 15, weight: 25, description: 'Medium armor (+4 AC, max Dex +4)' },
-    { name: 'Scale Mail', cost: 50, weight: 30, description: 'Medium armor (+5 AC, max Dex +3)' },
-    // Heavy Armor
-    { name: 'Banded Mail', cost: 250, weight: 35, description: 'Heavy armor (+7 AC, max Dex +1)' },
-    { name: 'Full Plate', cost: 1500, weight: 50, description: 'Heavy armor (+9 AC, max Dex +1)' },
-    { name: 'Half-Plate', cost: 600, weight: 50, description: 'Heavy armor (+8 AC, max Dex +0)' },
-    { name: 'Splint Mail', cost: 200, weight: 45, description: 'Heavy armor (+7 AC, max Dex +0)' },
-    // Shields
-    { name: 'Buckler', cost: 5, weight: 5, description: 'Shield (+1 AC, -1 penalty)' },
-    { name: 'Heavy Steel Shield', cost: 20, weight: 15, description: 'Shield (+2 AC)' },
-    { name: 'Heavy Wooden Shield', cost: 7, weight: 10, description: 'Shield (+2 AC)' },
-    { name: 'Light Steel Shield', cost: 9, weight: 6, description: 'Shield (+1 AC)' },
-    { name: 'Light Wooden Shield', cost: 3, weight: 5, description: 'Shield (+1 AC)' },
-    { name: 'Tower Shield', cost: 30, weight: 45, description: 'Shield (+4 AC, max Dex +2)' }
-  ].sort((a, b) => a.name.localeCompare(b.name)),
-  
-  'Adventuring Gear': [
-    { name: 'Acid Flask', cost: 10, weight: 1, description: '1d6 acid damage, splash' },
-    { name: 'Alchemist\'s Fire', cost: 20, weight: 1, description: '1d6 fire damage' },
-    { name: 'Antitoxin', cost: 50, weight: 0, description: '+5 on Fort saves vs poison' },
-    { name: 'Backpack', cost: 2, weight: 2, description: 'Holds gear' },
-    { name: 'Barrel', cost: 2, weight: 30, description: 'Holds 10 cubic feet' },
-    { name: 'Basket', cost: 0.4, weight: 1, description: 'Holds 2 cubic feet' },
-    { name: 'Bedroll', cost: 0.1, weight: 5, description: 'Sleeping gear' },
-    { name: 'Bell', cost: 1, weight: 0, description: 'Makes noise' },
-    { name: 'Blanket', cost: 0.5, weight: 3, description: 'Keeps warm' },
-    { name: 'Block and Tackle', cost: 5, weight: 5, description: 'Pulley system' },
-    { name: 'Bottle, Glass', cost: 2, weight: 1, description: 'Holds 1 pint' },
-    { name: 'Bucket', cost: 0.5, weight: 2, description: 'Holds liquids' },
-    { name: 'Caltrops', cost: 1, weight: 2, description: 'Slows movement' },
-    { name: 'Candle', cost: 0.01, weight: 0, description: '5ft light for 1 hour' },
-    { name: 'Canvas (sq. yd.)', cost: 0.1, weight: 1, description: 'Cloth material' },
-    { name: 'Case, Map or Scroll', cost: 1, weight: 0.5, description: 'Protects papers' },
-    { name: 'Chain (10 ft.)', cost: 30, weight: 2, description: 'Metal chain' },
-    { name: 'Chalk', cost: 0.01, weight: 0, description: 'Writing tool' },
-    { name: 'Chest', cost: 2, weight: 25, description: 'Storage container' },
-    { name: 'Crowbar', cost: 2, weight: 5, description: '+2 to open doors' },
-    { name: 'Firewood (per day)', cost: 0.01, weight: 20, description: 'Fuel for fire' },
-    { name: 'Fishhook', cost: 0.1, weight: 0, description: 'For fishing' },
-    { name: 'Fishing Net', cost: 4, weight: 5, description: '25 sq. ft.' },
-    { name: 'Flask', cost: 0.03, weight: 1.5, description: 'Holds 1 pint' },
-    { name: 'Flint and Steel', cost: 1, weight: 0, description: 'Starts fires' },
-    { name: 'Grappling Hook', cost: 1, weight: 4, description: 'Climbing tool' },
-    { name: 'Hammer', cost: 0.5, weight: 2, description: 'Tool' },
-    { name: 'Holy Water', cost: 25, weight: 1, description: '2d4 vs undead' },
-    { name: 'Hourglass', cost: 25, weight: 1, description: 'Tracks time' },
-    { name: 'Ink (1 oz. vial)', cost: 8, weight: 0, description: 'For writing' },
-    { name: 'Inkpen', cost: 0.1, weight: 0, description: 'Writing tool' },
-    { name: 'Ladder (10 ft.)', cost: 0.05, weight: 20, description: 'Climbing tool' },
-    { name: 'Lamp, Common', cost: 0.1, weight: 1, description: '15ft light' },
-    { name: 'Lantern, Bullseye', cost: 12, weight: 3, description: '60ft cone light' },
-    { name: 'Lantern, Hooded', cost: 7, weight: 2, description: '30ft light' },
-    { name: 'Lock, Average', cost: 40, weight: 1, description: 'DC 25 to pick' },
-    { name: 'Lock, Good', cost: 80, weight: 1, description: 'DC 30 to pick' },
-    { name: 'Lock, Simple', cost: 20, weight: 1, description: 'DC 20 to pick' },
-    { name: 'Manacles', cost: 15, weight: 2, description: 'Restraints' },
-    { name: 'Mirror, Small Steel', cost: 10, weight: 0.5, description: 'Reflective surface' },
-    { name: 'Mug/Tankard, Clay', cost: 0.02, weight: 1, description: 'Drinking vessel' },
-    { name: 'Oil (1-pint flask)', cost: 0.1, weight: 1, description: 'Lamp fuel' },
-    { name: 'Paper (sheet)', cost: 0.4, weight: 0, description: 'Writing surface' },
-    { name: 'Parchment (sheet)', cost: 0.2, weight: 0, description: 'Writing surface' },
-    { name: 'Pick, Miner\'s', cost: 3, weight: 10, description: 'Digging tool' },
-    { name: 'Piton', cost: 0.1, weight: 0.5, description: 'Climbing spike' },
-    { name: 'Pole (10 ft.)', cost: 0.05, weight: 8, description: 'Long stick' },
-    { name: 'Pot, Iron', cost: 0.8, weight: 10, description: 'Cooking vessel' },
-    { name: 'Pouch, Belt', cost: 1, weight: 0.5, description: 'Small container' },
-    { name: 'Rations, Trail (per day)', cost: 0.5, weight: 1, description: 'Food' },
-    { name: 'Rope, Hemp (50 ft.)', cost: 1, weight: 10, description: 'Climbing rope' },
-    { name: 'Rope, Silk (50 ft.)', cost: 10, weight: 5, description: 'Strong rope' },
-    { name: 'Sack', cost: 0.1, weight: 0.5, description: 'Holds 1 cubic ft.' },
-    { name: 'Sealing Wax', cost: 1, weight: 1, description: 'For letters' },
-    { name: 'Sewing Needle', cost: 0.5, weight: 0, description: 'For repairs' },
-    { name: 'Shovel', cost: 2, weight: 8, description: 'Digging tool' },
-    { name: 'Signal Whistle', cost: 0.8, weight: 0, description: 'Makes loud noise' },
-    { name: 'Signet Ring', cost: 5, weight: 0, description: 'Personal seal' },
-    { name: 'Sledge', cost: 1, weight: 10, description: 'Heavy hammer' },
-    { name: 'Soap', cost: 0.5, weight: 1, description: 'Cleaning' },
-    { name: 'Spade', cost: 2, weight: 8, description: 'Digging tool' },
-    { name: 'Spyglass', cost: 1000, weight: 1, description: 'Magnifies vision' },
-    { name: 'Tent', cost: 10, weight: 20, description: 'Portable shelter' },
-    { name: 'Torch', cost: 0.01, weight: 1, description: '20ft light for 1 hour' },
-    { name: 'Vial', cost: 1, weight: 0, description: 'Holds 1 ounce' },
-    { name: 'Waterskin', cost: 1, weight: 4, description: 'Holds 1/2 gallon' },
-    { name: 'Whetstone', cost: 0.02, weight: 1, description: 'Sharpens blades' }
-  ].sort((a, b) => a.name.localeCompare(b.name)),
-  
-  'Tools': [
-    { name: 'Alchemist\'s Lab', cost: 200, weight: 40, description: '+2 on Craft (alchemy)' },
-    { name: 'Artisan\'s Tools', cost: 5, weight: 5, description: 'For Craft skills' },
-    { name: 'Artisan\'s Tools, Masterwork', cost: 55, weight: 5, description: '+2 on Craft' },
-    { name: 'Climber\'s Kit', cost: 80, weight: 5, description: '+2 on Climb' },
-    { name: 'Disguise Kit', cost: 50, weight: 8, description: '+2 on Disguise' },
-    { name: 'Healer\'s Kit', cost: 50, weight: 1, description: '+2 on Heal, 10 uses' },
-    { name: 'Holy Symbol, Silver', cost: 25, weight: 1, description: 'Divine focus' },
-    { name: 'Holy Symbol, Wooden', cost: 1, weight: 0, description: 'Divine focus' },
-    { name: 'Magnifying Glass', cost: 100, weight: 0, description: '+2 on Appraise' },
-    { name: 'Musical Instrument, Common', cost: 5, weight: 3, description: 'For Perform' },
-    { name: 'Musical Instrument, Masterwork', cost: 100, weight: 3, description: '+2 on Perform' },
-    { name: 'Spell Component Pouch', cost: 5, weight: 2, description: 'Material components' },
-    { name: 'Spellbook', cost: 15, weight: 3, description: '100 pages' },
-    { name: 'Thieves\' Tools', cost: 30, weight: 1, description: 'For Disable Device' },
-    { name: 'Thieves\' Tools, Masterwork', cost: 100, weight: 2, description: '+2 on Disable Device' },
-    { name: 'Tool, Masterwork', cost: 50, weight: 1, description: '+2 on related skill' }
-  ].sort((a, b) => a.name.localeCompare(b.name)),
-  
-  'Magic Items': [
-    { name: 'Potion of Bear\'s Endurance', cost: 300, weight: 0, description: '+4 CON for 3 min' },
-    { name: 'Potion of Bull\'s Strength', cost: 300, weight: 0, description: '+4 STR for 3 min' },
-    { name: 'Potion of Cat\'s Grace', cost: 300, weight: 0, description: '+4 DEX for 3 min' },
-    { name: 'Potion of Cure Light Wounds', cost: 50, weight: 0, description: 'Heals 1d8+1 hp' },
-    { name: 'Potion of Cure Moderate Wounds', cost: 300, weight: 0, description: 'Heals 2d8+3 hp' },
-    { name: 'Potion of Eagle\'s Splendor', cost: 300, weight: 0, description: '+4 CHA for 3 min' },
-    { name: 'Potion of Fox\'s Cunning', cost: 300, weight: 0, description: '+4 INT for 3 min' },
-    { name: 'Potion of Owl\'s Wisdom', cost: 300, weight: 0, description: '+4 WIS for 3 min' },
-    { name: 'Scroll of Identify', cost: 25, weight: 0, description: 'Identifies magic items' },
-    { name: 'Scroll of Mage Armor', cost: 25, weight: 0, description: '+4 armor bonus for 1 hr' },
-    { name: 'Scroll of Magic Missile', cost: 25, weight: 0, description: '1d4+1 force damage' },
-    { name: 'Scroll of Shield', cost: 25, weight: 0, description: '+4 AC for 1 min' },
-    { name: 'Wand of Detect Magic', cost: 375, weight: 0, description: '50 charges' },
-    { name: 'Wand of Light', cost: 375, weight: 0, description: '50 charges' }
-  ].sort((a, b) => a.name.localeCompare(b.name)),
-  
-  'Consumables': [
-    { name: 'Smokestick', cost: 20, weight: 0.5, description: 'Creates smoke' },
-    { name: 'Sunrod', cost: 2, weight: 1, description: '30ft light for 6 hours' },
-    { name: 'Tanglefoot Bag', cost: 50, weight: 4, description: 'Entangles target' },
-    { name: 'Thunderstone', cost: 30, weight: 1, description: 'Sonic attack' },
-    { name: 'Tindertwig', cost: 1, weight: 0, description: 'Lights fires' }
-  ].sort((a, b) => a.name.localeCompare(b.name))
-}
+  { name: 'Power Attack', description: 'Trade attack bonus for damage', prerequisites: 'STR 13, BAB +1' },
+  { name: 'Combat Reflexes', description: 'Additional attacks of opportunity', prerequisites: 'DEX 13' },
+  { name: 'Improved Initiative', description: '+4 bonus on initiative', prerequisites: null },
+  { name: 'Toughness', description: '+3 hit points, +1 per level after 3rd', prerequisites: null },
+  { name: 'Iron Will', description: '+2 bonus on Will saves', prerequisites: null },
+  { name: 'Lightning Reflexes', description: '+2 bonus on Reflex saves', prerequisites: null },
+  { name: 'Great Fortitude', description: '+2 bonus on Fortitude saves', prerequisites: null },
+  { name: 'Dodge', description: '+1 dodge bonus to AC', prerequisites: 'DEX 13' },
+  { name: 'Point-Blank Shot', description: '+1 attack and damage with ranged weapons within 30 ft', prerequisites: null },
+  { name: 'Weapon Finesse', description: 'Use DEX for attack with light weapons', prerequisites: null },
+  { name: 'Two-Weapon Fighting', description: 'Reduce two-weapon fighting penalties', prerequisites: 'DEX 15' },
+  { name: 'Combat Casting', description: '+4 on concentration checks for defensive casting', prerequisites: null },
+  { name: 'Spell Focus', description: '+1 DC for spells from chosen school', prerequisites: null },
+  { name: 'Skill Focus', description: '+3 bonus on chosen skill', prerequisites: null },
+  { name: 'Alertness', description: '+2 on Perception and Sense Motive', prerequisites: null },
+  { name: 'Athletic', description: '+2 on Climb and Swim', prerequisites: null },
+  { name: 'Acrobatic', description: '+2 on Acrobatics and Fly', prerequisites: null },
+  { name: 'Stealthy', description: '+2 on Escape Artist and Stealth', prerequisites: null }
+]
 
 const equipmentPacks = [
   {
-    name: 'Dungeoneer\'s Pack',
-    cost: 15,
-    items: ['Backpack', 'Crowbar', 'Hammer', '10 Pitons', 'Torch (10)', '5 days rations', 'Waterskin', '50 ft. rope']
+    name: 'Adventurer\'s Pack',
+    cost: 50,
+    items: ['Backpack', 'Bedroll', 'Belt pouch', 'Flint and steel', 'Hemp rope (50 ft)', 'Torches (10)', 'Trail rations (5 days)', 'Waterskin']
   },
   {
-    name: 'Explorer\'s Pack',
-    cost: 10,
-    items: ['Backpack', 'Bedroll', 'Mess kit', 'Torch (10)', '10 days rations', 'Waterskin', '50 ft. rope']
+    name: 'Warrior\'s Kit',
+    cost: 100,
+    items: ['Longsword', 'Shield', 'Scale mail', 'Backpack', 'Bedroll', 'Trail rations (3 days)']
   },
   {
-    name: 'Scholar\'s Pack',
+    name: 'Archer\'s Kit',
+    cost: 80,
+    items: ['Shortbow', 'Arrows (40)', 'Leather armor', 'Backpack', 'Bedroll', 'Trail rations (3 days)']
+  },
+  {
+    name: 'Scholar\'s Kit',
     cost: 40,
-    items: ['Backpack', 'Book of lore', 'Ink', 'Inkpen', 'Lamp', '10 flasks of oil', '5 days rations', 'Waterskin']
-  },
-  {
-    name: 'Priest\'s Pack',
-    cost: 25,
-    items: ['Backpack', 'Blanket', 'Holy symbol', 'Incense (10)', 'Prayer book', '5 days rations', 'Waterskin']
-  },
-  {
-    name: 'Burglar\'s Pack',
-    cost: 45,
-    items: ['Backpack', 'Bag of caltrops', 'Bell', 'Candle (10)', 'Crowbar', 'Hammer', 'Piton (10)', 'Hooded lantern', '2 flasks of oil', '5 days rations', 'Thieves\' tools', 'Waterskin', '50 ft. rope']
+    items: ['Spellbook', 'Ink and pen', 'Parchment (10 sheets)', 'Scholar\'s outfit', 'Backpack', 'Scroll case']
   }
 ]
 
 // Computed
 const totalSteps = computed(() => {
   if (isLevelUp.value) return 5 // Class, HP, Skills, Feats, Summary
-  return 7 // Mode, Race, Abilities, Skills, Feats, Equipment, Summary
+  return 9 // Mode, Race, Class, Abilities, Skills, Feats, Equipment, Details, Summary
 })
 
 const canProceed = computed(() => {
+  console.log('Computing canProceed for step', currentStep.value)
+  
   if (!isLevelUp.value) {
     switch (currentStep.value) {
       case 0: return true // Mode selection
-      case 1: return selectedRace.value !== null
-      case 2: return validateAbilityScores()
-      case 3: return true // Skills (can skip)
-      case 4: return selectedFeats.value.length === featsRemaining.value || featsRemaining.value === 0
-      case 5: return true // Equipment (can skip)
-      case 6: return characterName.value && characterName.value.trim().length > 0
+      case 1: 
+        const canProceedStep1 = selectedRace.value !== null
+        console.log('Step 1 (Race) can proceed:', canProceedStep1, 'Selected race:', selectedRace.value)
+        return canProceedStep1
+      case 2: return selectedClass.value !== null // Class
+      case 3: return validateAbilityScores()
+      case 4: return true // Skills (can skip)
+      case 5: return selectedFeats.value.length <= featsRemaining.value // Allow 0 feats
+      case 6: return true // Equipment (can skip)
+      case 7: return true // Character details (can skip)
+      case 8: return true // Summary
     }
   } else {
     switch (currentStep.value) {
       case 0: return selectedClass.value !== null
       case 1: return hitPointsRolled.value
       case 2: return true // Skills (can skip)
-      case 3: return selectedFeats.value.length === featsRemaining.value || featsRemaining.value === 0
+      case 3: return selectedFeats.value.length <= featsRemaining.value
       case 4: return true // Summary
     }
   }
@@ -1787,21 +1170,7 @@ const pointBuyRemaining = computed(() => {
 })
 
 const totalEquipmentCost = computed(() => {
-  return selectedEquipment.value.reduce((sum, item) => sum + (item.cost * item.quantity), 0)
-})
-
-const totalEquipmentWeight = computed(() => {
-  return selectedEquipment.value.reduce((sum, item) => sum + (item.weight * item.quantity), 0).toFixed(1)
-})
-
-const filteredRaces = computed(() => {
-  if (selectedRaceCategory === 'All') return availableRaces
-  return availableRaces.filter(race => race.category === selectedRaceCategory)
-})
-
-const filteredClasses = computed(() => {
-  if (selectedClassCategory === 'All') return availableClasses
-  return availableClasses.filter(cls => cls.category === selectedClassCategory)
+  return selectedEquipment.value.reduce((sum, item) => sum + item.cost, 0)
 })
 
 const filteredFeats = computed(() => {
@@ -1813,12 +1182,6 @@ const filteredFeats = computed(() => {
   )
 })
 
-const affordableItems = computed(() => {
-  const budget = startingGold.value - totalEquipmentCost.value
-  return equipmentDatabase[selectedEquipmentCategory.value]
-    ?.filter(item => item.cost <= budget) || []
-})
-
 // Methods
 function formatAbilityMods(mods) {
   if (mods.any) return `+${mods.any} to any`
@@ -1827,8 +1190,25 @@ function formatAbilityMods(mods) {
     .join(', ')
 }
 
+// Get a summary of race traits
+function getRaceTraitSummary(race) {
+  if (race.racialTraits && race.racialTraits.length > 0) {
+    return race.racialTraits.slice(0, 2).map(trait => trait.name).join(', ') + '...'
+  }
+  return 'No special traits'
+}
+
 function selectRace(race) {
+  console.log('Selecting race:', race) // Debug log
   selectedRace.value = race
+  
+  // Set starting languages based on race
+  if (race.languages?.starting) {
+    characterDetails.value.languages = [...race.languages.starting]
+  } else {
+    characterDetails.value.languages = ['Common']
+  }
+  
   // Apply racial modifiers
   if (race.abilityMods && !race.abilityMods.any) {
     for (const [ability, mod] of Object.entries(race.abilityMods)) {
@@ -1841,37 +1221,6 @@ function selectRace(race) {
 
 function selectClass(cls) {
   selectedClass.value = cls
-  
-  // Roll starting gold based on class
-  const goldRolls = {
-    'Barbarian': { dice: 3, sides: 4, mult: 10 },
-    'Bard': { dice: 3, sides: 4, mult: 10 },
-    'Cleric': { dice: 4, sides: 4, mult: 10 },
-    'Druid': { dice: 2, sides: 4, mult: 10 },
-    'Fighter': { dice: 5, sides: 4, mult: 10 },
-    'Monk': { dice: 1, sides: 4, mult: 10 },
-    'Paladin': { dice: 5, sides: 4, mult: 10 },
-    'Ranger': { dice: 5, sides: 4, mult: 10 },
-    'Rogue': { dice: 4, sides: 4, mult: 10 },
-    'Sorcerer': { dice: 2, sides: 4, mult: 10 },
-    'Wizard': { dice: 2, sides: 4, mult: 10 },
-    'Alchemist': { dice: 3, sides: 4, mult: 10 },
-    'Cavalier': { dice: 5, sides: 4, mult: 10 },
-    'Gunslinger': { dice: 5, sides: 4, mult: 10 },
-    'Inquisitor': { dice: 4, sides: 4, mult: 10 },
-    'Magus': { dice: 4, sides: 4, mult: 10 },
-    'Oracle': { dice: 3, sides: 4, mult: 10 },
-    'Summoner': { dice: 2, sides: 4, mult: 10 },
-    'Witch': { dice: 3, sides: 4, mult: 10 }
-  }
-  
-  const roll = goldRolls[cls.name] || { dice: 3, sides: 4, mult: 10 }
-  let gold = 0
-  for (let i = 0; i < roll.dice; i++) {
-    gold += Math.floor(Math.random() * roll.sides) + 1
-  }
-  startingGold.value = gold * roll.mult
-  
   calculateSkillPoints()
 }
 
@@ -1899,7 +1248,7 @@ function rollSingleAbility(ability) {
 
 function getPointCost(score) {
   const costs = {
-    7: -4, 8: -2, 9: -1, 10: 0, 11: 1, 12: 2, 13: 3, 14: 5, 15: 7, 16: 10, 17: 13, 18: 17
+    7: -4, 8: -2, 9: -1, 10: 0, 11: 1, 12: 2, 13: 3, 14: 5, 15: 7
   }
   return costs[score] || 0
 }
@@ -1907,7 +1256,7 @@ function getPointCost(score) {
 function adjustPointBuy(ability, delta) {
   const current = abilityScores.value[ability]
   const newScore = current + delta
-  if (newScore >= 7 && newScore <= 18) {
+  if (newScore >= 7 && newScore <= 15) {
     const newCost = getPointCost(newScore)
     const currentCost = getPointCost(current)
     if (delta > 0 && (newCost - currentCost) <= pointBuyRemaining.value) {
@@ -1936,12 +1285,14 @@ function getAbilityModifier(score) {
 }
 
 function rollHitPoints() {
+  if (!selectedClass.value?.hitDie) return
   const dieSize = parseInt(selectedClass.value.hitDie.substring(1))
   hitPointRoll.value = Math.floor(Math.random() * dieSize) + 1
   hitPointsRolled.value = true
 }
 
 function getAverageHP() {
+  if (!selectedClass.value?.hitDie) return 0
   const dieSize = parseInt(selectedClass.value.hitDie.substring(1))
   return Math.floor(dieSize / 2) + 1
 }
@@ -1957,14 +1308,12 @@ function getTotalHPGain() {
   return hitPointRoll.value + conMod + favoredClassBonus
 }
 
-function getStartingHP() {
-  const dieSize = parseInt(selectedClass.value.hitDie.substring(1))
-  const conMod = getAbilityModifier(getFinalAbilityScore('CON'))
-  return dieSize + conMod
-}
-
 function calculateSkillPoints() {
-  if (!selectedClass.value) return
+  if (!selectedClass.value) {
+    totalSkillPoints.value = 0
+    skillPointsRemaining.value = 0
+    return
+  }
   
   const intMod = getAbilityModifier(getFinalAbilityScore('INT'))
   let points = selectedClass.value.skillPoints + intMod
@@ -1977,17 +1326,13 @@ function calculateSkillPoints() {
   // Minimum 1 skill point
   points = Math.max(1, points)
   
-  // First level gets x4
-  if (!isLevelUp.value) {
-    points *= 4
-  }
-  
   totalSkillPoints.value = points
   skillPointsRemaining.value = points
 }
 
 function isClassSkill(skill) {
-  return selectedClass.value?.classSkills.includes(skill.name) || false
+  if (!selectedClass.value?.classSkills) return false
+  return selectedClass.value.classSkills.includes(skill.name)
 }
 
 function getMaxRanks() {
@@ -2069,40 +1414,8 @@ function toggleFeat(feat) {
   }
 }
 
-function purchaseItem(item) {
-  const existingItem = selectedEquipment.value.find(e => e.name === item.name)
-  if (existingItem) {
-    existingItem.quantity++
-  } else {
-    selectedEquipment.value.push({
-      ...item,
-      quantity: 1
-    })
-  }
-}
-
-function removeItem(index) {
-  selectedEquipment.value.splice(index, 1)
-}
-
 function selectEquipmentPack(pack) {
-  // Clear current equipment
-  selectedEquipment.value = []
-  
-  // Add pack items
-  pack.items.forEach(itemName => {
-    // Find item in database
-    for (const category of Object.values(equipmentDatabase)) {
-      const item = category.find(i => i.name === itemName)
-      if (item) {
-        selectedEquipment.value.push({
-          ...item,
-          quantity: 1
-        })
-        break
-      }
-    }
-  })
+  selectedEquipment.value = pack.items.map(name => ({ name, cost: 10 })) // Simplified
 }
 
 function getClassLevel(className) {
@@ -2110,10 +1423,162 @@ function getClassLevel(className) {
   return cls ? cls.level : 0
 }
 
+// Helper functions for languages
+function getStartingLanguages() {
+  if (!selectedRace.value) {
+    return 'Common'
+  }
+  if (!selectedRace.value?.languages?.starting) {
+    return 'Common'
+  }
+  const languages = [...selectedRace.value.languages.starting]
+  if (!languages.includes('Common')) {
+    languages.unshift('Common')
+  }
+  return languages.join(', ')
+}
+
+function getRacialLanguages() {
+  if (!selectedRace.value?.languages?.starting) {
+    return ['Common']
+  }
+  return selectedRace.value.languages.starting
+}
+
+function getBonusLanguageOptions() {
+  if (!selectedRace.value) {
+    return []  // No options until race is selected
+  }
+  
+  if (!selectedRace.value?.languages?.bonus) {
+    return commonLanguages
+  }
+  
+  const bonus = selectedRace.value.languages.bonus
+  if (typeof bonus === 'string') {
+    // Handle "Any (except secret languages)" case
+    return commonLanguages
+  }
+  
+  // Return the specific bonus language options
+  return bonus
+}
+
+function getBonusLanguages() {
+  const intMod = getAbilityModifier(getFinalAbilityScore('INT'))
+  return Math.max(0, intMod)
+}
+
+function getAvailableLanguages() {
+  // If no race selected, return empty array
+  if (!selectedRace.value) {
+    return []
+  }
+  
+  // Get the racial starting languages
+  const knownLanguages = getRacialLanguages()
+  
+  // Get the available bonus languages for this race
+  const bonusOptions = getBonusLanguageOptions()
+  
+  // Filter out languages the character already knows
+  return bonusOptions.filter(lang => !knownLanguages.includes(lang))
+}
+
+function canSelectLanguage(lang) {
+  const bonusLangs = getBonusLanguages()
+  const racialLangs = getRacialLanguages()
+  const selectedBonus = characterDetails.value.languages.filter(l => 
+    !racialLangs.includes(l)
+  ).length
+  return selectedBonus < bonusLangs || characterDetails.value.languages.includes(lang)
+}
+
+// Add random generation helpers
+function generateRandomHeight() {
+  // Base height by race
+  const raceHeights = {
+    'Human': { base: 58, modifier: '2d10' }, // 4'10" + 2d10 inches
+    'Elf': { base: 64, modifier: '2d8' },    // 5'4" + 2d8 inches
+    'Dwarf': { base: 45, modifier: '2d4' },   // 3'9" + 2d4 inches
+    'Halfling': { base: 32, modifier: '2d4' }, // 2'8" + 2d4 inches
+    // Add more races as needed
+  }
+  
+  const race = selectedRace.value?.name || 'Human'
+  const raceData = raceHeights[race] || raceHeights['Human']
+  
+  // Simple random generation
+  let inches = raceData.base
+  if (raceData.modifier.includes('d')) {
+    const [count, size] = raceData.modifier.split('d').map(Number)
+    for (let i = 0; i < count; i++) {
+      inches += Math.floor(Math.random() * size) + 1
+    }
+  }
+  
+  const feet = Math.floor(inches / 12)
+  const remainingInches = inches % 12
+  characterDetails.value.height = `${feet}'${remainingInches}"`
+}
+
+function generateRandomWeight() {
+  // This would be based on height and race
+  // Simplified version
+  const weights = {
+    'Human': { min: 110, max: 200 },
+    'Elf': { min: 90, max: 150 },
+    'Dwarf': { min: 130, max: 200 },
+    'Halfling': { min: 30, max: 40 }
+  }
+  
+  const race = selectedRace.value?.name || 'Human'
+  const range = weights[race] || weights['Human']
+  const weight = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min
+  characterDetails.value.weight = `${weight} lbs`
+}
+
+function generateRandomDetails() {
+  // Generate random physical characteristics
+  generateRandomHeight()
+  generateRandomWeight()
+  
+  // Random age based on race
+  const ageRanges = {
+    'Human': { min: 16, max: 60 },
+    'Elf': { min: 100, max: 300 },
+    'Dwarf': { min: 40, max: 250 },
+    'Halfling': { min: 20, max: 100 }
+  }
+  const race = selectedRace.value?.name || 'Human'
+  const range = ageRanges[race] || ageRanges['Human']
+  characterDetails.value.age = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min
+  
+  // Random appearance
+  const hairColors = ['Black', 'Brown', 'Blonde', 'Red', 'Gray', 'White', 'Auburn']
+  const eyeColors = ['Brown', 'Blue', 'Green', 'Gray', 'Hazel', 'Amber']
+  const skinTones = ['Pale', 'Fair', 'Light', 'Tan', 'Bronze', 'Dark', 'Ebony']
+  
+  characterDetails.value.hair = hairColors[Math.floor(Math.random() * hairColors.length)]
+  characterDetails.value.eyes = eyeColors[Math.floor(Math.random() * eyeColors.length)]
+  characterDetails.value.skin = skinTones[Math.floor(Math.random() * skinTones.length)]
+}
+
 function generateQuickCharacter() {
   // Quick character generation
-  selectedRace.value = availableRaces[0] // Human
-  selectedClass.value = availableClasses.find(c => c.name === 'Fighter') // Fighter
+  // Select Human from Core races
+  const races = getRacesByCategory('Core')
+  const humanRace = races.find(race => race.id === 'human') || races[0]
+  if (humanRace) {
+    selectedRace.value = humanRace
+    // Set starting languages
+    if (humanRace.languages?.starting) {
+      characterDetails.value.languages = [...humanRace.languages.starting]
+    } else {
+      characterDetails.value.languages = ['Common']
+    }
+  }
+  selectedClass.value = availableClasses[0] // Fighter
   
   // Standard array
   abilityScores.value = {
@@ -2127,25 +1592,29 @@ function generateQuickCharacter() {
   selectedFeats.value = ['Weapon Focus', 'Toughness']
   
   // Basic equipment
-  selectEquipmentPack(equipmentPacks[0])
+  selectEquipmentPack(equipmentPacks[1])
   
-  // Generate name
-  characterName.value = 'Quick Hero'
+  // Generate random details
+  generateRandomDetails()
+  characterDetails.value.name = 'Quick Hero'
   
   // Jump to summary
-  currentStep.value = totalSteps.value - 1
+  currentStep.value = 8 // Updated for new step count
 }
 
 function nextStep() {
+  console.log('Next button clicked. Current step:', currentStep.value, 'Can proceed:', canProceed.value)
+  
   if (currentStep.value < totalSteps.value - 1) {
     currentStep.value++
+    console.log('Moving to step:', currentStep.value)
     
     // Initialize step-specific data
-    if (!isLevelUp.value && currentStep.value === 3 || isLevelUp.value && currentStep.value === 2) {
+    if (!isLevelUp.value && currentStep.value === 4 || isLevelUp.value && currentStep.value === 2) {
       calculateSkillPoints()
     }
     
-    if (!isLevelUp.value && currentStep.value === 4 || isLevelUp.value && currentStep.value === 3) {
+    if (!isLevelUp.value && currentStep.value === 5 || isLevelUp.value && currentStep.value === 3) {
       calculateFeatsAvailable()
     }
   } else {
@@ -2162,7 +1631,7 @@ function previousStep() {
 function completeCharacter() {
   const characterData = {
     mode: props.mode,
-    name: characterName.value,
+    ...characterDetails.value, // Include all character details
     race: selectedRace.value,
     class: selectedClass.value,
     abilityScores: { ...abilityScores.value },
@@ -2173,7 +1642,6 @@ function completeCharacter() {
     skills: { ...skillRanks.value },
     feats: [...selectedFeats.value],
     equipment: [...selectedEquipment.value],
-    remainingGold: startingGold.value - totalEquipmentCost.value,
     hitPointsGained: isLevelUp.value ? getTotalHPGain() : null
   }
   
@@ -2192,6 +1660,10 @@ function cancel() {
 
 // Initialize
 onMounted(() => {
+  console.log('CharacterBuilderWizard mounted')
+  console.log('pathfinderRaces:', pathfinderRaces)
+  console.log('Core races:', pathfinderRaces.core)
+  
   if (isLevelUp.value) {
     // Load current character data
     currentClasses.value = characterState.classes || []
@@ -2201,36 +1673,44 @@ onMounted(() => {
     if (characterState.abilityScores) {
       Object.assign(abilityScores.value, characterState.abilityScores)
     }
+    
+    // Copy existing character details including languages
+    if (characterState.languages) {
+      characterDetails.value.languages = [...characterState.languages]
+    }
+  } else {
+    // New character - set default starting language
+    characterDetails.value.languages = ['Common']
   }
 })
 </script>
 
 <style scoped>
-/* Overlay for the character builder */
-.character-builder-overlay {
+/* Backdrop for modal-like appearance */
+.character-builder-wizard-backdrop {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  bottom: 0;
   background-color: rgba(0, 0, 0, 0.75);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 50;
   padding: 1rem;
+  overflow-y: auto;
 }
 
-/* Main wizard container - wider */
+/* Main wizard container */
 .character-builder-wizard {
   background-color: #111827;
   position: relative;
-  width: 100%;
-  max-width: 1400px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0; /* Prevent flex item from overflowing */
 }
 
 /* Step content container - scrollable */
@@ -2241,6 +1721,7 @@ onMounted(() => {
   min-height: 300px;
   max-height: calc(90vh - 200px);
   padding-right: 0.5rem;
+  padding-bottom: 1rem; /* Add padding to prevent content cutoff */
 }
 
 /* Race and class selection containers */
@@ -2256,6 +1737,8 @@ onMounted(() => {
   user-select: none;
   position: relative;
   z-index: 1;
+  overflow: hidden; /* Prevent content overflow */
+  word-wrap: break-word; /* Break long words */
 }
 
 .race-card:hover,
@@ -2276,7 +1759,7 @@ onMounted(() => {
 .feats-list {
   max-height: 400px;
   overflow-y: auto;
-  padding-right: 0.25rem;
+  padding-right: 0.5rem;
 }
 
 /* Custom scrollbar for the step content */
@@ -2331,44 +1814,27 @@ button, div {
 }
 
 /* Hover scale for cards */
-.transform.hover\:scale-105:hover {
-  transform: scale(1.05);
-}
-
 .transform.hover\:scale-102:hover {
   transform: scale(1.02);
 }
 
-/* Prevent text overflow in equipment section */
-.whitespace-nowrap {
-  white-space: nowrap;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .character-builder-overlay {
+  .character-builder-wizard-backdrop {
     padding: 0.5rem;
   }
   
   .character-builder-wizard {
-    max-height: 100vh;
-    max-width: 100%;
+    max-height: 95vh;
   }
   
   .step-content-container {
-    max-height: calc(100vh - 180px);
+    max-height: calc(95vh - 180px);
   }
   
   .skills-list,
   .feats-list {
     max-height: 300px;
-  }
-}
-
-/* Large screens */
-@media (min-width: 1536px) {
-  .character-builder-wizard {
-    max-width: 1600px;
   }
 }
 </style>
