@@ -48,11 +48,14 @@ export class ContentCache {
    * Store content with variations
    */
   store(key, content, variations = 3) {
+    // Get existing entry if it exists
+    const existingEntry = this.cache.get(key)
+    
     const entry = {
       content: Array.isArray(content) ? content : [content],
       timestamp: Date.now(),
       usageCount: 0,
-      variations: Math.max(variations, entry?.variations || 1)
+      variations: Math.max(variations, existingEntry?.variations || 1)
     }
     
     this.cache.set(key, entry)
@@ -260,6 +263,106 @@ export class ContentCache {
       memorySize: JSON.stringify([...this.cache.entries()]).length
     }
   }
+
+  /**
+   * Diagnostic utility for world building data
+   */
+  checkWorldData() {
+    console.log('=== World Building Data Check ===')
+    
+    // Check localStorage
+    const worldData = localStorage.getItem('worldBuildingData')
+    if (worldData) {
+      const parsed = JSON.parse(worldData)
+      console.log('✅ World data found in localStorage:')
+      console.log('- World name:', parsed.name || 'Not set')
+      console.log('- Locations:', parsed.locations?.length || 0)
+      console.log('- Total content:', parsed.content?.length || 0)
+      
+      if (parsed.locations && parsed.locations.length > 0) {
+        console.log('- First location:', parsed.locations[0].name)
+      }
+    } else {
+      console.log('❌ No world data in localStorage')
+    }
+    
+    // Check sessionStorage
+    const sessionData = sessionStorage.getItem('worldBuildingExport')
+    if (sessionData) {
+      console.log('✅ Export data found in sessionStorage')
+    } else {
+      console.log('❌ No export data in sessionStorage')
+    }
+    
+    // Check for locations
+    const locations = sessionStorage.getItem('sessionPrepLocations')
+    if (locations) {
+      const locs = JSON.parse(locations)
+      console.log('✅ Session prep locations:', locs.length)
+    } else {
+      console.log('❌ No session prep locations')
+    }
+    
+    console.log('=== End Diagnostic ===')
+  }
+
+  /**
+   * Save test world data for development
+   */
+  saveTestWorldData() {
+    const testWorld = {
+      name: 'Test World',
+      locations: [{
+        id: 1,
+        name: 'Test Tavern',
+        type: 'tavern',
+        description: 'A cozy tavern for testing'
+      }],
+      content: [],
+      metadata: {
+        createdAt: new Date().toISOString()
+      }
+    }
+    
+    localStorage.setItem('worldBuildingData', JSON.stringify(testWorld))
+    console.log('Test world data saved!')
+    return testWorld
+  }
+}
+
+// Diagnostic utilities export
+export const diagnostics = {
+  checkWorldData() {
+    const cache = new ContentCache()
+    cache.checkWorldData()
+  },
+  
+  saveTestWorldData() {
+    const cache = new ContentCache()
+    return cache.saveTestWorldData()
+  },
+  
+  // Run complete diagnostic
+  runFullDiagnostic() {
+    console.log('🔍 Running full diagnostic...')
+    const cache = new ContentCache()
+    
+    // Check world data
+    cache.checkWorldData()
+    
+    // Check cache stats
+    const stats = cache.getCacheStats()
+    console.log('\n=== Content Cache Stats ===')
+    console.log(`- Entries: ${stats.entries}`)
+    console.log(`- Hit rate: ${(stats.hitRate * 100).toFixed(1)}%`)
+    console.log(`- Total hits: ${stats.totalHits}`)
+    console.log(`- Memory size: ${(stats.memorySize / 1024).toFixed(2)}KB`)
+    
+    return {
+      worldDataPresent: !!localStorage.getItem('worldBuildingData'),
+      cacheStats: stats
+    }
+  }
 }
 
 // Usage in your existing components:
@@ -283,4 +386,9 @@ const sessionContent = await contentCache.batchGenerate([
 // Check cache performance
 const stats = contentCache.getCacheStats()
 console.log(`Cache hit rate: ${(stats.hitRate * 100).toFixed(1)}%`)
+
+// Run diagnostics in browser console:
+// import { diagnostics } from './src/utils/ContentCache.js'
+// diagnostics.runFullDiagnostic()
+// diagnostics.saveTestWorldData()
 */
