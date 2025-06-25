@@ -534,29 +534,31 @@
           <div class="mb-4 p-3 bg-gray-700 rounded">
             <h4 class="font-semibold mb-2 text-emerald-300">✅ Content Parsed Successfully!</h4>
             <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-              <div v-for="(items, category) in parsedResults" :key="category" v-if="items.length > 0">
-                <span :class="getCategoryColor(category)">{{ getCategoryIcon(category) }} {{ category }}:</span>
-                <span class="text-white font-semibold">{{ items.length }}</span>
-              </div>
+              <template v-for="(categoryItems, category) in parsedResults" :key="category">
+                <template v-if="categoryItems && categoryItems.length > 0">
+                  <span :class="getCategoryColor(category)">{{ getCategoryIcon(category) }} {{ category }}:</span>
+                  <span class="text-white font-semibold">{{ categoryItems.length }}</span>
+                </template>
+              </template>
             </div>
           </div>
           
           <!-- Category Tabs -->
           <div class="flex gap-2 mb-4 overflow-x-auto">
-            <button 
-              v-for="(items, category) in parsedResults" 
-              :key="category"
-              v-if="items.length > 0"
-              @click="selectedImportCategory = category"
-              :class="[
-                'px-3 py-1 rounded text-sm whitespace-nowrap',
-                selectedImportCategory === category 
-                  ? 'bg-amber-600 text-white' 
-                  : 'bg-gray-700 hover:bg-gray-600'
-              ]"
-            >
-              {{ getCategoryIcon(category) }} {{ category }} ({{ items.length }})
-            </button>
+            <template v-for="(categoryItems, category) in parsedResults" :key="category">
+              <button 
+                v-if="categoryItems && categoryItems.length > 0"
+                @click="selectedImportCategory = category"
+                :class="[
+                  'px-3 py-1 rounded text-sm whitespace-nowrap',
+                  selectedImportCategory === category 
+                    ? 'bg-amber-600 text-white' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+                ]"
+              >
+                {{ getCategoryIcon(category) }} {{ category }} ({{ categoryItems.length }})
+              </button>
+            </template>
           </div>
           
           <!-- Items Preview -->
@@ -635,8 +637,21 @@ const importText = ref('')
 const isParsing = ref(false)
 const isImporting = ref(false)
 const importParsed = ref(false)
-const parsedResults = ref({})
 const selectedImportCategory = ref('locations')
+
+// Initialize parsedResults with empty arrays to prevent undefined errors
+const parsedResults = ref({
+  locations: [],
+  lore: [],
+  regions: [],
+  worldInfo: [],
+  items: [],
+  creatures: [],
+  rules: [],
+  cities: [],
+  factions: [],
+  npcs: []
+})
 
 // Content Categories
 const contentCategories = [
@@ -972,18 +987,38 @@ async function parseImportedContent() {
     // Parse the content
     const results = await parser.parseWorldBuildingContent(importText.value)
     
-    // Process results
+    // Reset parsedResults
+    parsedResults.value = {
+      locations: [],
+      lore: [],
+      regions: [],
+      worldInfo: [],
+      items: [],
+      creatures: [],
+      rules: [],
+      cities: [],
+      factions: [],
+      npcs: []
+    }
+    
+    // Process results safely
     if (results.worldInfo) {
       // Comprehensive document
-      parsedResults.value = {
-        locations: [...(results.cities || []), ...(results.pirateCities || []), ...(results.legendaryLocations || [])],
-        lore: results.lore || [],
-        regions: results.regions || [],
-        worldInfo: results.worldInfo ? [results.worldInfo] : []
-      }
+      parsedResults.value.locations = [
+        ...(results.cities || []), 
+        ...(results.pirateCities || []), 
+        ...(results.legendaryLocations || [])
+      ]
+      parsedResults.value.lore = results.lore || []
+      parsedResults.value.regions = results.regions || []
+      parsedResults.value.worldInfo = results.worldInfo ? [results.worldInfo] : []
     } else {
-      // Mixed content
-      parsedResults.value = results
+      // Mixed content - safely merge with defaults
+      Object.keys(results).forEach(key => {
+        if (parsedResults.value.hasOwnProperty(key) && Array.isArray(results[key])) {
+          parsedResults.value[key] = results[key]
+        }
+      })
     }
     
     // Add selected property to all items
@@ -997,7 +1032,7 @@ async function parseImportedContent() {
     
     // Set default category
     const categories = Object.keys(parsedResults.value).filter(cat => 
-      parsedResults.value[cat].length > 0
+      parsedResults.value[cat] && parsedResults.value[cat].length > 0
     )
     selectedImportCategory.value = categories[0] || 'locations'
     
@@ -1138,10 +1173,10 @@ function formatWorldInfo(info) {
 **Technology:** ${info.technology || 'Medieval Fantasy'}
 
 ## Calendar System
-${info.calendar.system || 'Standard'} Calendar
-- Months: ${info.calendar.months || 12}
+${info.calendar?.system || 'Standard'} Calendar
+- Months: ${info.calendar?.months || 12}
 
-${info.calendar.specialEvents && info.calendar.specialEvents.length > 0 ? 
+${info.calendar?.specialEvents && info.calendar.specialEvents.length > 0 ? 
   '## Special Events\n' + info.calendar.specialEvents.map(event => 
     `- **${event.name}** (${event.timing}): ${event.description}`
   ).join('\n') : ''}`
@@ -1170,7 +1205,18 @@ function closeImportModal() {
   showImportModal.value = false
   importText.value = ''
   importParsed.value = false
-  parsedResults.value = {}
+  parsedResults.value = {
+    locations: [],
+    lore: [],
+    regions: [],
+    worldInfo: [],
+    items: [],
+    creatures: [],
+    rules: [],
+    cities: [],
+    factions: [],
+    npcs: []
+  }
 }
 
 function loadSampleContent() {

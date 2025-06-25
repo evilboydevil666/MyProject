@@ -15,41 +15,50 @@ export function usePredictiveContentEngine() {
     engine = new PredictiveContentEngine()
   }
   
-  // Generate suggestions based on context
   async function generateSuggestions(options) {
-    const { context, limit = 3 } = options
-    isGenerating.value = true
-    
-    try {
-      // Check for pre-generated content first
-      const cached = getPreGeneratedSuggestions(context.type)
-      if (cached.length > 0) {
-        return cached.slice(0, limit)
-      }
-      
-      // Generate new suggestions
-      const suggestions = await engine.generateInputSuggestions({
-        partialInput: context.currentInput || '',
-        context: context.narrative || '',
-        characterContext: context.character
-      })
-      
-      // Transform to expected format
-      return suggestions.map((text, index) => ({
-        id: `suggestion_${Date.now()}_${index}`,
-        text: text,
-        type: 'action',
-        confidence: 0.7 + (index * 0.1), // Higher confidence for earlier suggestions
-        source: 'ai'
-      }))
-      
-    } catch (error) {
-      console.error('Failed to generate suggestions:', error)
-      return getFallbackSuggestions(context)
-    } finally {
-      isGenerating.value = false
+  const { context, limit = 3 } = options
+  isGenerating.value = true
+  
+  try {
+    // Check for pre-generated content first
+    const cached = getPreGeneratedSuggestions(context.type)
+    if (cached.length > 0) {
+      return cached.slice(0, limit)
     }
+    
+    // Build character context from the analysis result
+    const characterContext = {
+      topSkills: context.topSkills || [],
+      canCastSpells: context.canCastSpells || false,
+      lowHealth: context.lowHealth || false,
+      hasHealing: context.hasHealing || false,
+      primaryWeapon: context.primaryWeapon || 'weapon',
+      attackBonus: context.attackBonus || 0
+    }
+    
+    // Generate new suggestions
+    const suggestions = await engine.generateInputSuggestions({
+      partialInput: context.currentInput || '',
+      context: context.narrative || '',
+      characterContext: characterContext
+    })
+    
+    // Transform to expected format
+    return suggestions.map((text, index) => ({
+      id: `suggestion_${Date.now()}_${index}`,
+      text: text,
+      type: 'action',
+      confidence: 0.7 + (index * 0.1), // Higher confidence for earlier suggestions
+      source: 'ai'
+    }))
+    
+  } catch (error) {
+    console.error('Failed to generate suggestions:', error)
+    return getFallbackSuggestions(context)
+  } finally {
+    isGenerating.value = false
   }
+}
   
   // Get pre-generated suggestions
   function getPreGeneratedSuggestions(type) {

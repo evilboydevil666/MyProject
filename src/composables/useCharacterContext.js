@@ -95,31 +95,42 @@ export function useCharacterContext(characterState) {
     // Use the characterContext if character not provided
     const char = character || characterContext.value
     
+    // Extract narrative text if it's an object
+    let narrativeText = ''
+    if (narrative) {
+      if (typeof narrative === 'string') {
+        narrativeText = narrative
+      } else if (narrative && typeof narrative === 'object') {
+        // If narrative is an object, try to extract the text
+        narrativeText = narrative.text || narrative.content || narrative.message || ''
+      }
+    }
+    
     // Analyze narrative for combat indicators
     const combatWords = ['attack', 'combat', 'fight', 'enemy', 'hostile', 'initiative', 'damage']
-    const inCombat = narrative ? combatWords.some(word => 
-      narrative.toLowerCase().includes(word)
+    const inCombat = narrativeText ? combatWords.some(word => 
+      narrativeText.toLowerCase().includes(word)
     ) : false
     
     // Check if combat is just starting
-    const combatStarting = narrative ? 
-      narrative.toLowerCase().includes('roll initiative') || 
-      narrative.toLowerCase().includes('combat begins') : false
+    const combatStarting = narrativeText ? 
+      narrativeText.toLowerCase().includes('roll initiative') || 
+      narrativeText.toLowerCase().includes('combat begins') : false
     
     // Detect threats
     const threatWords = ['threatens', 'hostile', 'aggressive', 'dangerous', 'menacing']
-    const threatened = narrative ? threatWords.some(word => 
-      narrative.toLowerCase().includes(word)
+    const threatened = narrativeText ? threatWords.some(word => 
+      narrativeText.toLowerCase().includes(word)
     ) : false
     
     // Check for environmental requirements
-    const environmentRequiresSkill = detectSkillRequirements(narrative)
+    const environmentRequiresSkill = detectSkillRequirements(narrativeText)
     
     // Detect if narrative indicates an ability check
-    const narrativeIndicatesCheck = narrative ? 
-      narrative.toLowerCase().includes('make a') || 
-      narrative.toLowerCase().includes('roll a') ||
-      narrative.toLowerCase().includes('test your') : false
+    const narrativeIndicatesCheck = narrativeText ? 
+      narrativeText.toLowerCase().includes('make a') || 
+      narrativeText.toLowerCase().includes('roll a') ||
+      narrativeText.toLowerCase().includes('test your') : false
     
     return {
       // Combat status
@@ -136,14 +147,14 @@ export function useCharacterContext(characterState) {
       canCastSpells: (char.spellsKnown?.length > 0) || (char.spells?.length > 0),
       
       // Environmental
-      lastNarrativeContains: (terms) => checkNarrativeContent(narrative, terms),
+      lastNarrativeContains: (terms) => checkNarrativeContent(narrativeText, terms),
       environmentRequiresSkill,
       narrativeIndicatesCheck,
       
       // Equipment
       primaryWeapon: char.equipment?.mainHand?.name || 'weapon',
       attackBonus: calculateAttackBonus(char),
-      enemyAC: extractEnemyAC(narrative),
+      enemyAC: extractEnemyAC(narrativeText),
       
       // Recent actions
       recentlySearched: checkRecentAction(recentMessages, 'search'),
@@ -169,7 +180,7 @@ export function useCharacterContext(characterState) {
       initiative: char.initiative || calculateInitiative(char),
       
       // Narrative content
-      narrative: narrative || '',
+      narrative: narrativeText || '',
       
       // Should use AI
       shouldUseAI: checkShouldUseAI()
@@ -237,20 +248,29 @@ export function useCharacterContext(characterState) {
   
   // Helper function to check narrative content
   function checkNarrativeContent(narrative, terms) {
-    if (!narrative) return false
+    if (!narrative || typeof narrative !== 'string') return false
     
     const lowerNarrative = narrative.toLowerCase()
     
     if (Array.isArray(terms)) {
-      return terms.some(term => lowerNarrative.includes(term.toLowerCase()))
+      return terms.some(term => {
+        if (typeof term === 'string') {
+          return lowerNarrative.includes(term.toLowerCase())
+        }
+        return false
+      })
     }
     
-    return lowerNarrative.includes(terms.toLowerCase())
+    if (typeof terms === 'string') {
+      return lowerNarrative.includes(terms.toLowerCase())
+    }
+    
+    return false
   }
   
   // Helper function to detect skill requirements
   function detectSkillRequirements(narrative) {
-    if (!narrative) return false
+    if (!narrative || typeof narrative !== 'string') return false
     
     const skillIndicators = [
       'check', 'test', 'roll', 'attempt', 'try to',
@@ -258,9 +278,8 @@ export function useCharacterContext(characterState) {
       'climb', 'jump', 'sneak', 'hide', 'detect'
     ]
     
-    return skillIndicators.some(indicator => 
-      narrative.toLowerCase().includes(indicator)
-    )
+    const lowerNarrative = narrative.toLowerCase()
+    return skillIndicators.some(indicator => lowerNarrative.includes(indicator))
   }
   
   // Helper function to check recent actions
@@ -278,7 +297,7 @@ export function useCharacterContext(characterState) {
   
   // Helper function to extract enemy AC from narrative
   function extractEnemyAC(narrative) {
-    if (!narrative) return null
+    if (!narrative || typeof narrative !== 'string') return null
     
     // Look for AC mentions in narrative
     const acMatch = narrative.match(/AC\s*[:=]?\s*(\d+)/i)

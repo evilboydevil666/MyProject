@@ -1,567 +1,739 @@
 <template>
-  <div class="enhanced-web-chat bg-gray-800 text-white p-4 rounded-lg">
-    <div class="chat-header mb-4">
-      <h2 class="text-xl font-bold mb-2">ChatGPT Integration</h2>
-      <div class="flex gap-2">
-        <button 
-          @click="startNewSession"
-          class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded"
-        >
-          New Session
-        </button>
-        <button 
-          @click="toggleContextPanel"
-          class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
-        >
-          {{ showContext ? 'Hide' : 'Show' }} Context
-        </button>
-        <button 
-          @click="exportConversation"
-          class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded"
-        >
-          Export
-        </button>
-        <button 
-          @click="openInProject"
-          class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded"
-          :title="chatGptProjectId ? 'Open in your RPG project' : 'Configure project first'"
-        >
-          Open in ChatGPT
-        </button>
-      </div>
-    </div>
-
-    <!-- Project Configuration -->
-    <div v-if="!chatGptProjectId" class="bg-indigo-900 border border-indigo-600 rounded p-3 mb-4">
-      <h3 class="font-semibold mb-2">📁 Configure ChatGPT Project</h3>
-      <div class="flex gap-2">
-        <input 
-          v-model="tempProjectId" 
-          placeholder="Enter project ID or URL" 
-          class="flex-1 p-2 bg-gray-700 border border-gray-600 rounded text-white"
-          @keyup.enter="setProjectId"
-        />
-        <button @click="setProjectId" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded">
-          Set Project
-        </button>
-      </div>
-    </div>
-    <div v-else class="bg-indigo-900 border border-indigo-600 rounded p-3 mb-4">
-      <div class="flex justify-between items-center">
-        <div>
-          <span class="font-semibold">📁 Project Connected:</span>
-          <span class="text-sm ml-2">{{ chatGptProjectId }}</span>
-        </div>
-        <button @click="clearProjectId" class="text-indigo-300 hover:text-white text-sm">
-          Change
-        </button>
-      </div>
-    </div>
-
-    <!-- Context Panel -->
-    <div v-if="showContext" class="context-panel bg-gray-700 p-4 rounded mb-4">
-      <h3 class="text-lg font-semibold mb-2">Current Context</h3>
-      <div class="space-y-2">
-        <div class="context-item">
-          <label class="font-medium">Location:</label>
-          <input 
-            v-model="gameContext.location"
-            @change="updateContext"
-            class="ml-2 bg-gray-600 px-2 py-1 rounded"
-          />
-        </div>
-        <div class="context-item">
-          <label class="font-medium">Party Level:</label>
-          <input 
-            v-model.number="gameContext.partyLevel"
-            @change="updateContext"
-            type="number"
-            class="ml-2 bg-gray-600 px-2 py-1 rounded w-20"
-          />
-        </div>
-        <div class="context-item">
-          <label class="font-medium">Active Quest:</label>
-          <input 
-            v-model="gameContext.activeQuest"
-            @change="updateContext"
-            class="ml-2 bg-gray-600 px-2 py-1 rounded flex-1"
-          />
-        </div>
-        <div class="context-item">
-          <label class="font-medium">Session Notes:</label>
-          <textarea 
-            v-model="gameContext.sessionNotes"
-            @change="updateContext"
-            class="ml-2 bg-gray-600 px-2 py-1 rounded w-full h-20"
-          />
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="quick-actions grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-      <button 
-        v-for="action in quickActions" 
-        :key="action.id"
-        @click="executeQuickAction(action)"
-        class="bg-gray-700 hover:bg-gray-600 p-2 rounded text-sm"
-      >
-        {{ action.label }}
-      </button>
-    </div>
-
-    <!-- Chat Messages -->
-    <div class="chat-messages bg-gray-700 rounded p-4 h-96 overflow-y-auto mb-4">
-      <div v-if="messages.length === 0" class="text-gray-400 text-center">
-        <p class="mb-4">No messages yet. Start a conversation!</p>
-        <button 
-          v-if="chatGptProjectId"
-          @click="openInProject('new')"
-          class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded"
-        >
-          Open ChatGPT Project
-        </button>
-      </div>
+  <div class="narrative-suggestions">
+    <!-- Floating Suggestion Panel -->
+    <transition name="slide-fade">
       <div 
-        v-for="(message, index) in messages" 
-        :key="index"
-        class="message mb-4"
-        :class="message.role === 'user' ? 'text-right' : 'text-left'"
+        v-if="showSuggestions && (contextualActions.length > 0 || aiPredictions.length > 0)"
+        class="suggestion-panel"
       >
-        <div 
-          class="inline-block p-3 rounded-lg max-w-3/4"
-          :class="{
-            'bg-blue-600': message.role === 'user',
-            'bg-gray-600': message.role === 'assistant',
-            'bg-purple-600': message.role === 'system'
-          }"
-        >
-          <div class="font-semibold text-sm mb-1">
-            {{ message.role === 'user' ? 'You' : 
-               message.role === 'system' ? 'System' : 'ChatGPT' }}
-          </div>
-          <div class="whitespace-pre-wrap">{{ message.content }}</div>
-          <div class="text-xs text-gray-300 mt-1">
-            {{ formatTime(message.timestamp) }}
-          </div>
-        </div>
-      </div>
-      <div v-if="isTyping" class="text-gray-400 italic">
-        ChatGPT is typing...
-      </div>
-    </div>
-
-    <!-- Input Area -->
-    <div class="input-area">
-      <div class="flex gap-2">
-        <textarea 
-          v-model="currentMessage"
-          @keydown.enter.prevent="sendMessage"
-          placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-          class="flex-1 bg-gray-700 text-white p-3 rounded resize-none h-20"
-        />
-        <div class="flex flex-col gap-2">
-          <button 
-            @click="sendMessage"
-            :disabled="!currentMessage.trim() || isTyping"
-            class="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 px-4 py-2 rounded"
-          >
-            Send
-          </button>
-          <button 
-            @click="attachContext"
-            class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded text-sm"
-          >
-            + Context
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Templates Dropdown -->
-    <div class="templates-section mt-4">
-      <select 
-        v-model="selectedTemplate"
-        @change="applyTemplate"
-        class="bg-gray-700 text-white p-2 rounded w-full"
-      >
-        <option value="">Select a prompt template...</option>
-        <option v-for="template in promptTemplates" :key="template.id" :value="template.id">
-          {{ template.name }}
-        </option>
-      </select>
-    </div>
-
-    <!-- Export History -->
-    <div v-if="exportHistory.length > 0" class="export-history mt-4 bg-gray-700 p-4 rounded">
-      <h3 class="text-lg font-semibold mb-2">Export History</h3>
-      <div class="space-y-2 max-h-40 overflow-y-auto">
-        <div 
-          v-for="(exportItem, index) in exportHistory" 
-          :key="index"
-          class="flex justify-between items-center bg-gray-600 p-2 rounded"
-        >
-          <span>{{ exportItem.type }} - {{ formatTime(exportItem.timestamp) }}</span>
-          <div class="flex gap-2">
-            <button 
-              @click="copyExport(exportItem)" 
-              class="bg-gray-500 hover:bg-gray-400 px-2 py-1 rounded text-xs"
+        <!-- Contextual Actions Section -->
+        <div v-if="contextualActions.length > 0" class="suggestion-section">
+          <h4 class="section-title">
+            <span class="icon">⚡</span> Quick Actions
+          </h4>
+          <div class="action-grid">
+            <button
+              v-for="action in contextualActions"
+              :key="action.id"
+              @click="executeAction(action)"
+              :class="['action-button', `priority-${action.priority}`]"
+              :title="action.tooltip"
             >
-              Copy
+              <span class="action-icon">{{ action.icon }}</span>
+              <span class="action-text">{{ action.label }}</span>
+              <span v-if="action.modifier" class="action-modifier">
+                {{ formatModifier(action.modifier) }}
+              </span>
             </button>
-            <button 
-              @click="openWithExport(exportItem)" 
-              class="bg-indigo-500 hover:bg-indigo-400 px-2 py-1 rounded text-xs"
-              v-if="chatGptProjectId"
+          </div>
+        </div>
+
+        <!-- AI Predictions Section -->
+        <div v-if="aiPredictions.length > 0" class="suggestion-section">
+          <h4 class="section-title">
+            <span class="icon">🤖</span> AI Suggestions
+            <button @click="refreshPredictions" class="refresh-btn" title="Refresh suggestions">
+              🔄
+            </button>
+          </h4>
+          <div class="prediction-list">
+            <div
+              v-for="prediction in aiPredictions"
+              :key="prediction.id"
+              @click="usePrediction(prediction)"
+              class="prediction-item"
             >
-              Open
+              <div class="prediction-content">
+                <span class="prediction-text">{{ prediction.text }}</span>
+                <span class="confidence-indicator" :style="{ width: `${prediction.confidence * 100}%` }"></span>
+              </div>
+              <span class="prediction-type">{{ prediction.type }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Environmental Awareness -->
+        <div v-if="environmentalHints.length > 0" class="suggestion-section">
+          <h4 class="section-title">
+            <span class="icon">🗺️</span> Environment
+          </h4>
+          <div class="hint-list">
+            <div
+              v-for="hint in environmentalHints"
+              :key="hint.id"
+              class="hint-item"
+              @click="exploreHint(hint)"
+            >
+              <span class="hint-icon">{{ hint.icon }}</span>
+              <span class="hint-text">{{ hint.text }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Roll Suggestions -->
+        <div v-if="suggestedRolls.length > 0" class="suggestion-section">
+          <h4 class="section-title">
+            <span class="icon">🎲</span> Suggested Rolls
+          </h4>
+          <div class="roll-grid">
+            <button
+              v-for="roll in suggestedRolls"
+              :key="roll.id"
+              @click="performRoll(roll)"
+              class="roll-button"
+            >
+              <span class="roll-dice">{{ roll.dice }}</span>
+              <span class="roll-reason">{{ roll.reason }}</span>
+              <span v-if="roll.dc" class="roll-dc">DC {{ roll.dc }}</span>
             </button>
           </div>
         </div>
       </div>
+    </transition>
+
+    <!-- Floating Toggle Button -->
+    <button
+      @click="toggleSuggestions"
+      class="suggestion-toggle"
+      :class="{ active: showSuggestions }"
+      title="Toggle action suggestions"
+    >
+      <span v-if="!showSuggestions">💡</span>
+      <span v-else>✖️</span>
+      <span v-if="suggestionCount > 0" class="suggestion-badge">
+        {{ suggestionCount }}
+      </span>
+    </button>
+
+    <!-- Inline Action Strip (Always Visible) -->
+    <div class="inline-actions">
+      <button
+        v-for="action in topActions"
+        :key="action.id"
+        @click="executeAction(action)"
+        class="inline-action"
+        :title="action.tooltip"
+      >
+        {{ action.icon }}
+      </button>
     </div>
   </div>
 </template>
 
-<script>
-import { ref, onMounted, computed } from 'vue'
+<script setup>
+import { ref, computed, watch, onMounted } from 'vue'
+import { useCharacterContext } from '@/composables/useCharacterContext'
+import { usePredictiveContentEngine } from '@/composables/usePredictiveContentEngine'
+import { useSmartRollPredictor } from '@/composables/useSmartRollPredictor'
 
-export default {
-  name: 'EnhancedWebChatComponent',
-  
-  setup() {
-    // State
-    const messages = ref([])
-    const currentMessage = ref('')
-    const isTyping = ref(false)
-    const showContext = ref(false)
-    const selectedTemplate = ref('')
-    const exportHistory = ref([])
-    
-    // Project integration
-    const chatGptProjectId = ref('')
-    const tempProjectId = ref('')
-    
-    // Game Context
-    const gameContext = ref({
-      location: '',
-      partyLevel: 1,
-      activeQuest: '',
-      sessionNotes: '',
-      recentEvents: [],
-      npcRelationships: {}
-    })
-    
-    // Quick Actions
-    const quickActions = ref([
-      { id: 'npc', label: 'Generate NPC', prompt: 'Generate a detailed NPC for the current location' },
-      { id: 'encounter', label: 'Create Encounter', prompt: 'Create a balanced encounter for the party' },
-      { id: 'description', label: 'Describe Scene', prompt: 'Provide a vivid description of the current scene' },
-      { id: 'rules', label: 'Rules Check', prompt: 'I need clarification on a Pathfinder 1e rule' },
-      { id: 'loot', label: 'Generate Loot', prompt: 'Generate appropriate treasure for this encounter' },
-      { id: 'puzzle', label: 'Create Puzzle', prompt: 'Design a puzzle appropriate for the party level' },
-      { id: 'dialogue', label: 'NPC Dialogue', prompt: 'Help me roleplay this NPC conversation' },
-      { id: 'plot', label: 'Plot Development', prompt: 'Suggest plot developments based on recent events' }
-    ])
-    
-    // Prompt Templates
-    const promptTemplates = ref([
-      {
-        id: 'session_start',
-        name: 'Session Start',
-        template: 'Help me start today\'s session. Last time: {sessionNotes}. The party is at {location}.'
-      },
-      {
-        id: 'combat_tactics',
-        name: 'Combat Tactics',
-        template: 'The party (level {partyLevel}) is fighting {enemy}. Suggest tactical options for the enemies.'
-      },
-      {
-        id: 'world_reaction',
-        name: 'World Reaction',
-        template: 'The players just {playerAction}. How would the world/NPCs realistically react?'
-      },
-      {
-        id: 'improvise_content',
-        name: 'Improvise Content',
-        template: 'I need to quickly improvise {contentType} for {location}. Party level: {partyLevel}'
-      }
-    ])
-    
-    // Computed
-    const chatGptUrl = computed(() => {
-      let url = 'https://chat.openai.com'
-      if (chatGptProjectId.value) {
-        url += `/?project=${chatGptProjectId.value}`
-      }
-      return url
-    })
-    
-    // Methods
-    const sendMessage = async () => {
-      if (!currentMessage.value.trim() || isTyping.value) return
-      
-      const userMessage = {
-        role: 'user',
-        content: currentMessage.value,
-        timestamp: new Date(),
-        context: { ...gameContext.value }
-      }
-      
-      messages.value.push(userMessage)
-      const messageToSend = currentMessage.value
-      currentMessage.value = ''
-      
-      // Add to export history
-      addToExportHistory('Conversation', messageToSend)
-      
-      // Since this is a simulated chat, add a system message
-      messages.value.push({
-        role: 'system',
-        content: 'This is a preview. Click "Open in ChatGPT" to continue with real ChatGPT.',
-        timestamp: new Date()
-      })
-    }
-    
-    const setProjectId = () => {
-      const projectId = tempProjectId.value.trim()
-      if (!projectId) return
-      
-      // Extract project ID if full URL was pasted
-      let cleanId = projectId
-      if (projectId.includes('project=')) {
-        const match = projectId.match(/project=([^&]+)/)
-        if (match) {
-          cleanId = match[1]
-        }
-      }
-      
-      chatGptProjectId.value = cleanId
-      localStorage.setItem('chatgpt-project-id', cleanId)
-      tempProjectId.value = ''
-    }
-    
-    const clearProjectId = () => {
-      if (confirm('Remove ChatGPT project configuration?')) {
-        chatGptProjectId.value = ''
-        localStorage.removeItem('chatgpt-project-id')
-      }
-    }
-    
-    const openInProject = (mode = 'continue') => {
-      let url = chatGptUrl.value
-      
-      if (mode === 'new') {
-        // This might work for starting a new chat
-        url += url.includes('?') ? '&new=true' : '?new=true'
-      }
-      
-      // Copy latest message if available
-      if (messages.value.length > 0) {
-        const lastUserMessage = [...messages.value]
-          .reverse()
-          .find(m => m.role === 'user')
-        
-        if (lastUserMessage) {
-          copyToClipboard(lastUserMessage.content)
-        }
-      }
-      
-      window.open(url, '_blank')
-    }
-    
-    const openWithExport = (exportItem) => {
-      copyToClipboard(exportItem.content)
-      setTimeout(() => openInProject('new'), 100)
-    }
-    
-    const executeQuickAction = (action) => {
-      currentMessage.value = action.prompt
-      if (gameContext.value.location) {
-        currentMessage.value += ` Current location: ${gameContext.value.location}.`
-      }
-      if (gameContext.value.partyLevel) {
-        currentMessage.value += ` Party level: ${gameContext.value.partyLevel}.`
-      }
-    }
-    
-    const applyTemplate = () => {
-      const template = promptTemplates.value.find(t => t.id === selectedTemplate.value)
-      if (!template) return
-      
-      let prompt = template.template
-      // Replace template variables with actual values
-      prompt = prompt.replace('{location}', gameContext.value.location || '[location]')
-      prompt = prompt.replace('{partyLevel}', gameContext.value.partyLevel || '[level]')
-      prompt = prompt.replace('{sessionNotes}', gameContext.value.sessionNotes || '[notes]')
-      
-      currentMessage.value = prompt
-      selectedTemplate.value = ''
-    }
-    
-    const attachContext = () => {
-      const contextString = `\n\n[Context: Location: ${gameContext.value.location}, Party Level: ${gameContext.value.partyLevel}, Active Quest: ${gameContext.value.activeQuest}]`
-      currentMessage.value += contextString
-    }
-    
-    const updateContext = () => {
-      // Save context to localStorage
-      localStorage.setItem('rpg-narrator-context', JSON.stringify(gameContext.value))
-    }
-    
-    const toggleContextPanel = () => {
-      showContext.value = !showContext.value
-    }
-    
-    const startNewSession = () => {
-      if (confirm('Start a new chat session? Current conversation will be saved to history.')) {
-        if (messages.value.length > 0) {
-          exportConversation()
-        }
-        messages.value = []
-        currentMessage.value = ''
-      }
-    }
-    
-    const exportConversation = () => {
-      const exportData = {
-        type: 'ChatGPT Conversation',
-        timestamp: new Date(),
-        messages: [...messages.value],
-        context: { ...gameContext.value },
-        content: messages.value.map(m => `${m.role}: ${m.content}`).join('\n\n')
-      }
-      
-      addToExportHistory('Full Conversation', exportData.content)
-      copyToClipboard(exportData.content)
-    }
-    
-    const addToExportHistory = (type, content) => {
-      exportHistory.value.unshift({
-        type,
-        content,
-        timestamp: new Date()
-      })
-      
-      if (exportHistory.value.length > 10) {
-        exportHistory.value = exportHistory.value.slice(0, 10)
-      }
-      
-      // Save to localStorage
-      localStorage.setItem('rpg-narrator-export-history', JSON.stringify(exportHistory.value))
-    }
-    
-    const copyExport = (exportItem) => {
-      copyToClipboard(exportItem.content)
-    }
-    
-    const copyToClipboard = (text) => {
-      navigator.clipboard.writeText(text)
-        .then(() => {
-          console.log('Copied to clipboard')
-        })
-        .catch(err => {
-          console.error('Failed to copy:', err)
-        })
-    }
-    
-    const formatTime = (timestamp) => {
-      if (!timestamp) return ''
-      const date = new Date(timestamp)
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-    
-    // Initialize
-    onMounted(() => {
-      // Load project ID
-      const savedProjectId = localStorage.getItem('chatgpt-project-id')
-      if (savedProjectId) {
-        chatGptProjectId.value = savedProjectId
-      }
-      
-      // Load saved context
-      const savedContext = localStorage.getItem('rpg-narrator-context')
-      if (savedContext) {
-        try {
-          const parsed = JSON.parse(savedContext)
-          Object.assign(gameContext.value, parsed)
-        } catch (error) {
-          console.error('Failed to load saved context:', error)
-        }
-      }
-      
-      // Load export history
-      const savedHistory = localStorage.getItem('rpg-narrator-export-history')
-      if (savedHistory) {
-        try {
-          exportHistory.value = JSON.parse(savedHistory)
-        } catch (error) {
-          console.error('Failed to load export history:', error)
-        }
-      }
-    })
-    
-    return {
-      messages,
-      currentMessage,
-      isTyping,
-      showContext,
-      gameContext,
-      quickActions,
-      promptTemplates,
-      selectedTemplate,
-      exportHistory,
-      chatGptProjectId,
-      tempProjectId,
-      sendMessage,
-      executeQuickAction,
-      applyTemplate,
-      attachContext,
-      updateContext,
-      toggleContextPanel,
-      startNewSession,
-      exportConversation,
-      copyExport,
-      formatTime,
-      setProjectId,
-      clearProjectId,
-      openInProject,
-      openWithExport
-    }
+const props = defineProps({
+  characterState: Object,
+  narrativeContext: Object,
+  recentMessages: Array
+})
+
+const emit = defineEmits(['action', 'roll', 'input-suggestion'])
+
+// State
+const showSuggestions = ref(false)
+const contextualActions = ref([])
+const aiPredictions = ref([])
+const environmentalHints = ref([])
+const suggestedRolls = ref([])
+
+// Composables
+const { analyzeContext } = useCharacterContext()
+const { generateSuggestions } = usePredictiveContentEngine()
+const { predictRolls } = useSmartRollPredictor()
+
+// Computed
+const suggestionCount = computed(() => {
+  return contextualActions.value.length + 
+         aiPredictions.value.length + 
+         environmentalHints.value.length +
+         suggestedRolls.value.length
+})
+
+const topActions = computed(() => {
+  // Show the 3 most relevant actions in the inline strip
+  return [...contextualActions.value, ...aiPredictions.value]
+    .sort((a, b) => (b.priority || b.confidence || 0) - (a.priority || a.confidence || 0))
+    .slice(0, 3)
+})
+
+// Methods
+function toggleSuggestions() {
+  showSuggestions.value = !showSuggestions.value
+  if (showSuggestions.value) {
+    updateSuggestions()
   }
 }
+
+async function updateSuggestions() {
+  // Extract narrative text from the context object
+  let narrativeText = ''
+  if (props.narrativeContext) {
+    if (typeof props.narrativeContext === 'string') {
+      narrativeText = props.narrativeContext
+    } else if (props.narrativeContext && typeof props.narrativeContext === 'object') {
+      // Try different possible properties
+      narrativeText = props.narrativeContext.text || 
+                     props.narrativeContext.content || 
+                     props.narrativeContext.message ||
+                     props.narrativeContext.lastMessage ||
+                     ''
+    }
+  }
+  
+  // Analyze current context
+  const analysis = analyzeContext({
+    character: props.characterState,
+    narrative: narrativeText,  // Pass the extracted string
+    recentMessages: props.recentMessages
+  })
+
+  // Generate contextual actions based on character abilities
+  contextualActions.value = generateContextualActions(analysis)
+
+  // Get AI predictions if available
+  if (analysis.shouldUseAI) {
+    const predictions = await generateSuggestions({
+      context: analysis,
+      limit: 3
+    })
+    aiPredictions.value = predictions
+  }
+
+  // Environmental awareness
+  environmentalHints.value = extractEnvironmentalHints(analysis)
+
+  // Smart roll predictions
+  suggestedRolls.value = predictRolls(analysis)
+}
+
+function generateContextualActions(analysis) {
+  const actions = []
+  
+  // Combat-related actions
+  if (analysis.inCombat) {
+    actions.push({
+      id: 'attack-primary',
+      label: 'Attack',
+      icon: '⚔️',
+      tooltip: `Attack with ${analysis.primaryWeapon || 'weapon'}`,
+      modifier: analysis.attackBonus,
+      priority: 'high',
+      action: 'attack'
+    })
+    
+    if (analysis.canCastSpells) {
+      actions.push({
+        id: 'cast-spell',
+        label: 'Cast Spell',
+        icon: '✨',
+        tooltip: 'Cast a spell',
+        priority: 'high',
+        action: 'cast'
+      })
+    }
+    
+    actions.push({
+      id: 'defend',
+      label: 'Total Defense',
+      icon: '🛡️',
+      tooltip: '+4 AC, no other actions',
+      priority: 'medium',
+      action: 'defend'
+    })
+  }
+  
+  // Skill-based actions
+  if (analysis.topSkills) {
+    analysis.topSkills.forEach(skill => {
+      if (skill.name === 'Perception' && !analysis.recentlySearched) {
+        actions.push({
+          id: 'perception-check',
+          label: 'Search Area',
+          icon: '👁️',
+          tooltip: `Perception check (+${skill.modifier})`,
+          modifier: skill.modifier,
+          priority: 'medium',
+          action: 'skill',
+          skill: 'Perception'
+        })
+      }
+      
+      if (skill.name === 'Stealth' && !analysis.inCombat) {
+        actions.push({
+          id: 'stealth-check',
+          label: 'Sneak',
+          icon: '🥷',
+          tooltip: `Stealth check (+${skill.modifier})`,
+          modifier: skill.modifier,
+          priority: 'medium',
+          action: 'skill',
+          skill: 'Stealth'
+        })
+      }
+    })
+  }
+  
+  // Conditional actions
+  if (analysis.lowHealth) {
+    actions.push({
+      id: 'heal-self',
+      label: 'Use Healing',
+      icon: '❤️',
+      tooltip: 'Drink potion or use healing',
+      priority: 'urgent',
+      action: 'heal'
+    })
+  }
+  
+  return actions
+}
+
+function extractEnvironmentalHints(analysis) {
+  const hints = []
+  
+  if (analysis.lastNarrativeContains('door')) {
+    hints.push({
+      id: 'door-hint',
+      icon: '🚪',
+      text: 'A door was mentioned',
+      actions: ['Listen', 'Check for traps', 'Open carefully']
+    })
+  }
+  
+  if (analysis.lastNarrativeContains('dark')) {
+    hints.push({
+      id: 'darkness-hint',
+      icon: '🕯️',
+      text: 'Darkness affects vision',
+      actions: ['Light source', 'Darkvision', 'Proceed carefully']
+    })
+  }
+  
+  if (analysis.lastNarrativeContains(['chest', 'container', 'box'])) {
+    hints.push({
+      id: 'container-hint',
+      icon: '📦',
+      text: 'Container detected',
+      actions: ['Check for traps', 'Examine lock', 'Open']
+    })
+  }
+  
+  return hints
+}
+
+function executeAction(action) {
+  switch (action.action) {
+    case 'attack':
+      emit('action', {
+        type: 'roll',
+        dice: `1d20+${action.modifier || 0}`,
+        reason: 'Attack roll',
+        followUp: 'damage'
+      })
+      break
+      
+    case 'skill':
+      emit('action', {
+        type: 'roll',
+        dice: `1d20+${action.modifier || 0}`,
+        reason: `${action.skill} check`
+      })
+      break
+      
+    case 'cast':
+      emit('input-suggestion', `I cast ${action.spell || '[spell name]'}`)
+      break
+      
+    case 'defend':
+      emit('input-suggestion', 'I take a total defense action (+4 AC)')
+      break
+      
+    case 'heal':
+      emit('input-suggestion', 'I drink a healing potion')
+      break
+      
+    default:
+      emit('input-suggestion', action.label)
+  }
+  
+  // Close panel after action
+  showSuggestions.value = false
+}
+
+function usePrediction(prediction) {
+  emit('input-suggestion', prediction.text)
+  showSuggestions.value = false
+}
+
+function exploreHint(hint) {
+  // Show hint actions as input suggestions
+  const suggestion = `What about the ${hint.text.toLowerCase()}?`
+  emit('input-suggestion', suggestion)
+}
+
+function performRoll(roll) {
+  emit('roll', {
+    dice: roll.dice,
+    reason: roll.reason,
+    dc: roll.dc
+  })
+  showSuggestions.value = false
+}
+
+function refreshPredictions() {
+  updateSuggestions()
+}
+
+function formatModifier(mod) {
+  return mod >= 0 ? `+${mod}` : `${mod}`
+}
+
+// Watch for context changes
+watch(() => props.narrativeContext, () => {
+  if (showSuggestions.value) {
+    updateSuggestions()
+  }
+}, { deep: true })
+
+// Auto-update suggestions periodically when panel is open
+let updateInterval
+watch(showSuggestions, (newVal) => {
+  if (newVal) {
+    updateInterval = setInterval(updateSuggestions, 30000) // Every 30 seconds
+  } else {
+    clearInterval(updateInterval)
+  }
+})
+
+onMounted(() => {
+  // Initial suggestion generation
+  updateSuggestions()
+})
 </script>
 
 <style scoped>
-.enhanced-web-chat {
-  max-width: 1200px;
-  margin: 0 auto;
+.narrative-suggestions {
+  position: relative;
 }
 
-.chat-messages {
-  scroll-behavior: smooth;
+/* Floating Panel */
+.suggestion-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 0.5rem;
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+  z-index: 100;
 }
 
-.message {
-  animation: fadeIn 0.3s ease-in;
+/* Toggle Button */
+.suggestion-toggle {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  border-radius: 0.375rem;
+  color: white;
+  font-size: 1.25rem;
+  transition: all 0.2s;
+  cursor: pointer;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
+.suggestion-toggle:hover {
+  background: rgba(59, 130, 246, 0.3);
+  transform: scale(1.05);
+}
+
+.suggestion-toggle.active {
+  background: rgba(59, 130, 246, 0.5);
+}
+
+.suggestion-badge {
+  position: absolute;
+  top: -0.25rem;
+  right: -0.25rem;
+  background: #ef4444;
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  font-weight: bold;
+}
+
+/* Sections */
+.suggestion-section {
+  margin-bottom: 1rem;
+}
+
+.suggestion-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #9ca3af;
+}
+
+.section-title .icon {
+  font-size: 1rem;
+}
+
+.refresh-btn {
+  margin-left: auto;
+  padding: 0.125rem 0.25rem;
+  background: transparent;
+  border: none;
+  color: #60a5fa;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.refresh-btn:hover {
+  transform: rotate(180deg);
+}
+
+/* Action Grid */
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.action-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 0.375rem;
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-button:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-1px);
+}
+
+.action-button.priority-urgent {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.action-button.priority-high {
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+.action-icon {
+  font-size: 1.5rem;
+}
+
+.action-modifier {
+  font-size: 0.625rem;
+  color: #60a5fa;
+  font-weight: bold;
+}
+
+/* Predictions */
+.prediction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.prediction-item {
+  padding: 0.75rem;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.prediction-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.prediction-content {
+  position: relative;
+}
+
+.prediction-text {
+  font-size: 0.875rem;
+  color: white;
+}
+
+.confidence-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: #60a5fa;
+  transition: width 0.3s;
+}
+
+.prediction-type {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.625rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+/* Environmental Hints */
+.hint-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.hint-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hint-item:hover {
+  background: rgba(16, 185, 129, 0.2);
+}
+
+/* Roll Grid */
+.roll-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+}
+
+.roll-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 0.375rem;
+  color: white;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.roll-button:hover {
+  background: rgba(139, 92, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+.roll-dice {
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.roll-dc {
+  font-size: 0.625rem;
+  color: #fbbf24;
+}
+
+/* Inline Actions */
+.inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.inline-action {
+  padding: 0.375rem 0.5rem;
+  background: rgba(55, 65, 81, 0.3);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+  border-radius: 0.25rem;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.inline-action:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Animations */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+
+.slide-fade-enter-from {
+  transform: translateY(10px);
+  opacity: 0;
+}
+
+.slide-fade-leave-to {
+  transform: translateY(10px);
+  opacity: 0;
+}
+
+/* Scrollbar */
+.suggestion-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.suggestion-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.suggestion-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .suggestion-panel {
+    max-height: 300px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  
+  .action-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
-}
-
-textarea {
-  min-height: 80px;
-}
-
-.max-w-3\/4 {
-  max-width: 75%;
 }
 </style>

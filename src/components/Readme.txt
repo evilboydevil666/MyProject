@@ -63,6 +63,11 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/Inven
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/PredictiveContentEngine.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/SmartRollPredictor.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/inventoryHelpers.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/EnhancedChatGPTExport.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/WorldBuildingImportParser.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/ItemEffects.js
+
+
 Directory: src/views/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/AutomationView.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/CharacterView.vue
@@ -83,6 +88,13 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/NarrativeInput.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/NarrativeMessages.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/NarrativeQuickActions.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/DiceSystem.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/InventorySystem.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/MemorySystemjs
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/NarrativeEngine.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/PredictionSystem.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/SystemsManager.js
+
 Directory: src/components/party/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/party/FactionsList.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/party/PartyRoster.vue
