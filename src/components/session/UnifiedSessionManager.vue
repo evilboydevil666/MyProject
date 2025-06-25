@@ -1,4 +1,4 @@
-// src/components/UnifiedSessionManager.vue
+// src/components/session/UnifiedSessionManager.vue
 <template>
   <div class="session-manager h-full flex flex-col bg-gray-900 text-white">
     <!-- Header with Status -->
@@ -6,7 +6,7 @@
       <div class="flex justify-between items-start">
         <div>
           <h2 class="text-2xl font-bold text-blue-300 mb-1">🎯 Session Command Center</h2>
-          <p class="text-sm text-gray-400">Unified workflow for session prep, live support, and post-session processing</p>
+          <p class="text-sm text-gray-400">Unified workflow for session prep, world building, live support, and post-session processing</p>
         </div>
         <div class="text-right">
           <div class="text-xs text-gray-400">Daily API Budget</div>
@@ -24,13 +24,13 @@
     </div>
 
     <!-- Workflow Tabs -->
-    <div class="flex border-b border-gray-700">
+    <div class="flex border-b border-gray-700 overflow-x-auto">
       <button 
         v-for="workflow in workflows" 
         :key="workflow.id"
         @click="currentWorkflow = workflow.id"
         :class="[
-          'px-6 py-3 border-b-2 transition-colors',
+          'px-6 py-3 border-b-2 transition-colors whitespace-nowrap',
           currentWorkflow === workflow.id 
             ? 'border-blue-500 bg-gray-800 text-blue-300' 
             : 'border-transparent hover:bg-gray-800'
@@ -144,6 +144,15 @@
             <p class="text-sm">Configure your session and generate a complete plan</p>
           </div>
         </div>
+      </div>
+
+      <!-- World Building -->
+      <div v-if="currentWorkflow === 'world'" class="h-full">
+        <WorldBuildingPanel 
+          :api-key="apiKey"
+          @content-generated="handleWorldBuildingContent"
+          @usage-updated="handleUsageUpdate"
+        />
       </div>
 
       <!-- Live Session Support -->
@@ -287,6 +296,10 @@
                   <span>{{ sessionStats.itemsGenerated }}</span>
                 </div>
                 <div class="flex justify-between">
+                  <span>World Building Items:</span>
+                  <span>{{ worldBuildingStats.totalItems }}</span>
+                </div>
+                <div class="flex justify-between">
                   <span>Cache Hits:</span>
                   <span>{{ sessionStats.cacheHits }}%</span>
                 </div>
@@ -327,6 +340,7 @@ import { ref, computed, onMounted } from 'vue'
 import { characterState } from '../../characterState.js'
 import { EnhancedAPIManager } from '../../utils/EnhancedAPIManager.js'
 import DiceRoller from '../../utils/DiceRoller.js'
+import WorldBuildingPanel from './WorldBuildingPanel.vue'
 
 // State
 const apiManager = new EnhancedAPIManager()
@@ -335,10 +349,12 @@ const isGenerating = ref(false)
 const progress = ref(0)
 const progressMessage = ref('')
 const progressDetail = ref('')
+const apiKey = ref('')
 
-// Workflow configuration
+// Workflow configuration - Updated to include World Building
 const workflows = [
   { id: 'prep', name: 'Pre-Session', icon: '📋' },
+  { id: 'world', name: 'World Building', icon: '🌍' },
   { id: 'live', name: 'Live Support', icon: '⚡' },
   { id: 'post', name: 'Post-Session', icon: '📊' }
 ]
@@ -388,6 +404,12 @@ const sessionStats = ref({
   totalCost: 0
 })
 
+// World building stats
+const worldBuildingStats = ref({
+  totalItems: 0,
+  categories: {}
+})
+
 // Budget tracking
 const dailyUsage = ref(0)
 const dailyBudget = ref(10.00)
@@ -398,11 +420,11 @@ const budgetUsedPercentage = computed(() =>
 
 // Methods
 function getSkillModifier(skillName) {
-  const skill = characterState.skills.find(s => s.name === skillName)
+  const skill = characterState.skills?.find(s => s.name === skillName)
   if (!skill) return 0
   
-  const abilityMod = Math.floor((characterState.abilityScores[skill.ability] - 10) / 2)
-  return skill.rank + abilityMod + (skill.misc || 0)
+  const abilityMod = characterState.abilities?.[skill.ability]?.modifier || 0
+  return skill.ranks + abilityMod + (skill.misc || 0)
 }
 
 async function generateSessionPlan() {
@@ -561,8 +583,25 @@ function executeQuickRoll(roll) {
   })
 }
 
+function handleWorldBuildingContent(content) {
+  // Track world building content
+  worldBuildingStats.value.totalItems++
+  if (!worldBuildingStats.value.categories[content.category]) {
+    worldBuildingStats.value.categories[content.category] = 0
+  }
+  worldBuildingStats.value.categories[content.category]++
+  
+  updateUsageStats()
+}
+
+function handleUsageUpdate(usage) {
+  // Update daily usage from world building
+  dailyUsage.value += usage.cost || 0
+  sessionStats.value.totalCost += usage.cost || 0
+}
+
 function getTotalLevel() {
-  return characterState.classes.reduce((sum, c) => sum + (c.level || 0), 0)
+  return characterState.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || 1
 }
 
 function parseJsonSafely(text, fallback = []) {
@@ -602,7 +641,7 @@ function updateUsageStats() {
     // Update session stats with safe access
     sessionStats.value = {
       apiRequests: stats.requestCount || 0,
-      itemsGenerated: sessionPlan.value.encounters.length + sessionPlan.value.npcs.length,
+      itemsGenerated: sessionPlan.value.encounters.length + sessionPlan.value.npcs.length + worldBuildingStats.value.totalItems,
       cacheHits: Math.round((stats.cacheHitRate || 0) * 100),
       totalCost: stats.totalCost || 0
     }
@@ -623,6 +662,8 @@ function updateUsageStats() {
 }
 
 onMounted(() => {
+  // Load API key
+  apiKey.value = localStorage.getItem('openai-api-key') || ''
   updateUsageStats()
 })
 </script>
@@ -634,5 +675,11 @@ onMounted(() => {
 
 .transition-all {
   transition: all 0.2s ease;
+}
+
+/* Hide scrollbars in world building panel for cleaner look */
+.session-manager :deep(.world-building-panel) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 </style>

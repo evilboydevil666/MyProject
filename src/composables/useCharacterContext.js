@@ -8,6 +8,8 @@ export function useCharacterContext(characterState) {
     level: 1,
     currentHp: 10,
     maxHp: 10,
+    hp: 10, // Add duplicate for compatibility
+    hpMax: 10, // Add duplicate for compatibility
     conditions: [],
     activeEffects: [],
     resources: {}
@@ -49,20 +51,251 @@ export function useCharacterContext(characterState) {
   function updateContext(state) {
     if (!state) return
     
+    // Calculate total level from classes array
+    const totalLevel = state.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || state.level || 1
+    
+    // Get primary class name
+    const primaryClass = state.classes?.[0]?.className || state.class || 'Adventurer'
+    
     characterContext.value = {
       name: state.name || 'Unknown Hero',
-      class: state.class || 'Adventurer',
-      level: state.level || 1,
-      currentHp: state.hp?.current || state.currentHp || 10,
-      maxHp: state.hp?.max || state.maxHp || 10,
+      class: primaryClass,
+      level: totalLevel,
+      currentHp: state.hp || state.currentHp || 10,
+      maxHp: state.hpMax || state.maxHp || 10,
+      hp: state.hp || state.currentHp || 10, // Duplicate for compatibility
+      hpMax: state.hpMax || state.maxHp || 10, // Duplicate for compatibility
       conditions: state.conditions || [],
       activeEffects: state.activeEffects || [],
       resources: {
         spellSlots: state.spellSlots || {},
         abilities: state.abilities || {},
         items: state.consumables || {}
-      }
+      },
+      // Add additional fields for enhanced suggestions
+      equipment: state.equipment || {},
+      skills: state.skills || [],
+      spells: state.spells || [],
+      bab: state.bab || 0,
+      saves: {
+        fort: state.saves?.fort || 0,
+        ref: state.saves?.ref || 0,
+        will: state.saves?.will || 0
+      },
+      abilities: state.abilities || {},
+      initiative: calculateInitiative(state),
+      spellsKnown: state.spells || []
     }
+  }
+  
+  // NEW: Analyze context for suggestions
+  function analyzeContext(options) {
+    const { character, narrative, recentMessages } = options
+    
+    // Use the characterContext if character not provided
+    const char = character || characterContext.value
+    
+    // Analyze narrative for combat indicators
+    const combatWords = ['attack', 'combat', 'fight', 'enemy', 'hostile', 'initiative', 'damage']
+    const inCombat = narrative ? combatWords.some(word => 
+      narrative.toLowerCase().includes(word)
+    ) : false
+    
+    // Check if combat is just starting
+    const combatStarting = narrative ? 
+      narrative.toLowerCase().includes('roll initiative') || 
+      narrative.toLowerCase().includes('combat begins') : false
+    
+    // Detect threats
+    const threatWords = ['threatens', 'hostile', 'aggressive', 'dangerous', 'menacing']
+    const threatened = narrative ? threatWords.some(word => 
+      narrative.toLowerCase().includes(word)
+    ) : false
+    
+    // Check for environmental requirements
+    const environmentRequiresSkill = detectSkillRequirements(narrative)
+    
+    // Detect if narrative indicates an ability check
+    const narrativeIndicatesCheck = narrative ? 
+      narrative.toLowerCase().includes('make a') || 
+      narrative.toLowerCase().includes('roll a') ||
+      narrative.toLowerCase().includes('test your') : false
+    
+    return {
+      // Combat status
+      inCombat,
+      combatStarting,
+      threatened,
+      
+      // Character status
+      lowHealth: char.currentHp < char.maxHp * 0.5,
+      hasHealing: checkHealingAvailable(char),
+      
+      // Skills and abilities  
+      topSkills: getTopCharacterSkills(char),
+      canCastSpells: (char.spellsKnown?.length > 0) || (char.spells?.length > 0),
+      
+      // Environmental
+      lastNarrativeContains: (terms) => checkNarrativeContent(narrative, terms),
+      environmentRequiresSkill,
+      narrativeIndicatesCheck,
+      
+      // Equipment
+      primaryWeapon: char.equipment?.mainHand?.name || 'weapon',
+      attackBonus: calculateAttackBonus(char),
+      enemyAC: extractEnemyAC(narrative),
+      
+      // Recent actions
+      recentlySearched: checkRecentAction(recentMessages, 'search'),
+      
+      // Saves and defenses
+      saves: {
+        fortitude: char.saves?.fort || 0,
+        reflex: char.saves?.ref || 0,
+        will: char.saves?.will || 0
+      },
+      
+      // Skills object for specific checks
+      skills: {
+        perception: getSkillModifier(char, 'Perception'),
+        stealth: getSkillModifier(char, 'Stealth'),
+        disableDevice: getSkillModifier(char, 'Disable Device'),
+        climb: getSkillModifier(char, 'Climb'),
+        acrobatics: getSkillModifier(char, 'Acrobatics'),
+        // Add more skills as needed
+      },
+      
+      // Initiative
+      initiative: char.initiative || calculateInitiative(char),
+      
+      // Narrative content
+      narrative: narrative || '',
+      
+      // Should use AI
+      shouldUseAI: checkShouldUseAI()
+    }
+  }
+  
+  // Helper function to get top skills
+  function getTopCharacterSkills(character) {
+    if (!character.skills || !Array.isArray(character.skills)) return []
+    
+    return character.skills
+      .filter(skill => skill.ranks > 0 || skill.total > 0)
+      .sort((a, b) => (b.total || 0) - (a.total || 0))
+      .slice(0, 3)
+      .map(skill => ({
+        name: skill.name,
+        modifier: skill.total || 0
+      }))
+  }
+  
+  // Helper function to get specific skill modifier
+  function getSkillModifier(character, skillName) {
+    if (!character.skills || !Array.isArray(character.skills)) return 0
+    
+    const skill = character.skills.find(s => 
+      s.name?.toLowerCase() === skillName.toLowerCase()
+    )
+    return skill?.total || 0
+  }
+  
+  // Helper function to calculate attack bonus
+  function calculateAttackBonus(character) {
+    const bab = character.bab || 0
+    const strMod = character.abilities?.str?.modifier || 0
+    // Could add weapon enhancement bonus, other modifiers
+    return bab + strMod
+  }
+  
+  // Helper function to calculate initiative
+  function calculateInitiative(character) {
+    const dexMod = character.abilities?.dex?.modifier || 0
+    // Could add improved initiative feat bonus
+    return dexMod
+  }
+  
+  // Helper function to check healing availability
+  function checkHealingAvailable(character) {
+    // Check for healing potions in inventory
+    if (character.inventory) {
+      const healingItems = ['healing potion', 'potion of healing', 'cure wounds']
+      // This would need to check actual inventory structure
+      return true // Placeholder
+    }
+    
+    // Check for healing spells
+    if (character.spells && Array.isArray(character.spells)) {
+      const healingSpells = ['cure light wounds', 'cure moderate wounds', 'heal']
+      return character.spells.some(spell => 
+        healingSpells.some(heal => spell.name?.toLowerCase().includes(heal))
+      )
+    }
+    
+    return false
+  }
+  
+  // Helper function to check narrative content
+  function checkNarrativeContent(narrative, terms) {
+    if (!narrative) return false
+    
+    const lowerNarrative = narrative.toLowerCase()
+    
+    if (Array.isArray(terms)) {
+      return terms.some(term => lowerNarrative.includes(term.toLowerCase()))
+    }
+    
+    return lowerNarrative.includes(terms.toLowerCase())
+  }
+  
+  // Helper function to detect skill requirements
+  function detectSkillRequirements(narrative) {
+    if (!narrative) return false
+    
+    const skillIndicators = [
+      'check', 'test', 'roll', 'attempt', 'try to',
+      'search', 'examine', 'investigate', 'listen',
+      'climb', 'jump', 'sneak', 'hide', 'detect'
+    ]
+    
+    return skillIndicators.some(indicator => 
+      narrative.toLowerCase().includes(indicator)
+    )
+  }
+  
+  // Helper function to check recent actions
+  function checkRecentAction(recentMessages, action) {
+    if (!recentMessages || !Array.isArray(recentMessages)) return false
+    
+    const recentPlayerMessages = recentMessages
+      .filter(msg => msg.role === 'user')
+      .slice(-3) // Last 3 player messages
+    
+    return recentPlayerMessages.some(msg => 
+      msg.content?.toLowerCase().includes(action.toLowerCase())
+    )
+  }
+  
+  // Helper function to extract enemy AC from narrative
+  function extractEnemyAC(narrative) {
+    if (!narrative) return null
+    
+    // Look for AC mentions in narrative
+    const acMatch = narrative.match(/AC\s*[:=]?\s*(\d+)/i)
+    if (acMatch) {
+      return parseInt(acMatch[1])
+    }
+    
+    return null
+  }
+  
+  // Helper function to check if AI should be used
+  function checkShouldUseAI() {
+    // Check if API key is available
+    const hasApiKey = !!localStorage.getItem('openai-api-key')
+    
+    // Could add more logic here (rate limiting, user preferences, etc.)
+    return hasApiKey
   }
   
   // Watch for changes in character state
@@ -76,6 +309,7 @@ export function useCharacterContext(characterState) {
   return {
     characterContext,
     characterInsights,
-    updateContext
+    updateContext,
+    analyzeContext // Export the new function
   }
 }

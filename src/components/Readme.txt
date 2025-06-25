@@ -25,6 +25,7 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Spells.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/TacticalMap.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/inventorynotification.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterDetails.vue
 Directory: src/composables/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useAIPredictor.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useCharacter.js

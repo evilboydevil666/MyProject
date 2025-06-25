@@ -27,8 +27,20 @@
     
     <!-- Footer Section -->
     <div class="chat-footer">
-      <!-- Quick Actions -->
+      <!-- Enhanced Suggestions Component (NEW) -->
+      <EnhancedNarrativeSuggestions
+        v-if="characterContext"
+        :character-state="props.characterState"
+        :narrative-context="narrativeContext"
+        :recent-messages="messages.slice(-5)"
+        @action="handleSuggestionAction"
+        @roll="handleQuickRoll"
+        @input-suggestion="handleInputSuggestion"
+      />
+      
+      <!-- Quick Actions (OPTIONAL - can remove if using enhanced suggestions) -->
       <NarrativeQuickActions 
+        v-if="false"
         @roll="handleQuickRoll"
         :character-context="characterContext"
       />
@@ -70,6 +82,7 @@ import NarrativeMessages from './narrative/NarrativeMessages.vue'
 import NarrativeQuickActions from './narrative/NarrativeQuickActions.vue'
 import NarrativeInput from './narrative/NarrativeInput.vue'
 import CharacterQuickStatus from './narrative/CharacterQuickStatus.vue'
+import EnhancedNarrativeSuggestions from './narrative/EnhancedNarrativeSuggestions.vue'
 
 // Props
 const props = defineProps({
@@ -97,7 +110,8 @@ const {
 const {
   characterContext,
   characterInsights,
-  updateContext
+  updateContext,
+  analyzeContext
 } = useCharacterContext(props.characterState)
 
 // AI predictions
@@ -131,6 +145,34 @@ const statusMessage = computed(() => {
   }
   return 'Ready to narrate'
 })
+
+// Narrative context for suggestions
+const narrativeContext = computed(() => {
+  const lastMessage = messages.value[messages.value.length - 1]
+  const lastNarratorMessage = messages.value
+    .slice()
+    .reverse()
+    .find(m => m.role === 'assistant')
+    
+  return {
+    narrative: lastNarratorMessage?.content || '',
+    currentInput: currentInput.value,
+    inCombat: detectCombat(),
+    recentMessages: messages.value.slice(-3)
+  }
+})
+
+// Helper function to detect combat
+function detectCombat() {
+  const recentMessages = messages.value.slice(-5)
+  const combatKeywords = ['attack', 'combat', 'fight', 'enemy', 'hostile', 'damage', 'initiative']
+  
+  return recentMessages.some(msg => 
+    combatKeywords.some(keyword => 
+      msg.content.toLowerCase().includes(keyword)
+    )
+  )
+}
 
 // Methods
 async function handleSubmit(text) {
@@ -179,6 +221,53 @@ function handleAction(action) {
   }
 }
 
+// NEW: Handle actions from enhanced suggestions
+function handleSuggestionAction(action) {
+  console.log('Suggestion action:', action)
+  
+  switch (action.type) {
+    case 'roll':
+      // Handle dice rolls
+      const rollMessage = `Rolling ${action.dice} for ${action.reason}`
+      if (action.followUp) {
+        // Store follow-up action for after roll
+        sessionStorage.setItem('pendingFollowUp', action.followUp)
+      }
+      handleSubmit(rollMessage)
+      break
+      
+    case 'action':
+      // Handle narrative actions
+      handleSubmit(action.text || action.label)
+      break
+      
+    case 'skill':
+      // Handle skill checks
+      const skillMessage = `I attempt a ${action.skill} check`
+      handleSubmit(skillMessage)
+      break
+      
+    default:
+      console.warn('Unknown action type:', action.type)
+  }
+}
+
+// NEW: Handle input suggestions from enhanced component
+function handleInputSuggestion(text) {
+  // Set the input field with the suggestion
+  currentInput.value = text
+  
+  // Focus the input field
+  nextTick(() => {
+    const inputEl = document.querySelector('.narrative-input input')
+    if (inputEl) {
+      inputEl.focus()
+      // Move cursor to end
+      inputEl.setSelectionRange(text.length, text.length)
+    }
+  })
+}
+
 function handleTransferToWeb(message) {
   // Create a formatted context for ChatGPT
   const context = `🎭 **NARRATIVE CONTINUATION**
@@ -188,7 +277,7 @@ ${message.content}
 
 **Character Status:**
 - ${characterContext.value.name} (Level ${characterContext.value.level})
-- HP: ${characterContext.value.hp}/${characterContext.value.maxHp}
+- HP: ${characterContext.value.currentHp}/${characterContext.value.maxHp}
 - Location: ${characterContext.value.location || '[Current location]'}
 
 Continue this narrative scene...`
@@ -215,7 +304,16 @@ function handleUsePrediction(prediction) {
 }
 
 function handleQuickRoll(rollData) {
-  const rollMessage = `Rolling ${rollData.dice} for ${rollData.reason}`
+  // Handle both old and new roll data formats
+  let rollMessage
+  
+  if (typeof rollData === 'object' && rollData.dice) {
+    rollMessage = `Rolling ${rollData.dice} for ${rollData.reason || 'check'}`
+  } else {
+    // Old format from NarrativeQuickActions
+    rollMessage = `Rolling ${rollData}`
+  }
+  
   handleSubmit(rollMessage)
 }
 
@@ -385,6 +483,7 @@ onMounted(() => {
   padding: 1rem;
   background: rgba(0, 0, 0, 0.2);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative; /* For suggestions positioning */
 }
 
 /* Custom scrollbar for messages */
@@ -432,5 +531,11 @@ onMounted(() => {
 
 .fixed {
   animation: slideInRight 0.3s ease-out;
+}
+
+/* Ensure input field is properly selectable */
+.narrative-chat :deep(.narrative-input input) {
+  user-select: text;
+  cursor: text;
 }
 </style>
