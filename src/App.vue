@@ -31,7 +31,7 @@
       class="narration-container"
       :character-state="characterState"
     />
-   
+
     <!-- MODALS -->
     <WebChatModal v-if="showWebChat" @close="showWebChat = false" />
     <NotificationModal 
@@ -71,7 +71,7 @@ const pages = [
   { id: 'character', label: '⚔️ Character', component: CharacterView },
   { id: 'party', label: '👥 Party', component: PartyView },
   { id: 'chat', label: '🤖 AI Assistant', component: ChatGPTView },
-  { id: 'session-prep', label: '🎯 Session Prep', component: SessionPrepView },
+  { id: 'session-prep', label: '🚀 Campaign Start', component: SessionPrepView },
   { id: 'automation', label: '⚙️ Automation', component: AutomationView },
   { id: 'map', label: '🗺️ Map', component: TacticalMapView },
   { id: 'settings', label: '⚙️ Settings', component: SettingsView }
