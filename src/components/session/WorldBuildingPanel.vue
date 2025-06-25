@@ -7,24 +7,34 @@
           <h2 class="text-2xl font-bold text-emerald-400 mb-1">🌍 World Building Workshop</h2>
           <p class="text-sm text-gray-400">Create custom content, rules, and lore for your campaign</p>
         </div>
-        <div class="flex items-center gap-4">
-          <button
-            @click="saveWorldData"
-            class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-semibold"
-          >
-            💾 Save World
-          </button>
-          <button
-            @click="showImportModal = true"
-            class="bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded text-sm font-semibold"
-          >
-            📥 Import Content
-          </button>
-          <div class="text-xs text-gray-400 text-right">
-            <div>Content Generated: {{ totalContentCount }}</div>
-            <div>Est. Pages: {{ estimatedPages }}</div>
-          </div>
-        </div>
+        <div class="flex items-center gap-2">
+  <button
+    @click="saveWorldData"
+    class="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded text-sm font-semibold"
+    :disabled="generatedContent.length === 0"
+    title="Save world to file"
+  >
+    💾 Save World
+  </button>
+  <button
+    @click="loadWorldFromFile"
+    class="bg-green-600 hover:bg-green-500 px-3 py-2 rounded text-sm font-semibold"
+    title="Load world from file"
+  >
+    📂 Load World
+  </button>
+  <button
+    @click="showImportModal = true"
+    class="bg-amber-600 hover:bg-amber-500 px-3 py-2 rounded text-sm font-semibold"
+    title="Import content from text"
+  >
+    📥 Import Content
+  </button>
+  <div class="text-xs text-gray-400 text-right ml-2">
+    <div>Content Generated: {{ totalContentCount }}</div>
+    <div>Est. Pages: {{ estimatedPages }}</div>
+  </div>
+</div>
       </div>
     </div>
 
@@ -49,6 +59,30 @@
     <div class="flex-1 flex overflow-hidden">
       <!-- Configuration Panel -->
       <div class="w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
+       <!-- World Settings -->
+<div class="mb-4 p-3 bg-gray-800 rounded border border-gray-700">
+  <h4 class="text-sm font-semibold text-gray-300 mb-2">World Settings</h4>
+  <div class="space-y-2">
+    <div>
+      <label class="block text-xs font-medium text-gray-400 mb-1">World Name</label>
+      <input 
+        v-model="worldName" 
+        @change="updateWorldName"
+        placeholder="My Campaign World"
+        class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm"
+      />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-gray-400 mb-1">World Description</label>
+      <textarea 
+        v-model="worldDescription" 
+        @change="updateWorldDescription"
+        placeholder="Brief description of your campaign world..."
+        class="w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm h-16 resize-none"
+      ></textarea>
+    </div>
+  </div>
+</div>
         <!-- Lore & History -->
         <div v-if="currentCategory === 'lore'" class="space-y-4">
           <h3 class="text-lg font-semibold text-emerald-400 mb-3">📚 Lore Generator</h3>
@@ -573,6 +607,8 @@
             </template>
           </div>
           
+
+
           <!-- Items Preview -->
           <div class="space-y-2 max-h-64 overflow-y-auto mb-4">
             <div 
@@ -622,10 +658,191 @@
       </div>
     </div>
   </div>
+<!-- Edit Content Modal -->
+<div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-gray-800 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <h3 class="text-xl font-semibold text-blue-400">✏️ Edit {{ editingContent?.category || 'Content' }}</h3>
+        <p class="text-sm text-gray-400 mt-1">Modify your generated content</p>
+      </div>
+      <button 
+        @click="cancelEdit"
+        class="text-gray-400 hover:text-white text-2xl"
+        title="Close (Esc)"
+      >
+        ×
+      </button>
+    </div>
+    
+    <!-- Edit Form -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="space-y-4">
+        <!-- Title -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Title</label>
+          <input 
+            v-model="editForm.title"
+            class="w-full bg-gray-700 border border-gray-600 rounded p-2"
+          />
+        </div>
+        
+        <!-- Content with toolbar -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-sm font-medium">Content</label>
+            <div class="flex items-center gap-4 text-xs text-gray-400">
+              <span>{{ editForm.content.length }} characters | {{ editForm.content.split(' ').length }} words</span>
+              <button 
+                @click="showFormattingHelp = !showFormattingHelp"
+                class="hover:text-white"
+              >
+                <span v-if="showFormattingHelp">Hide</span>
+                <span v-else>Show</span> Formatting Help
+              </button>
+            </div>
+          </div>
+          
+          <!-- Formatting Help -->
+          <div v-if="showFormattingHelp" class="mb-2 p-2 bg-gray-700 rounded text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <strong class="text-white">Basic Formatting:</strong>
+                <div>**bold text** → <strong>bold text</strong></div>
+                <div>*italic text* → <em>italic text</em></div>
+                <div># Heading → <strong class="text-lg">Heading</strong></div>
+              </div>
+              <div>
+                <strong class="text-white">Lists & More:</strong>
+                <div>- Item → • Item</div>
+                <div>1. Item → 1. Item</div>
+                <div>New paragraph → Double enter</div>
+              </div>
+            </div>
+          </div>
+          
+          <textarea 
+            v-model="editForm.content"
+            @keydown.tab.prevent="handleTab"
+            class="w-full bg-gray-700 border border-gray-600 rounded p-3 text-sm font-mono h-96 resize-none"
+            placeholder="Edit your content here..."
+          ></textarea>
+          
+          <!-- Quick Actions -->
+          <div class="flex gap-2 mt-2">
+            <button 
+              @click="enhanceWithAI"
+              class="bg-purple-600 hover:bg-purple-500 px-3 py-1 rounded text-sm"
+              :disabled="isGenerating"
+            >
+              ✨ Enhance with AI
+            </button>
+            <button 
+              @click="addSection"
+              class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-sm"
+            >
+              ➕ Add Section
+            </button>
+            <button 
+              @click="formatAsStatBlock"
+              v-if="editingContent?.category === 'creatures'"
+              class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded text-sm"
+            >
+              📊 Format Stat Block
+            </button>
+          </div>
+        </div>
+        
+        <!-- Tags -->
+        <div>
+          <label class="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+          <input 
+            v-model="editForm.tags"
+            @keydown.enter.prevent="addTag"
+            placeholder="e.g., city, coastal, trade-hub (press Enter to add)"
+            class="w-full bg-gray-700 border border-gray-600 rounded p-2"
+          />
+          <div v-if="editForm.tags" class="flex gap-2 mt-2 flex-wrap">
+            <span 
+              v-for="tag in editForm.tags.split(',').map(t => t.trim()).filter(t => t)"
+              :key="tag"
+              class="text-xs px-2 py-1 bg-gray-600 rounded flex items-center gap-1"
+            >
+              {{ tag }}
+              <button 
+                @click="removeTag(tag)"
+                class="hover:text-red-400"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        </div>
+        
+        <!-- Stats (if applicable) -->
+        <div v-if="editForm.stats">
+          <label class="block text-sm font-medium mb-1">Stats/Summary</label>
+          <input 
+            v-model="editForm.stats"
+            class="w-full bg-gray-700 border border-gray-600 rounded p-2"
+          />
+        </div>
+        
+        <!-- Preview -->
+        <div class="border-t border-gray-700 pt-4">
+          <div class="flex justify-between items-center mb-2">
+            <label class="block text-sm font-medium">Preview</label>
+            <label class="flex items-center gap-2 text-sm">
+              <input 
+                type="checkbox" 
+                v-model="livePreview"
+                class="rounded"
+              />
+              Live Preview
+            </label>
+          </div>
+          <div 
+            class="bg-gray-900 rounded p-4 max-h-64 overflow-y-auto content-display"
+            v-html="formatContent(livePreview ? editForm.content : editingContent?.content || '')"
+          ></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+      <div class="text-sm text-gray-400">
+        <span v-if="editForm.lastModified">Last modified: {{ formatTime(editForm.lastModified) }}</span>
+        <span class="ml-2">Ctrl+S to save</span>
+      </div>
+      <div class="flex gap-3">
+        <button 
+          @click="cancelEdit"
+          class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded"
+        >
+          Cancel
+        </button>
+        <button 
+          @click="regenerateContent"
+          class="bg-amber-600 hover:bg-amber-500 px-4 py-2 rounded"
+          :disabled="isGenerating"
+        >
+          🔄 Regenerate
+        </button>
+        <button 
+          @click="saveEdit"
+          class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded font-semibold"
+        >
+          💾 Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { characterState } from '../../characterState.js'
 
@@ -654,6 +871,9 @@ const isParsing = ref(false)
 const isImporting = ref(false)
 const importParsed = ref(false)
 const selectedImportCategory = ref('locations')
+const worldName = ref(sessionStorage.getItem('world-name') || 'My Campaign World')
+const worldDescription = ref(sessionStorage.getItem('world-description') || '')
+
 
 // Initialize parsedResults with empty arrays to prevent undefined errors
 const parsedResults = ref({
@@ -668,6 +888,22 @@ const parsedResults = ref({
   factions: [],
   npcs: []
 })
+
+// Edit modal state
+const showEditModal = ref(false)
+const editingContent = ref(null)
+const editingIndex = ref(-1)
+const editForm = ref({
+  title: '',
+  content: '',
+  tags: '',
+  stats: '',
+  lastModified: null
+})
+const showFormattingHelp = ref(false)
+const livePreview = ref(true)
+
+
 
 // Content Categories
 const contentCategories = [
@@ -747,6 +983,15 @@ const worldLocations = computed(() => {
 // Lifecycle
 onMounted(() => {
   loadWorldData()
+worldName.value = sessionStorage.getItem('world-name') || 'My Campaign World'
+  worldDescription.value = sessionStorage.getItem('world-description') || ''
+
+  window.addEventListener('keydown', handleEditKeyboard)
+})
+
+// Add this right after onMounted:
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleEditKeyboard)
 })
 
 // Methods
@@ -1019,47 +1264,263 @@ Format as a proper Pathfinder stat block.`
 }
 
 // NEW: Save world data
+// Save world data to file (WITHOUT using prompt)
+// Fixed saveWorldData function (replace the entire function around line 919)
 function saveWorldData() {
-  const worldData = {
-    name: sessionStorage.getItem('world-name') || 'My Campaign World',
-    description: sessionStorage.getItem('world-description') || '',
-    content: generatedContent.value,
-    locations: worldLocations.value,
-    metadata: {
-      createdAt: new Date().toISOString(),
-      contentCount: totalContentCount.value,
-      categories: {
-        lore: generatedContent.value.filter(c => c.category === 'lore').length,
-        rules: generatedContent.value.filter(c => c.category === 'rules').length,
-        items: generatedContent.value.filter(c => c.category === 'items').length,
-        locations: generatedContent.value.filter(c => c.category === 'locations').length,
-        creatures: generatedContent.value.filter(c => c.category === 'creatures').length
+  if (generatedContent.value.length === 0) {
+    alert('No world content to save yet!')
+    return
+  }
+
+  try {
+    // Use the reactive value, not the ref itself
+    const currentWorldName = worldName.value || 'My Campaign World'
+    const currentWorldDescription = worldDescription.value || ''
+    
+    // Create world data object with plain values only
+    const worldData = {
+      version: '1.0',
+      name: currentWorldName,
+      description: currentWorldDescription,
+      content: generatedContent.value.map(item => ({
+        // Create a plain copy of each content item
+        id: item.id,
+        category: item.category,
+        title: item.title,
+        content: item.content,
+        tags: [...(item.tags || [])], // Copy array
+        stats: item.stats,
+        timestamp: item.timestamp instanceof Date ? item.timestamp.toISOString() : item.timestamp
+      })),
+      locations: worldLocations.value.map(loc => ({
+        // Create plain copy of locations
+        id: loc.id,
+        name: loc.name,
+        type: loc.type,
+        description: loc.description,
+        fullContent: loc.fullContent,
+        npcs: loc.npcs ? [...loc.npcs] : [],
+        features: loc.features ? [...loc.features] : []
+      })),
+      metadata: {
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+        contentCount: totalContentCount.value,
+        worldName: currentWorldName,
+        categories: {
+          lore: generatedContent.value.filter(c => c.category === 'lore').length,
+          rules: generatedContent.value.filter(c => c.category === 'rules').length,
+          items: generatedContent.value.filter(c => c.category === 'items').length,
+          locations: generatedContent.value.filter(c => c.category === 'locations').length,
+          creatures: generatedContent.value.filter(c => c.category === 'creatures').length
+        },
+        statistics: {
+          totalItems: generatedContent.value.length,
+          estimatedPages: estimatedPages.value,
+          characterContext: {
+            name: characterState.name || 'Unknown',
+            level: characterState.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || 1,
+            classes: characterState.classes?.map(c => `${c.className} ${c.level}`).join(', ') || 'Adventurer'
+          }
+        }
       }
+    }
+    
+    // Save to localStorage for auto-load on next visit
+    localStorage.setItem('worldBuildingData', JSON.stringify(worldData))
+    
+    // Save locations separately (plain data)
+    const plainLocations = worldLocations.value.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      type: loc.type,
+      description: loc.description,
+      fullContent: loc.fullContent,
+      npcs: loc.npcs || [],
+      features: loc.features || []
+    }))
+    localStorage.setItem('worldLocations', JSON.stringify(plainLocations))
+    
+    // Convert to JSON with formatting
+    const jsonData = JSON.stringify(worldData, null, 2)
+    
+    // Create filename with date
+    const date = new Date().toISOString().split('T')[0]
+    const safeWorldName = currentWorldName.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const filename = `pathfinder-world-${safeWorldName}-${date}.json`
+    
+    // Download file
+    const blob = new Blob([jsonData], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    // Show success message
+    alert(
+      `✅ World saved successfully!\n\n` +
+      `File: ${filename}\n` +
+      `Items: ${totalContentCount.value}\n` +
+      `Pages: ~${estimatedPages.value}\n\n` +
+      `Tip: Use the world name field to change the world name.`
+    )
+    
+  } catch (error) {
+    console.error('Save failed:', error)
+    alert('Failed to save world content. Please try again.')
+  }
+}
+// Auto-save to localStorage only (without downloading file)
+function autoSaveWorld() {
+  if (generatedContent.value.length === 0) return
+  
+  try {
+    const currentWorldName = worldName.value || 'My Campaign World'
+    const currentWorldDescription = worldDescription.value || ''
+    
+    const worldData = {
+      version: '1.0',
+      name: currentWorldName,
+      description: currentWorldDescription,
+      content: generatedContent.value.map(item => ({
+        id: item.id,
+        category: item.category,
+        title: item.title,
+        content: item.content,
+        tags: [...(item.tags || [])],
+        stats: item.stats,
+        timestamp: item.timestamp instanceof Date ? item.timestamp.toISOString() : item.timestamp,
+        lastModified: item.lastModified instanceof Date ? item.lastModified.toISOString() : item.lastModified
+      })),
+      metadata: {
+        lastAutoSave: new Date().toISOString(),
+        contentCount: totalContentCount.value
+      }
+    }
+    
+    localStorage.setItem('worldBuildingData', JSON.stringify(worldData))
+    
+  } catch (error) {
+    console.error('Auto-save failed:', error)
+  }
+}
+// NEW: Load world data on mount
+function loadWorldFromFile() {
+  // Create file input
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    
+    try {
+      // Read file
+      const text = await file.text()
+      const worldData = JSON.parse(text)
+      
+      // Validate data structure
+      if (!worldData.content || !Array.isArray(worldData.content)) {
+        throw new Error('Invalid world file format')
+      }
+      
+      // Show preview and confirm
+      const itemCount = worldData.content.length
+      const worldName = worldData.name || worldData.metadata?.worldName || 'Unknown World'
+      const createdDate = worldData.metadata?.createdAt ? 
+        new Date(worldData.metadata.createdAt).toLocaleDateString() : 
+        'Unknown date'
+      
+      const categories = worldData.metadata?.categories || {}
+      const categoryBreakdown = Object.entries(categories)
+        .filter(([_, count]) => count > 0)
+        .map(([cat, count]) => `${getCategoryIcon(cat)} ${cat}: ${count}`)
+        .join(', ')
+      
+      const proceed = confirm(
+        `Load "${worldName}"?\n\n` +
+        `This file contains ${itemCount} world building items.\n` +
+        `Created: ${createdDate}\n` +
+        `Categories: ${categoryBreakdown || 'Various'}\n\n` +
+        `⚠️ This will REPLACE all current world content!`
+      )
+      
+      if (!proceed) return
+      
+      // Clear current content and load new
+      generatedContent.value = worldData.content.map(item => ({
+        ...item,
+        // Ensure timestamps are Date objects
+        timestamp: new Date(item.timestamp)
+      }))
+      
+      // Update world metadata if available
+      if (worldData.name) {
+  worldName.value = worldData.name  // Update the reactive ref
+  sessionStorage.setItem('world-name', worldData.name)
+}
+if (worldData.description) {
+  worldDescription.value = worldData.description  // Update the reactive ref
+  sessionStorage.setItem('world-description', worldData.description)
+}
+      
+      // Update locations for session prep
+      if (worldData.locations) {
+        localStorage.setItem('worldLocations', JSON.stringify(worldData.locations))
+      }
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('worldBuildingData', JSON.stringify(worldData))
+      
+      // Show success message
+      alert(
+        `✅ World loaded successfully!\n\n` +
+        `World: ${worldName}\n` +
+        `Items: ${itemCount}\n` +
+        `Categories: ${categoryBreakdown || 'Various'}`
+      )
+      
+    } catch (error) {
+      console.error('Load failed:', error)
+      alert('Failed to load world file. Please check the file format and try again.')
     }
   }
   
-  // Save to localStorage
-  localStorage.setItem('worldBuildingData', JSON.stringify(worldData))
-  
-  // Also save locations separately for Session Prep
-  localStorage.setItem('worldLocations', JSON.stringify(worldLocations.value))
-  
-  alert('World data saved successfully!')
+  // Trigger file selection
+  input.click()
 }
-
-// NEW: Load world data on mount
 function loadWorldData() {
   try {
     const savedData = localStorage.getItem('worldBuildingData')
     if (savedData) {
       const worldData = JSON.parse(savedData)
-      generatedContent.value = worldData.content || []
+      
+      // Load content
+      if (worldData.content && Array.isArray(worldData.content)) {
+        generatedContent.value = worldData.content.map(item => ({
+          ...item,
+          // Ensure timestamps are Date objects
+          timestamp: new Date(item.timestamp)
+        }))
+      }
+      
+      // Load world metadata
+      if (worldData.name) {
+        worldName.value = worldData.name
+        sessionStorage.setItem('world-name', worldData.name)
+      }
+      if (worldData.description) {
+        worldDescription.value = worldData.description
+        sessionStorage.setItem('world-description', worldData.description)
+      }
     }
   } catch (error) {
     console.error('Error loading world data:', error)
   }
 }
-
 // NEW: Save location for session prep
 function saveLocationForSessionPrep(location) {
   let locations = []
@@ -1632,11 +2093,365 @@ async function performChatGPTExport(content, options) {
   }
 }
 
+// Open edit modal
 function editContent(content) {
-  // Could open a modal for editing
-  alert('Edit functionality coming soon!')
+  const index = generatedContent.value.findIndex(item => item.id === content.id)
+  if (index === -1) return
+  
+  editingContent.value = content
+  editingIndex.value = index
+  
+  // Populate edit form
+  editForm.value = {
+    title: content.title,
+    content: content.content,
+    tags: content.tags ? content.tags.join(', ') : '',
+    stats: content.stats || '',
+    lastModified: content.lastModified || null
+  }
+  
+  showEditModal.value = true
 }
 
+// Save edited content
+function saveEdit() {
+  if (editingIndex.value === -1) return
+  
+  // Update the content
+  const updatedContent = {
+    ...generatedContent.value[editingIndex.value],
+    title: editForm.value.title,
+    content: editForm.value.content,
+    tags: editForm.value.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
+    stats: editForm.value.stats,
+    lastModified: new Date()
+  }
+  
+  // Update in the array
+  generatedContent.value[editingIndex.value] = updatedContent
+  
+  // Save to localStorage
+  autoSaveWorld()
+  
+  // Close modal
+  showEditModal.value = false
+  editingContent.value = null
+  editingIndex.value = -1
+  
+  alert('Content updated successfully!')
+}
+
+// Cancel editing
+function cancelEdit() {
+  showEditModal.value = false
+  editingContent.value = null
+  editingIndex.value = -1
+  editForm.value = {
+    title: '',
+    content: '',
+    tags: '',
+    stats: '',
+    lastModified: null
+  }
+}
+// Regenerate content with AI
+async function regenerateContent() {
+  if (!editingContent.value) return
+  
+  const confirmRegen = confirm(
+    'This will use AI to regenerate this content based on the original parameters.\n\n' +
+    'Current edits will be lost. Continue?'
+  )
+  
+  if (!confirmRegen) return
+  
+  isGenerating.value = true
+  progressMessage.value = 'Regenerating Content'
+  progressDetail.value = 'Creating new version...'
+  
+  try {
+    let prompt = ''
+    const category = editingContent.value.category
+    
+    // Build prompt based on category
+    switch (category) {
+      case 'lore':
+        prompt = `Regenerate this Pathfinder 1e lore with a fresh perspective:
+        
+Title: ${editingContent.value.title}
+Previous version for context (create something new, don't copy):
+${editingContent.value.content.substring(0, 500)}...
+
+Create entirely new content that:
+1. Maintains the same subject and scope
+2. Provides different details and perspectives
+3. Includes new plot hooks and secrets
+4. Remains consistent with Pathfinder 1e
+
+Make it fresh and exciting while covering the same topic.`
+        break
+        
+      case 'locations':
+        prompt = `Regenerate this Pathfinder 1e location with new details:
+        
+Location Name: ${editingContent.value.title}
+Previous version summary (create something new):
+${editingContent.value.content.substring(0, 500)}...
+
+Create an entirely new version that:
+1. Keeps the same location name and basic type
+2. Provides different history and features
+3. Includes new NPCs and secrets
+4. Offers fresh adventure hooks
+
+Make it feel like a completely different take on the same place.`
+        break
+        
+      case 'items':
+        prompt = `Regenerate this Pathfinder 1e item collection with new items:
+        
+Item Type: ${editingContent.value.title}
+Previous items (create different ones):
+${editingContent.value.content.substring(0, 500)}...
+
+Create entirely new items that:
+1. Match the same rarity and type
+2. Have different abilities and lore
+3. Include unique mechanics
+4. Remain balanced for Pathfinder 1e
+
+No duplicates from the previous version.`
+        break
+        
+      case 'creatures':
+        prompt = `Regenerate this Pathfinder 1e creature with a new design:
+        
+Creature Type: ${editingContent.value.title}
+Previous version (create something different):
+${editingContent.value.content.substring(0, 500)}...
+
+Create an entirely new creature that:
+1. Maintains the same CR and type
+2. Has different abilities and tactics
+3. Features new lore and ecology
+4. Uses different mechanics
+
+Make it a fresh take on the concept.`
+        break
+        
+      case 'rules':
+        prompt = `Regenerate this Pathfinder 1e custom rule with a new approach:
+        
+Rule Name: ${editingContent.value.title}
+Previous version (create a different solution):
+${editingContent.value.content.substring(0, 500)}...
+
+Create an entirely new rule that:
+1. Addresses the same game issue
+2. Uses different mechanics
+3. Provides alternative balance points
+4. Includes new examples
+
+Approach the problem from a different angle.`
+        break
+        
+      default:
+        prompt = `Regenerate this content with a fresh perspective:
+${editingContent.value.title}
+Create new content that maintains the theme but provides entirely different details.`
+    }
+    
+    const content = await callOpenAI(prompt)
+    
+    // Update the edit form with new content
+    editForm.value.content = content
+    editForm.value.lastModified = new Date()
+    
+    progressMessage.value = ''
+    progressDetail.value = ''
+    
+  } catch (error) {
+    console.error('Regeneration failed:', error)
+    alert('Failed to regenerate content: ' + error.message)
+  } finally {
+    isGenerating.value = false
+  }
+}
+// Enhance content with AI
+async function enhanceWithAI() {
+  const action = confirm(
+    'AI will enhance your content by:\n\n' +
+    '• Adding more vivid descriptions\n' +
+    '• Improving narrative flow\n' +
+    '• Adding Pathfinder-specific details\n' +
+    '• Maintaining your core content\n\n' +
+    'Continue?'
+  )
+  
+  if (!action) return
+  
+  isGenerating.value = true
+  progressMessage.value = 'Enhancing Content'
+  progressDetail.value = 'Adding depth and detail...'
+  
+  try {
+    const prompt = `Enhance this Pathfinder 1e content while maintaining its core information:
+
+Title: ${editForm.value.title}
+Category: ${editingContent.value.category}
+Current Content:
+${editForm.value.content}
+
+Enhancement Guidelines:
+1. Keep all existing information intact
+2. Add more vivid descriptions and sensory details
+3. Expand on mechanics with Pathfinder-specific rules
+4. Add atmospheric details and narrative hooks
+5. Improve the flow and readability
+6. Add any missing standard elements for this content type
+
+Return the enhanced version while preserving the original structure and intent.`
+
+    const enhanced = await callOpenAI(prompt)
+    editForm.value.content = enhanced
+    editForm.value.lastModified = new Date()
+    
+  } catch (error) {
+    console.error('Enhancement failed:', error)
+    alert('Failed to enhance content: ' + error.message)
+  } finally {
+    isGenerating.value = false
+  }
+}
+
+// Add a new section to content
+function addSection() {
+  const sectionTemplates = {
+    lore: '\n\n## New Section\n\nAdd your content here...',
+    locations: '\n\n## Additional Area\n\n**Description:** \n\n**Notable Features:**\n- \n- ',
+    items: '\n\n---\n\n**Item Name**\n\n*Description:* \n\n*Mechanics:* \n\n*Value:* gp',
+    creatures: '\n\n**Special Ability Name**\n\n*Description:* \n\n*Mechanics:* ',
+    rules: '\n\n### Additional Rule Component\n\n**Mechanic:** \n\n**Example:** '
+  }
+  
+  const template = sectionTemplates[editingContent.value?.category] || '\n\n## New Section\n\nAdd content here...'
+  
+  // Insert at cursor position if possible
+  const textarea = document.querySelector('textarea')
+  if (textarea) {
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = editForm.value.content
+    editForm.value.content = text.substring(0, start) + template + text.substring(end)
+    
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      textarea.selectionStart = start + template.length
+      textarea.selectionEnd = start + template.length
+      textarea.focus()
+    }, 0)
+  } else {
+    editForm.value.content += template
+  }
+}
+
+// Format content as stat block (for creatures)
+function formatAsStatBlock() {
+  const template = `**${editForm.value.title}**
+CR ${editingContent.value.stats || '1'} • XP ${getCRExperience(editingContent.value.stats)}
+
+**Alignment** Size Type
+**Init** +0; **Senses** Perception +0
+
+**DEFENSE**
+**AC** 10, touch 10, flat-footed 10
+**hp** 0 (0d0)
+**Fort** +0, **Ref** +0, **Will** +0
+
+**OFFENSE**
+**Speed** 30 ft.
+**Melee** attack +0 (damage)
+**Ranged** attack +0 (damage)
+**Special Attacks** 
+
+**STATISTICS**
+**Str** 10, **Dex** 10, **Con** 10, **Int** 10, **Wis** 10, **Cha** 10
+**Base Atk** +0; **CMB** +0; **CMD** 10
+**Feats** 
+**Skills** 
+**Languages** 
+
+**SPECIAL ABILITIES**
+**Ability Name (Ex/Su/Sp)** Description
+
+**ECOLOGY**
+**Environment** 
+**Organization** 
+**Treasure** `
+
+  editForm.value.content = template + '\n\n' + editForm.value.content
+}
+
+// Get CR experience value
+function getCRExperience(cr) {
+  const crXP = {
+    '0.125': 50, '0.25': 100, '0.5': 200, '1': 400, '2': 600,
+    '3': 800, '4': 1200, '5': 1600, '6': 2400, '7': 3200,
+    '8': 4800, '9': 6400, '10': 9600, '11': 12800, '12': 19200,
+    '13': 25600, '14': 38400, '15': 51200, '16': 76800, '17': 102400,
+    '18': 153600, '19': 204800, '20': 307200
+  }
+  return crXP[cr] || 400
+}
+
+// Handle tab key in textarea
+function handleTab(event) {
+  const textarea = event.target
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = textarea.value
+  
+  // Insert tab character
+  editForm.value.content = text.substring(0, start) + '\t' + text.substring(end)
+  
+  // Move cursor
+  setTimeout(() => {
+    textarea.selectionStart = start + 1
+    textarea.selectionEnd = start + 1
+  }, 0)
+}
+
+// Add tag on enter
+function addTag(event) {
+  const input = event.target.value.trim()
+  if (input && !editForm.value.tags.includes(input)) {
+    editForm.value.tags = editForm.value.tags 
+      ? `${editForm.value.tags}, ${input}`
+      : input
+    event.target.value = ''
+  }
+}
+
+// Remove a specific tag
+function removeTag(tagToRemove) {
+  const tags = editForm.value.tags
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t && t !== tagToRemove)
+  editForm.value.tags = tags.join(', ')
+}
+
+// Add keyboard shortcut handler
+function handleEditKeyboard(event) {
+  if (showEditModal.value) {
+    if (event.key === 'Escape') {
+      cancelEdit()
+    } else if (event.ctrlKey && event.key === 's') {
+      event.preventDefault()
+      saveEdit()
+    }
+  }
+}
 function removeContent(index) {
   if (confirm('Remove this content?')) {
     generatedContent.value.splice(index, 1)
@@ -1771,7 +2586,13 @@ function getRandomTip() {
   ]
   return tips[Math.floor(Math.random() * tips.length)]
 }
+function updateWorldName() {
+  sessionStorage.setItem('world-name', worldName.value)
+}
 
+function updateWorldDescription() {
+  sessionStorage.setItem('world-description', worldDescription.value)
+}
 // Watch for category changes
 watch(currentCategory, (newCategory) => {
   progressMessage.value = ''
@@ -1783,6 +2604,31 @@ watch(currentCategory, (newCategory) => {
 .content-display {
   max-height: 400px;
   overflow-y: auto;
+}
+/* Disabled button styling */
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  opacity: 0.5;
+  background-color: inherit !important;
+}
+
+/* Button hover tooltips */
+button[title] {
+  position: relative;
+}
+
+/* Ensure buttons stay visible and aligned */
+.flex.items-center.gap-2 {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.flex.items-center.gap-2 button {
+  flex-shrink: 0;
 }
 
 .content-display::-webkit-scrollbar {

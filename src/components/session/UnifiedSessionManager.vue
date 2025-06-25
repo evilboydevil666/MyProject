@@ -6,7 +6,7 @@
       <div class="flex justify-between items-start">
         <div>
           <h2 class="text-2xl font-bold text-blue-300 mb-1">🎯 Session Command Center</h2>
-          <p class="text-sm text-gray-400">Unified workflow for session prep, world building, live support, and post-session processing</p>
+          <p class="text-sm text-gray-400">Unified workflow for world building, campaign start, live support, and post-session processing</p>
         </div>
         <div class="text-right">
           <div class="text-xs text-gray-400">Daily API Budget</div>
@@ -42,90 +42,237 @@
 
     <!-- Workflow Content -->
     <div class="flex-1 overflow-hidden">
-      <!-- Pre-Session Planning -->
-      <div v-if="currentWorkflow === 'prep'" class="h-full flex">
-        <div class="w-1/3 border-r border-gray-700 p-4">
-          <h3 class="text-lg font-semibold mb-4 text-green-300">📋 Session Setup</h3>
+      <!-- World Building -->
+      <div v-if="currentWorkflow === 'world'" class="h-full">
+        <WorldBuildingPanel 
+          ref="worldBuildingPanelRef"
+          :api-key="apiKey"
+          @content-generated="handleContentGenerated"
+          @usage-updated="handleUsageUpdated"
+        />
+      </div>
+
+      <!-- Campaign Start -->
+      <div v-if="currentWorkflow === 'campaign'" class="h-full flex">
+        <div class="w-1/3 border-r border-gray-700 p-4 overflow-y-auto">
+          <h3 class="text-lg font-semibold mb-4 text-green-300">🚀 Campaign Start</h3>
+          
+          <!-- World Building Data Indicator -->
+          <div v-if="worldBuildingData.loaded" class="bg-green-900 border border-green-600 rounded p-3 mb-4">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              <span class="text-sm font-semibold text-green-300">World Data Loaded</span>
+            </div>
+            <div class="text-xs text-green-200 mt-1">
+              <div v-if="worldBuildingData.worldName">World: {{ worldBuildingData.worldName }}</div>
+              <div v-if="worldBuildingData.locations > 0">{{ worldBuildingData.locations }} locations available</div>
+            </div>
+          </div>
+          <div v-else class="bg-yellow-900 border border-yellow-600 rounded p-3 mb-4">
+            <div class="flex items-center gap-2">
+              <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+              <span class="text-sm font-semibold text-yellow-300">No World Data</span>
+            </div>
+            <div class="text-xs text-yellow-200 mt-1">Import world data for enhanced content</div>
+          </div>
           
           <div class="space-y-4">
+            <!-- Campaign Type -->
             <div>
-              <label class="block text-sm font-medium mb-1">Session Type</label>
-              <select v-model="sessionConfig.type" class="w-full bg-gray-700 border border-gray-600 rounded p-2">
-                <option value="exploration">🗺️ Exploration</option>
-                <option value="combat">⚔️ Combat</option>
-                <option value="social">👥 Social</option>
-                <option value="mystery">🔍 Investigation</option>
-                <option value="mixed">🎭 Mixed Adventure</option>
-              </select>
+              <label class="block text-sm font-medium mb-2">Campaign Type</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.types.combat" class="rounded bg-gray-700 border-gray-600">
+                  <span>⚔️ Combat - Face dangerous foes and epic battles</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.types.exploration" class="rounded bg-gray-700 border-gray-600">
+                  <span>🗺️ Exploration - Discover new lands and hidden secrets</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.types.social" class="rounded bg-gray-700 border-gray-600">
+                  <span>👥 Social - Navigate politics and relationships</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.types.investigation" class="rounded bg-gray-700 border-gray-600">
+                  <span>🔍 Investigation - Solve mysteries and uncover conspiracies</span>
+                </label>
+              </div>
             </div>
 
+            <!-- Adventure Scale -->
             <div>
-              <label class="block text-sm font-medium mb-1">Expected Duration</label>
-              <select v-model="sessionConfig.duration" class="w-full bg-gray-700 border border-gray-600 rounded p-2">
-                <option value="2">2 hours</option>
-                <option value="3">3 hours</option>
-                <option value="4">4 hours</option>
-                <option value="5">5+ hours</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium mb-1">Primary Location</label>
+              <label class="block text-sm font-medium mb-2">
+                Adventure Scale ({{ campaignConfig.adventureScale }})
+              </label>
               <input 
-                v-model="sessionConfig.location" 
-                placeholder="e.g., haunted mansion, dragon's lair"
+                type="range" 
+                v-model="campaignConfig.adventureScale" 
+                min="1" 
+                max="10" 
+                class="w-full"
+              >
+              <div class="flex justify-between text-xs text-gray-400 mt-1">
+                <span>1 - Local Hero</span>
+                <span>5 - Regional Champion</span>
+                <span>10 - World Savior</span>
+              </div>
+            </div>
+
+            <!-- Character Role -->
+            <div>
+              <label class="block text-sm font-medium mb-2">Character Role</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2">
+                  <input 
+                    type="radio" 
+                    v-model="campaignConfig.characterRole" 
+                    value="hero" 
+                    class="bg-gray-700 border-gray-600"
+                  >
+                  <span>🦸 Destined Hero - Born for greatness</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input 
+                    type="radio" 
+                    v-model="campaignConfig.characterRole" 
+                    value="average" 
+                    class="bg-gray-700 border-gray-600"
+                  >
+                  <span>👤 Average Person - Thrust into adventure</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input 
+                    type="radio" 
+                    v-model="campaignConfig.characterRole" 
+                    value="reluctant" 
+                    class="bg-gray-700 border-gray-600"
+                  >
+                  <span>😰 Reluctant Adventurer - Forced by circumstances</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Campaign Themes -->
+            <div>
+              <label class="block text-sm font-medium mb-2">Campaign Themes</label>
+              <div class="space-y-2">
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.themes.darkFantasy" class="rounded bg-gray-700 border-gray-600">
+                  <span>🌑 Dark Fantasy - Grim and gritty</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.themes.highFantasy" class="rounded bg-gray-700 border-gray-600">
+                  <span>✨ High Fantasy - Magic and wonder</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.themes.political" class="rounded bg-gray-700 border-gray-600">
+                  <span>👑 Political Intrigue - Power and betrayal</span>
+                </label>
+                <label class="flex items-center gap-2">
+                  <input type="checkbox" v-model="campaignConfig.themes.survival" class="rounded bg-gray-700 border-gray-600">
+                  <span>🏕️ Survival - Against the odds</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Starting Location -->
+            <div>
+              <label class="block text-sm font-medium mb-1">Starting Location</label>
+              <div v-if="worldBuildingData.loaded && availableLocations.length > 0" class="mb-2">
+                <select 
+                  v-model="campaignConfig.startingLocation" 
+                  class="w-full bg-gray-700 border border-gray-600 rounded p-2 max-h-48 overflow-y-auto"
+                  size="1"
+                  style="max-height: 200px;"
+                >
+                  <option value="">Custom Location</option>
+                  <optgroup v-if="getCitiesAndTowns().length > 0" label="Cities & Towns">
+                    <option 
+                      v-for="location in getCitiesAndTowns()" 
+                      :key="location.id" 
+                      :value="location.name"
+                    >
+                      {{ location.name }} ({{ location.type }})
+                    </option>
+                  </optgroup>
+                  <optgroup v-if="getOtherLocations().length > 0" label="Other Locations">
+                    <option 
+                      v-for="location in getOtherLocations()" 
+                      :key="location.id" 
+                      :value="location.name"
+                    >
+                      {{ location.name }} ({{ location.type }})
+                    </option>
+                  </optgroup>
+                </select>
+                <div class="text-xs text-gray-400 mt-1">
+                  {{ availableLocations.length }} locations available from world data
+                </div>
+              </div>
+              <input 
+                v-if="!campaignConfig.startingLocation"
+                v-model="campaignConfig.customLocation" 
+                placeholder="e.g., small farming village, bustling port city"
                 class="w-full bg-gray-700 border border-gray-600 rounded p-2"
               />
             </div>
 
+            <!-- Starting Situation -->
             <div>
-              <label class="block text-sm font-medium mb-1">Story Goals</label>
+              <label class="block text-sm font-medium mb-1">Starting Situation</label>
               <textarea 
-                v-model="sessionConfig.goals" 
-                placeholder="What should happen this session?"
+                v-model="campaignConfig.startingSituation" 
+                placeholder="What brings the character into the adventure?"
                 class="w-full bg-gray-700 border border-gray-600 rounded p-2 h-20 resize-none"
               ></textarea>
             </div>
 
             <button 
-              @click="generateSessionPlan"
-              :disabled="isGenerating"
-              class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 px-4 py-3 rounded font-semibold"
+              @click="generateCampaignStart"
+              :disabled="isGenerating || !isValidCampaignConfig"
+              class="w-full bg-green-600 hover:bg-green-500 disabled:bg-gray-600 px-4 py-3 rounded font-semibold"
             >
-              {{ isGenerating ? '🤖 Generating...' : '🚀 Generate Session Plan' }}
+              {{ isGenerating ? '🤖 Creating Your Adventure...' : '🚀 Generate Campaign Opening' }}
             </button>
           </div>
         </div>
 
         <div class="flex-1 p-4 overflow-auto">
-          <div v-if="sessionPlan.overview" class="space-y-4">
+          <div v-if="campaignStart.opening" class="space-y-4">
             <div class="bg-gray-800 rounded p-4">
-              <h4 class="text-lg font-semibold mb-2 text-yellow-300">📖 Session Overview</h4>
-              <div v-html="formatContent(sessionPlan.overview)"></div>
+              <h4 class="text-lg font-semibold mb-2 text-yellow-300">🎬 Campaign Opening</h4>
+              <div v-html="formatContent(campaignStart.opening)" class="mb-4"></div>
+              
+              <div v-if="campaignStart.firstScene" class="mt-4 border-t border-gray-700 pt-4">
+                <h5 class="font-semibold mb-2 text-blue-300">📍 Opening Scene</h5>
+                <div v-html="formatContent(campaignStart.firstScene)"></div>
+              </div>
             </div>
 
-            <div v-if="sessionPlan.encounters.length > 0" class="bg-gray-800 rounded p-4">
-              <h4 class="text-lg font-semibold mb-2 text-red-300">⚔️ Encounters</h4>
+            <div v-if="campaignStart.hooks.length > 0" class="bg-gray-800 rounded p-4">
+              <h4 class="text-lg font-semibold mb-2 text-green-300">🎣 Adventure Hooks</h4>
               <div class="space-y-2">
                 <div 
-                  v-for="encounter in sessionPlan.encounters" 
-                  :key="encounter.id"
-                  class="bg-gray-900 rounded p-3 border border-red-800"
+                  v-for="hook in campaignStart.hooks" 
+                  :key="hook.id"
+                  class="bg-gray-900 rounded p-3 border-l-4 border-green-500"
                 >
-                  <div class="flex justify-between items-start">
-                    <h5 class="font-semibold">{{ encounter.name }}</h5>
-                    <span class="text-xs bg-red-700 px-2 py-1 rounded">CR {{ encounter.cr }}</span>
-                  </div>
-                  <p class="text-sm text-gray-300 mt-1">{{ encounter.description }}</p>
+                  <h5 class="font-semibold text-green-200">{{ hook.title }}</h5>
+                  <p class="text-sm text-gray-300 mt-1">{{ hook.description }}</p>
                 </div>
               </div>
             </div>
 
-            <div v-if="sessionPlan.npcs.length > 0" class="bg-gray-800 rounded p-4">
-              <h4 class="text-lg font-semibold mb-2 text-purple-300">👥 NPCs</h4>
+            <div v-if="campaignStart.npcs.length > 0" class="bg-gray-800 rounded p-4">
+              <h4 class="text-lg font-semibold mb-2 text-purple-300">👥 Key NPCs</h4>
               <div class="space-y-2">
                 <div 
-                  v-for="npc in sessionPlan.npcs" 
+                  v-for="npc in campaignStart.npcs" 
                   :key="npc.id"
                   class="bg-gray-900 rounded p-3 border border-purple-800"
                 >
@@ -133,26 +280,35 @@
                     <h5 class="font-semibold">{{ npc.name }}</h5>
                     <span class="text-xs bg-purple-700 px-2 py-1 rounded">{{ npc.role }}</span>
                   </div>
-                  <p class="text-sm text-gray-300 mt-1">{{ npc.personality }}</p>
+                  <p class="text-sm text-gray-300 mt-1">{{ npc.description }}</p>
+                  <p class="text-xs text-gray-400 mt-2 italic">"{{ npc.greeting }}"</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="campaignStart.challenges.length > 0" class="bg-gray-800 rounded p-4">
+              <h4 class="text-lg font-semibold mb-2 text-red-300">⚔️ Initial Challenges</h4>
+              <div class="space-y-2">
+                <div 
+                  v-for="challenge in campaignStart.challenges" 
+                  :key="challenge.id"
+                  class="bg-gray-900 rounded p-3 border border-red-800"
+                >
+                  <div class="flex justify-between items-start">
+                    <h5 class="font-semibold">{{ challenge.name }}</h5>
+                    <span class="text-xs bg-red-700 px-2 py-1 rounded">{{ challenge.type }}</span>
+                  </div>
+                  <p class="text-sm text-gray-300 mt-1">{{ challenge.description }}</p>
                 </div>
               </div>
             </div>
           </div>
 
           <div v-else class="text-center text-gray-500 py-8">
-            <h4 class="text-lg mb-2">📝 Session Planning</h4>
-            <p class="text-sm">Configure your session and generate a complete plan</p>
+            <h4 class="text-lg mb-2">🌟 Begin Your Adventure</h4>
+            <p class="text-sm">Configure your campaign settings and generate an epic opening</p>
           </div>
         </div>
-      </div>
-
-      <!-- World Building -->
-      <div v-if="currentWorkflow === 'world'" class="h-full">
-        <WorldBuildingPanel 
-          :api-key="apiKey"
-          @content-generated="handleWorldBuildingContent"
-          @usage-updated="handleUsageUpdate"
-        />
       </div>
 
       <!-- Live Session Support -->
@@ -296,10 +452,6 @@
                   <span>{{ sessionStats.itemsGenerated }}</span>
                 </div>
                 <div class="flex justify-between">
-                  <span>World Building Items:</span>
-                  <span>{{ worldBuildingStats.totalItems }}</span>
-                </div>
-                <div class="flex justify-between">
                   <span>Cache Hits:</span>
                   <span>{{ sessionStats.cacheHits }}%</span>
                 </div>
@@ -344,34 +496,69 @@ import WorldBuildingPanel from './WorldBuildingPanel.vue'
 
 // State
 const apiManager = new EnhancedAPIManager()
-const currentWorkflow = ref('prep')
+const currentWorkflow = ref('world')
 const isGenerating = ref(false)
 const progress = ref(0)
 const progressMessage = ref('')
 const progressDetail = ref('')
-const apiKey = ref('')
 
-// Workflow configuration - Updated to include World Building
+// Component refs
+const worldBuildingPanelRef = ref(null)
+
+// API Key for World Building
+const apiKey = ref(localStorage.getItem('openai-api-key') || '')
+
+// World Building Data
+const worldBuildingData = ref({
+  loaded: false,
+  worldName: '',
+  locations: 0
+})
+
+const availableLocations = ref([])
+
+// Workflow configuration
 const workflows = [
-  { id: 'prep', name: 'Pre-Session', icon: '📋' },
   { id: 'world', name: 'World Building', icon: '🌍' },
+  { id: 'campaign', name: 'Campaign Start', icon: '🚀' },
   { id: 'live', name: 'Live Support', icon: '⚡' },
   { id: 'post', name: 'Post-Session', icon: '📊' }
 ]
 
-// Session planning state
-const sessionConfig = ref({
-  type: 'mixed',
-  duration: '3',
-  location: '',
-  goals: ''
+// Campaign configuration
+const campaignConfig = ref({
+  types: {
+    combat: false,
+    exploration: false,
+    social: false,
+    investigation: false
+  },
+  adventureScale: 1,
+  characterRole: 'average',
+  themes: {
+    darkFantasy: false,
+    highFantasy: false,
+    political: false,
+    survival: false
+  },
+  startingLocation: '',
+  customLocation: '',
+  startingSituation: ''
 })
 
-const sessionPlan = ref({
-  overview: '',
-  encounters: [],
+const campaignStart = ref({
+  opening: '',
+  firstScene: '',
+  hooks: [],
   npcs: [],
-  locations: []
+  challenges: []
+})
+
+// Computed
+const isValidCampaignConfig = computed(() => {
+  const hasType = Object.values(campaignConfig.value.types).some(v => v)
+  const hasLocation = campaignConfig.value.startingLocation || campaignConfig.value.customLocation
+  return hasType && hasLocation
 })
 
 // Live support state
@@ -404,12 +591,6 @@ const sessionStats = ref({
   totalCost: 0
 })
 
-// World building stats
-const worldBuildingStats = ref({
-  totalItems: 0,
-  categories: {}
-})
-
 // Budget tracking
 const dailyUsage = ref(0)
 const dailyBudget = ref(10.00)
@@ -420,81 +601,200 @@ const budgetUsedPercentage = computed(() =>
 
 // Methods
 function getSkillModifier(skillName) {
-  const skill = characterState.skills?.find(s => s.name === skillName)
+  const skill = characterState.skills.find(s => s.name === skillName)
   if (!skill) return 0
   
-  const abilityMod = characterState.abilities?.[skill.ability]?.modifier || 0
-  return skill.ranks + abilityMod + (skill.misc || 0)
+  const abilityMod = Math.floor((characterState.abilityScores[skill.ability] - 10) / 2)
+  return skill.rank + abilityMod + (skill.misc || 0)
 }
 
-async function generateSessionPlan() {
+function getCitiesAndTowns() {
+  const cityTypes = ['city', 'town', 'village', 'settlement', 'metropolis', 'hamlet']
+  return availableLocations.value.filter(loc => 
+    cityTypes.some(type => loc.type?.toLowerCase().includes(type))
+  )
+}
+
+function getOtherLocations() {
+  const cityTypes = ['city', 'town', 'village', 'settlement', 'metropolis', 'hamlet']
+  return availableLocations.value.filter(loc => 
+    !cityTypes.some(type => loc.type?.toLowerCase().includes(type))
+  )
+}
+
+function loadWorldBuildingData() {
+  try {
+    const worldData = localStorage.getItem('worldBuildingData')
+    if (worldData) {
+      const parsed = JSON.parse(worldData)
+      worldBuildingData.value = {
+        loaded: true,
+        worldName: parsed.name || 'Unnamed World',
+        locations: parsed.locations?.length || 0
+      }
+      
+      // Load all locations, prioritizing towns and cities
+      if (parsed.locations && parsed.locations.length > 0) {
+        // Sort locations to put towns/cities first
+        availableLocations.value = parsed.locations.sort((a, b) => {
+          const priorityTypes = ['city', 'town', 'village', 'settlement']
+          const aIndex = priorityTypes.findIndex(type => a.type?.toLowerCase().includes(type))
+          const bIndex = priorityTypes.findIndex(type => b.type?.toLowerCase().includes(type))
+          
+          // If both are priority types, sort by index
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex
+          // If only a is priority, it comes first
+          if (aIndex !== -1) return -1
+          // If only b is priority, it comes first
+          if (bIndex !== -1) return 1
+          // Otherwise maintain original order
+          return 0
+        })
+      }
+    }
+  } catch (error) {
+    console.warn('Could not load world building data:', error)
+  }
+}
+
+async function generateCampaignStart() {
   isGenerating.value = true
   progress.value = 0
-  progressMessage.value = 'Generating Session Plan'
+  progressMessage.value = 'Creating Your Adventure'
   
   try {
-    // Step 1: Overview
-    progressDetail.value = 'Creating session overview...'
+    // Build campaign parameters
+    const selectedTypes = Object.entries(campaignConfig.value.types)
+      .filter(([_, v]) => v)
+      .map(([k]) => k)
+      .join(', ')
+    
+    const selectedThemes = Object.entries(campaignConfig.value.themes)
+      .filter(([_, v]) => v)
+      .map(([k]) => k)
+      .join(', ')
+    
+    const location = campaignConfig.value.startingLocation || campaignConfig.value.customLocation
+    
+    // Step 1: Campaign Opening
+    progressDetail.value = 'Crafting the perfect opening...'
     progress.value = 20
     
-    const overviewResponse = await apiManager.makeRequest({
-      prompt: `Create a session overview for Pathfinder 1e:
-        Type: ${sessionConfig.value.type}
-        Duration: ${sessionConfig.value.duration} hours
-        Location: ${sessionConfig.value.location}
-        Goals: ${sessionConfig.value.goals}
+    const openingResponse = await apiManager.makeRequest({
+      prompt: `Create an epic campaign opening for Pathfinder 1e:
         Character: ${characterState.name} (Level ${getTotalLevel()})
+        Character Role: ${campaignConfig.value.characterRole}
+        Campaign Types: ${selectedTypes || 'mixed adventure'}
+        Adventure Scale: ${campaignConfig.value.adventureScale}/10
+        Themes: ${selectedThemes || 'classic fantasy'}
+        Starting Location: ${location}
+        Situation: ${campaignConfig.value.startingSituation || 'The adventure begins...'}
         
-        Provide a compelling session structure with 3-4 major scenes.`,
-      cacheKey: `session_overview_${sessionConfig.value.type}_${getTotalLevel()}`,
+        Create a compelling opening narrative that:
+        1. Sets the tone for the campaign
+        2. Introduces the starting location vividly
+        3. Explains how the character fits into this world
+        4. Hints at the adventures to come
+        
+        Keep it engaging and about 2-3 paragraphs.`,
+      cacheKey: `campaign_opening_${campaignConfig.value.characterRole}_${campaignConfig.value.adventureScale}`,
       priority: 'high',
       maxTokens: 800
     })
     
-    sessionPlan.value.overview = overviewResponse.content
+    campaignStart.value.opening = openingResponse.content
     
-    // Step 2: Encounters
-    progressDetail.value = 'Designing encounters...'
-    progress.value = 50
+    // Step 2: First Scene
+    progressDetail.value = 'Setting the opening scene...'
+    progress.value = 40
     
-    const encountersResponse = await apiManager.makeRequest({
-      prompt: `Design 2-3 encounters for a ${sessionConfig.value.type} session:
-        Character Level: ${getTotalLevel()}
-        Location: ${sessionConfig.value.location}
+    const sceneResponse = await apiManager.makeRequest({
+      prompt: `Create the opening scene following this campaign start:
+        ${openingResponse.content}
         
-        For each encounter, provide: name, CR, brief description.
-        Format as JSON array with fields: name, cr, description.`,
-      cacheKey: `encounters_${sessionConfig.value.type}_${getTotalLevel()}`,
-      maxTokens: 1000
+        Write a specific scene that:
+        1. Places ${characterState.name} in an immediate situation
+        2. Provides clear choices for the player
+        3. Introduces the first challenge or opportunity
+        4. Ends with "What do you do?"
+        
+        Make it immersive and interactive.`,
+      maxTokens: 600
     })
     
-    sessionPlan.value.encounters = parseJsonSafely(encountersResponse.content, [])
-      .map((enc, i) => ({ ...enc, id: i }))
+    campaignStart.value.firstScene = sceneResponse.content
     
-    // Step 3: NPCs
-    progressDetail.value = 'Creating NPCs...'
+    // Step 3: Adventure Hooks
+    progressDetail.value = 'Weaving adventure hooks...'
+    progress.value = 60
+    
+    const hooksResponse = await apiManager.makeRequest({
+      prompt: `Create 3 adventure hooks for this campaign:
+        Types: ${selectedTypes}
+        Scale: ${campaignConfig.value.adventureScale}/10
+        Location: ${location}
+        
+        Each hook should have:
+        - title: Catchy name
+        - description: 1-2 sentence overview
+        
+        Format as JSON array. Vary the urgency and approach.`,
+      maxTokens: 600
+    })
+    
+    campaignStart.value.hooks = parseJsonSafely(hooksResponse.content, [])
+      .map((hook, i) => ({ ...hook, id: i }))
+    
+    // Step 4: Key NPCs
+    progressDetail.value = 'Bringing characters to life...'
     progress.value = 80
     
     const npcsResponse = await apiManager.makeRequest({
-      prompt: `Create 2-3 NPCs for this session:
-        Location: ${sessionConfig.value.location}
-        Session Type: ${sessionConfig.value.type}
+      prompt: `Create 3 important NPCs for the campaign opening in ${location}:
         
-        For each NPC, provide: name, role, personality.
+        For each NPC provide:
+        - name: Full name
+        - role: Their position/occupation
+        - description: Brief physical and personality description
+        - greeting: A sample line of dialogue
+        
+        Make them memorable and relevant to a ${campaignConfig.value.characterRole} starting their adventure.
         Format as JSON array.`,
-      cacheKey: `npcs_${sessionConfig.value.type}_location`,
       maxTokens: 800
     })
     
-    sessionPlan.value.npcs = parseJsonSafely(npcsResponse.content, [])
+    campaignStart.value.npcs = parseJsonSafely(npcsResponse.content, [])
       .map((npc, i) => ({ ...npc, id: i }))
     
+    // Step 5: Initial Challenges
+    progressDetail.value = 'Preparing challenges...'
+    progress.value = 90
+    
+    const challengesResponse = await apiManager.makeRequest({
+      prompt: `Create 2-3 initial challenges appropriate for:
+        Character Level: ${getTotalLevel()}
+        Campaign Types: ${selectedTypes}
+        Adventure Scale: ${campaignConfig.value.adventureScale}/10
+        
+        Mix different types (combat, social, exploration, puzzle).
+        For each provide:
+        - name: Challenge title
+        - type: Challenge category
+        - description: What makes it interesting
+        
+        Format as JSON array.`,
+      maxTokens: 600
+    })
+    
+    campaignStart.value.challenges = parseJsonSafely(challengesResponse.content, [])
+      .map((challenge, i) => ({ ...challenge, id: i }))
+    
     progress.value = 100
-    progressDetail.value = 'Complete!'
+    progressDetail.value = 'Your adventure awaits!'
     
   } catch (error) {
-    console.error('Session generation failed:', error)
-    alert('Session generation failed: ' + error.message)
+    console.error('Campaign generation failed:', error)
+    alert('Campaign generation failed: ' + error.message)
   } finally {
     isGenerating.value = false
     updateUsageStats()
@@ -516,7 +816,7 @@ async function getLiveSupport() {
         Give a practical, immediate response that can be used right now in play.`,
       priority: 'high',
       maxTokens: 600,
-      temperature: 0.9 // Higher creativity for live support
+      temperature: 0.9
     })
     
     liveResponses.value.unshift({
@@ -526,7 +826,6 @@ async function getLiveSupport() {
       timestamp: Date.now()
     })
     
-    // Clear the request
     liveRequest.value.situation = ''
     
   } catch (error) {
@@ -583,30 +882,12 @@ function executeQuickRoll(roll) {
   })
 }
 
-function handleWorldBuildingContent(content) {
-  // Track world building content
-  worldBuildingStats.value.totalItems++
-  if (!worldBuildingStats.value.categories[content.category]) {
-    worldBuildingStats.value.categories[content.category] = 0
-  }
-  worldBuildingStats.value.categories[content.category]++
-  
-  updateUsageStats()
-}
-
-function handleUsageUpdate(usage) {
-  // Update daily usage from world building
-  dailyUsage.value += usage.cost || 0
-  sessionStats.value.totalCost += usage.cost || 0
-}
-
 function getTotalLevel() {
-  return characterState.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || 1
+  return characterState.classes.reduce((sum, c) => sum + (c.level || 0), 0)
 }
 
 function parseJsonSafely(text, fallback = []) {
   try {
-    // Try to extract JSON from the response
     const jsonMatch = text.match(/\[[\s\S]*\]/)
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0])
@@ -630,7 +911,6 @@ function formatTime(timestamp) {
 
 function updateUsageStats() {
   try {
-    // Get stats from the API manager if it has the method
     const stats = apiManager.getUsageStats ? apiManager.getUsageStats() : {
       requestCount: 0,
       cacheHitRate: 0,
@@ -638,32 +918,47 @@ function updateUsageStats() {
       dailyBudgetUsed: 0
     }
     
-    // Update session stats with safe access
     sessionStats.value = {
       apiRequests: stats.requestCount || 0,
-      itemsGenerated: sessionPlan.value.encounters.length + sessionPlan.value.npcs.length + worldBuildingStats.value.totalItems,
+      itemsGenerated: campaignStart.value.hooks.length + campaignStart.value.npcs.length + campaignStart.value.challenges.length,
       cacheHits: Math.round((stats.cacheHitRate || 0) * 100),
       totalCost: stats.totalCost || 0
     }
     
-    // Update daily usage
     dailyUsage.value = stats.dailyBudgetUsed || 0
     
   } catch (error) {
     console.warn('Could not update usage stats:', error)
-    // Set default values on error
     sessionStats.value = {
       apiRequests: 0,
-      itemsGenerated: sessionPlan.value.encounters.length + sessionPlan.value.npcs.length,
+      itemsGenerated: 0,
       cacheHits: 0,
       totalCost: 0
     }
   }
 }
 
+// World Building Handlers
+function handleContentGenerated(content) {
+  // Update world building data when new content is generated
+  if (content.category === 'locations') {
+    loadWorldBuildingData() // Refresh location data
+  }
+  
+  // Optionally save to a persistent store
+  console.log('World building content generated:', content)
+}
+
+function handleUsageUpdated(usage) {
+  // Update API usage stats
+  if (usage.cost) {
+    dailyUsage.value += usage.cost
+  }
+  updateUsageStats()
+}
+
 onMounted(() => {
-  // Load API key
-  apiKey.value = localStorage.getItem('openai-api-key') || ''
+  loadWorldBuildingData()
   updateUsageStats()
 })
 </script>
@@ -677,9 +972,94 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-/* Hide scrollbars in world building panel for cleaner look */
-.session-manager :deep(.world-building-panel) {
+/* Custom select dropdown styles */
+select {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+select::-webkit-scrollbar {
+  width: 8px;
+}
+
+select::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+
+select::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Custom checkbox styles */
+input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  color: #3b82f6;
+  background-color: #374151;
+  border-color: #4b5563;
+  border-radius: 0.25rem;
+}
+
+input[type="checkbox"]:checked {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* Custom radio styles */
+input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  color: #3b82f6;
+  background-color: #374151;
+  border-color: #4b5563;
+}
+
+input[type="radio"]:checked {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+/* Range slider styles */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: #374151;
+  height: 0.5rem;
+  border-radius: 0.25rem;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #3b82f6;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 50%;
+  margin-top: -0.5rem;
+}
+
+input[type="range"]::-moz-range-track {
+  background: #374151;
+  height: 0.5rem;
+  border-radius: 0.25rem;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: #3b82f6;
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 50%;
+  border: none;
 }
 </style>

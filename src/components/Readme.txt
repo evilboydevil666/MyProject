@@ -6,26 +6,9 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/index.css
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/App.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/main.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/characterState.js
-Directory: src/assets/
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/assets/vue.svg
-Directory: src/components/
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterBuilderWizard.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterSheet.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/ChatGPTWeb.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/EnhancedWebChatComponent.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Feats.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Inventory.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/InventoryDisplay.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/NarrativeChat.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/PartySessionManagement.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/SessionAutomation.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/SessionPrepAssistant.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Settings.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Skills.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Spells.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/TacticalMap.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/inventorynotification.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterDetails.vue
+
+
+
 Directory: src/composables/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useAIPredictor.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useCharacter.js
@@ -79,6 +62,25 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/Party
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/SessionPrepView.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/SettingsView.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/TacticalMapView.vue
+
+Directory: src/components/
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterBuilderWizard.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterSheet.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/ChatGPTWeb.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/EnhancedWebChatComponent.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Feats.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Inventory.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/InventoryDisplay.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/NarrativeChat.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/PartySessionManagement.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/SessionAutomation.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/SessionPrepAssistant.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Settings.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Skills.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/Spells.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/TacticalMap.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/inventorynotification.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/CharacterDetails.vue
 Directory: src/components/legacy/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/legacy/NarrationPanel.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/legacy/Sidebar.vue

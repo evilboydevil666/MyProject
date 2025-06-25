@@ -6,6 +6,16 @@
       <p class="text-sm text-gray-400">AI-powered session preparation with world building integration</p>
     </div>
 
+     <!-- Toggle Button -->
+    <div class="p-4 border-b border-gray-700 bg-gray-800/50">
+      <button 
+        @click="showSessionStartWorkflow = true"
+        class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded w-full font-semibold"
+      >
+        🌍 Start New Session (World Building Integration)
+      </button>
+    </div>
+
     <!-- Session Start Workflow (NEW) -->
     <div v-if="showSessionStartWorkflow" class="flex-1 overflow-auto">
       <div class="p-4 space-y-4">
