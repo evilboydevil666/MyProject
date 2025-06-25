@@ -42,7 +42,7 @@ const routes = [
     path: '/session-prep',
     name: 'session-prep',
     component: SessionPrepView,
-    meta: { title: 'Session Preparation' }
+    meta: { title: 'Campaign Start' }
   },
   {
     path: '/automation',
