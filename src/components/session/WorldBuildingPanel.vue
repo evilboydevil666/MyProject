@@ -30,6 +30,14 @@
   >
     📥 Import Content
   </button>
+  <button
+    @click="clearAllContent"
+    class="bg-red-600 hover:bg-red-500 px-3 py-2 rounded text-sm font-semibold"
+    :disabled="generatedContent.length === 0"
+    title="Clear all world content"
+  >
+    🗑️ Clear All
+  </button>
   <div class="text-xs text-gray-400 text-right ml-2">
     <div>Content Generated: {{ totalContentCount }}</div>
     <div>Est. Pages: {{ estimatedPages }}</div>
@@ -401,14 +409,56 @@
       </div>
 
       <!-- Generated Content Display -->
-      <div class="flex-1 p-4 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto relative">
+        <!-- Export Options - Always visible at top when content exists -->
+        <div v-if="generatedContent.length > 0" class="sticky top-0 z-10 bg-gray-900 pb-4 pt-4 px-4 -mx-4 mb-4 border-b border-gray-700 shadow-lg">
+          <div class="p-4 bg-gray-800 rounded">
+            <div class="flex justify-between items-center mb-3">
+              <h4 class="font-semibold">📤 Export Options</h4>
+              <span class="text-xs text-gray-400">{{ totalContentCount }} items • ~{{ estimatedPages }} pages</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <button 
+                @click="exportAll('markdown')"
+                class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm transition-colors"
+              >
+                📝 Export as Markdown
+              </button>
+              <button 
+                @click="exportAll('json')"
+                class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm transition-colors"
+              >
+                📊 Export as JSON
+              </button>
+              <button 
+                @click="exportCampaignGuide()"
+                class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded text-sm col-span-2 transition-colors"
+              >
+                📚 Generate Campaign Guide
+              </button>
+              <button 
+                @click="exportToSessionPrep()"
+                class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded text-sm transition-colors"
+              >
+                🎯 Send to Session Prep
+              </button>
+              <button 
+                @click="exportToChatGPTSession()"
+                class="bg-purple-600 hover:bg-purple-500 px-3 py-2 rounded text-sm transition-colors"
+              >
+                🌐 Export to ChatGPT
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div v-if="generatedContent.length === 0" class="text-center text-gray-500 py-12">
           <div class="text-6xl mb-4">🌍</div>
           <h3 class="text-xl mb-2">Ready to Build Your World</h3>
           <p class="text-sm">Choose a category and configure your content generation</p>
         </div>
 
-        <div v-else class="space-y-4">
+        <div v-else class="space-y-4 px-4">
           <div 
             v-for="(content, index) in generatedContent" 
             :key="content.id"
@@ -428,28 +478,28 @@
               <div class="flex gap-2">
                 <button 
                   @click="editContent(content)"
-                  class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs"
+                  class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs transition-colors"
                   title="Edit"
                 >
                   ✏️
                 </button>
                 <button 
                   @click="copyContent(content)"
-                  class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs"
+                  class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs transition-colors"
                   title="Copy"
                 >
                   📋
                 </button>
                 <button 
                   @click="exportToChatGPT(content)"
-                  class="bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded text-xs"
+                  class="bg-purple-600 hover:bg-purple-500 px-2 py-1 rounded text-xs transition-colors"
                   title="Send to ChatGPT"
                 >
                   🌐
                 </button>
                 <button 
                   @click="removeContent(index)"
-                  class="bg-red-600 hover:bg-red-500 px-2 py-1 rounded text-xs"
+                  class="bg-red-600 hover:bg-red-500 px-2 py-1 rounded text-xs transition-colors"
                   title="Delete"
                 >
                   ✕
@@ -475,43 +525,6 @@
                 {{ tag }}
               </span>
             </div>
-          </div>
-        </div>
-
-        <!-- Export Options -->
-        <div v-if="generatedContent.length > 0" class="mt-8 p-4 bg-gray-800 rounded">
-          <h4 class="font-semibold mb-3">📤 Export Options</h4>
-          <div class="grid grid-cols-2 gap-3">
-            <button 
-              @click="exportAll('markdown')"
-              class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm"
-            >
-              📝 Export as Markdown
-            </button>
-            <button 
-              @click="exportAll('json')"
-              class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm"
-            >
-              📊 Export as JSON
-            </button>
-            <button 
-              @click="exportCampaignGuide()"
-              class="bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded text-sm col-span-2"
-            >
-              📚 Generate Campaign Guide
-            </button>
-            <button 
-              @click="exportToSessionPrep()"
-              class="bg-indigo-600 hover:bg-indigo-500 px-3 py-2 rounded text-sm col-span-2"
-            >
-              🎯 Send to Session Prep
-            </button>
-            <button 
-              @click="exportToChatGPTSession()"
-              class="bg-purple-600 hover:bg-purple-500 px-3 py-2 rounded text-sm col-span-2"
-            >
-              🌐 Export Session to ChatGPT
-            </button>
           </div>
         </div>
       </div>
@@ -1659,6 +1672,7 @@ async function parseImportedContent() {
   }
 }
 
+// Update the importSelected method to use enhanced formatting
 async function importSelected() {
   isImporting.value = true
   
@@ -1670,114 +1684,206 @@ async function importSelected() {
       const selectedItems = parsedResults.value[category].filter(item => item.selected)
       
       selectedItems.forEach(item => {
-        // Special handling for cities/locations
-        if (category === 'locations' || category === 'cities') {
-          const content = formatLocationContent(item)
-          
-          itemsToImport.push({
-            category: 'locations',
-            title: item.name,
-            content: content,
-            tags: ['imported', item.type || 'city', item.region || 'unknown'],
-            stats: `Pop: ${item.population || 'Unknown'}, Wealth: ${item.wealth || 'Unknown'}`
-          })
-          
-          // Also save for session prep
-          saveLocationForSessionPrep({
-            name: item.name,
-            type: item.type || 'city',
-            size: item.population > 10000 ? 'large' : item.population > 1000 ? 'medium' : 'small',
-            features: item.traits || item.features?.join(', ') || '',
-            content: content
-          })
+        let formattedContent = '';
+        let title = '';
+        let tags = ['imported'];
+        let stats = '';
+        
+        // Special handling for different categories
+        if (category === 'locations' || category === 'cities' || category === 'pirateCities' || category === 'legendaryLocations') {
+          formattedContent = formatLocationContent(item);
+          title = item.name;
+          tags.push(item.type || 'city', item.region || 'unknown');
+          if (item.population) stats = `Pop: ${item.population.toLocaleString()}, Wealth: ${item.wealth || 'Unknown'}`;
         }
-        // Lore items
-        else if (category === 'lore') {
-          itemsToImport.push({
-            category: 'lore',
-            title: item.title || item.name || 'Imported Lore',
-            content: item.content || formatLoreContent(item),
-            tags: ['imported', item.type || 'history']
-          })
-        }
-        // World info
-        else if (category === 'worldInfo') {
-          itemsToImport.push({
-            category: 'lore',
-            title: 'World Overview',
-            content: formatWorldInfo(item),
-            tags: ['imported', 'world-overview', 'campaign-setting']
-          })
-          
-          // Save world info to session storage
-          sessionStorage.setItem('world-name', item.name || 'Imported World')
-          sessionStorage.setItem('world-description', item.description || '')
-        }
-        // Regions
         else if (category === 'regions') {
-          itemsToImport.push({
-            category: 'lore',
-            title: `Region: ${item.name}`,
-            content: formatRegionContent(item),
-            tags: ['imported', 'region', 'geography']
-          })
+          formattedContent = formatRegionContent(item);
+          title = `Region: ${item.name}`;
+          tags.push('region', 'geography');
+          if (item.cities) stats = `${item.cities.length} major settlements`;
         }
-        // Other categories
+        else if (category === 'worldInfo') {
+          formattedContent = formatWorldInfo(item);
+          title = 'World Overview';
+          tags.push('world-overview', 'campaign-setting');
+        }
+        else if (category === 'lore') {
+          formattedContent = formatLoreContent(item);
+          title = item.title || item.name || 'Imported Lore';
+          tags.push(item.type || 'history');
+        }
         else {
-          itemsToImport.push({
-            category: category.slice(0, -1), // Remove plural 's'
-            title: item.name || item.title || 'Imported Content',
-            content: item.description || item.content || JSON.stringify(item, null, 2),
-            tags: ['imported']
-          })
+          // Default formatting for other types
+          formattedContent = formatContent(item.description || item.content || JSON.stringify(item, null, 2));
+          title = item.name || item.title || 'Imported Content';
         }
-      })
-    })
+        
+        itemsToImport.push({
+          category: category === 'locations' || category === 'cities' || category === 'pirateCities' || category === 'legendaryLocations' ? 'locations' : 
+                    category === 'regions' || category === 'worldInfo' ? 'lore' : 
+                    category.slice(0, -1), // Remove plural 's'
+          title: title,
+          content: formattedContent,
+          tags: tags,
+          stats: stats
+        });
+      });
+    });
     
     // Add all items to generated content
     itemsToImport.forEach(item => {
-      addGeneratedContent(item)
-    })
-    
-    // Auto-save after import
-    saveWorldData()
+      addGeneratedContent(item);
+    });
     
     // Close modal and reset
-    closeImportModal()
+    closeImportModal();
     
-    // Show success message
-    alert(`Successfully imported ${itemsToImport.length} items!`)
+    // Show success message with nice formatting
+    progressMessage.value = 'Import Successful!';
+    progressDetail.value = `Successfully imported ${itemsToImport.length} items into your world building collection.`;
+    
+    // Clear progress message after 3 seconds
+    setTimeout(() => {
+      progressMessage.value = '';
+      progressDetail.value = '';
+    }, 3000);
     
   } catch (error) {
-    console.error('Import error:', error)
-    alert('Failed to import content. Please try again.')
+    console.error('Import error:', error);
+    alert('Failed to import content. Please try again.');
   } finally {
-    isImporting.value = false
+    isImporting.value = false;
   }
 }
 
+// Enhanced location formatting with better structure
 function formatLocationContent(location) {
-  let content = `# ${location.name}\n\n`
+  let content = `<div class="rounded-lg overflow-hidden">`;
   
-  if (location.isCapital) content += `**Status:** Capital City\n`
-  if (location.region) content += `**Region:** ${location.region}\n`
-  if (location.population) content += `**Population:** ${location.population.toLocaleString()}\n`
-  if (location.wealth) content += `**Wealth Level:** ${location.wealth}\n`
+  // Header section with gradient background
+  content += `<div class="bg-gradient-to-r from-gray-800 to-gray-700 p-4">`;
+  content += `<div class="flex items-start justify-between">`;
+  content += `<div>`;
+  content += `<h2 class="text-2xl font-bold text-white flex items-center gap-2">`;
   
-  content += `\n## Description\n${location.description || 'No description available.'}\n`
+  // Icon based on type
+  if (location.type === 'pirate-city') content += `<span class="text-red-400">🏴‍☠️</span>`;
+  else if (location.isCapital) content += `<span class="text-yellow-400">👑</span>`;
+  else if (location.type === 'legendary') content += `<span class="text-purple-400">✨</span>`;
+  else content += `<span class="text-blue-400">🏛️</span>`;
   
+  content += `${location.name}</h2>`;
+  
+  // Region subtitle
+  if (location.region) {
+    content += `<p class="text-gray-300 text-sm mt-1">Region: ${location.region}</p>`;
+  }
+  content += `</div>`;
+  
+  // Badges
+  content += `<div class="flex gap-2 flex-wrap">`;
+  if (location.isCapital) {
+    content += `<span class="px-3 py-1 bg-yellow-500 text-yellow-900 rounded-full text-xs font-semibold">Capital</span>`;
+  }
+  if (location.type === 'pirate-city') {
+    content += `<span class="px-3 py-1 bg-red-500 text-white rounded-full text-xs font-semibold">Pirate Haven</span>`;
+  }
+  if (location.type === 'legendary') {
+    content += `<span class="px-3 py-1 bg-purple-500 text-white rounded-full text-xs font-semibold">Legendary</span>`;
+  }
+  content += `</div>`;
+  content += `</div>`;
+  content += `</div>`;
+  
+  // Stats bar
+  content += `<div class="bg-gray-700 px-4 py-3 flex flex-wrap gap-6 text-sm">`;
+  
+  if (location.population) {
+    content += `<div class="flex items-center gap-2">`;
+    content += `<span class="text-gray-400">Population:</span>`;
+    content += `<span class="text-white font-semibold">${location.population.toLocaleString()}</span>`;
+    content += `</div>`;
+  }
+  
+  if (location.wealth) {
+    const wealthColors = {
+      'Rich': 'text-yellow-400',
+      'Poor': 'text-red-400',
+      'In-between': 'text-blue-400'
+    };
+    content += `<div class="flex items-center gap-2">`;
+    content += `<span class="text-gray-400">Wealth:</span>`;
+    content += `<span class="${wealthColors[location.wealth] || 'text-white'} font-semibold">${location.wealth}</span>`;
+    content += `</div>`;
+  }
+  
+  if (location.size) {
+    content += `<div class="flex items-center gap-2">`;
+    content += `<span class="text-gray-400">Size:</span>`;
+    content += `<span class="text-white font-semibold capitalize">${location.size}</span>`;
+    content += `</div>`;
+  }
+  
+  content += `</div>`;
+  
+  // Main content area
+  content += `<div class="p-4 space-y-4">`;
+  
+  // Description
+  if (location.description) {
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-2">Description</h3>`;
+    content += `<p class="text-gray-300">${location.description}</p>`;
+    content += `</div>`;
+  }
+  
+  // Traits/Features
   if (location.traits) {
-    content += `\n## Notable Features\n${location.traits}\n`
-  }
-  
-  if (location.features && location.features.length > 0) {
-    content += `\n## Features\n`
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-2">Notable Features</h3>`;
+    content += `<p class="text-gray-300">${location.traits}</p>`;
+    content += `</div>`;
+  } else if (location.features && location.features.length > 0) {
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-2">Notable Features</h3>`;
+    content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-2">`;
     location.features.forEach(feature => {
-      content += `- ${feature}\n`
-    })
+      content += `<div class="flex items-start gap-2">`;
+      content += `<span class="text-emerald-400 mt-1">•</span>`;
+      content += `<span class="text-gray-300">${feature}</span>`;
+      content += `</div>`;
+    });
+    content += `</div>`;
+    content += `</div>`;
   }
   
-  return content
+  // Cities within region (if this is a region)
+  if (location.cities && location.cities.length > 0) {
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-3">Cities in this Region</h3>`;
+    content += `<div class="grid grid-cols-1 md:grid-cols-2 gap-3">`;
+    
+    location.cities.forEach(city => {
+      content += `<div class="bg-gray-800 rounded-lg p-3 border border-gray-700">`;
+      content += `<div class="flex items-start justify-between mb-2">`;
+      content += `<h4 class="font-semibold text-white">${city.name}${city.isCapital ? ' 👑' : ''}</h4>`;
+      content += `<span class="text-xs ${city.wealth === 'Rich' ? 'text-yellow-400' : city.wealth === 'Poor' ? 'text-red-400' : 'text-blue-400'}">${city.wealth || 'Unknown'}</span>`;
+      content += `</div>`;
+      content += `<div class="text-sm text-gray-400 mb-2">Pop: ${city.population?.toLocaleString() || 'Unknown'}</div>`;
+      if (city.description) {
+        content += `<p class="text-sm text-gray-300">${city.description}</p>`;
+      }
+      content += `</div>`;
+    });
+    
+    content += `</div>`;
+    content += `</div>`;
+  }
+  
+  content += `</div>`; // Close main content area
+  content += `</div>`; // Close container
+  
+  return content;
 }
 
 function formatLoreContent(lore) {
@@ -1795,41 +1901,193 @@ function formatLoreContent(lore) {
   return content
 }
 
+// Enhanced world info formatting
 function formatWorldInfo(info) {
-  return `# World Overview
-
-**System:** ${info.system || 'Pathfinder 1e'}
-**Tone:** ${info.tone || 'Not specified'}
-**Magic Level:** ${info.magicLevel || 'Medium'}
-**Technology:** ${info.technology || 'Medieval Fantasy'}
-
-## Calendar System
-${info.calendar?.system || 'Standard'} Calendar
-- Months: ${info.calendar?.months || 12}
-
-${info.calendar?.specialEvents && info.calendar.specialEvents.length > 0 ? 
-  '## Special Events\n' + info.calendar.specialEvents.map(event => 
-    `- **${event.name}** (${event.timing}): ${event.description}`
-  ).join('\n') : ''}`
-}
-
-function formatRegionContent(region) {
-  let content = `# ${region.name}\n\n`
+  let content = `<div class="rounded-lg overflow-hidden">`;
   
-  if (region.description) content += `${region.description}\n\n`
+  // Hero section
+  content += `<div class="bg-gradient-to-br from-indigo-900 to-purple-900 p-6 text-center">`;
+  content += `<h1 class="text-3xl font-bold text-white mb-2">🌍 ${info.name || 'World Overview'}</h1>`;
+  content += `<p class="text-indigo-200">Campaign Setting Information</p>`;
+  content += `</div>`;
   
-  if (region.cities && region.cities.length > 0) {
-    content += `## Major Settlements\n\n`
-    region.cities.forEach(city => {
-      content += `### ${city.name}${city.isCapital ? ' (Capital)' : ''}\n`
-      content += `- Population: ${city.population?.toLocaleString() || 'Unknown'}\n`
-      content += `- Wealth: ${city.wealth || 'Unknown'}\n`
-      if (city.description) content += `- ${city.description}\n`
-      content += '\n'
-    })
+  // Stats grid
+  content += `<div class="bg-gray-800 p-4">`;
+  content += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4">`;
+  
+  const stats = [
+    { label: 'System', value: info.system, icon: '⚔️', color: 'from-red-500 to-orange-500' },
+    { label: 'Tone', value: info.tone, icon: '🎭', color: 'from-purple-500 to-pink-500' },
+    { label: 'Magic Level', value: info.magicLevel, icon: '✨', color: 'from-blue-500 to-cyan-500' },
+    { label: 'Technology', value: info.technology, icon: '⚙️', color: 'from-green-500 to-emerald-500' }
+  ];
+  
+  stats.forEach(stat => {
+    if (stat.value) {
+      content += `<div class="text-center">`;
+      content += `<div class="bg-gradient-to-br ${stat.color} rounded-lg p-3 mb-2">`;
+      content += `<span class="text-2xl">${stat.icon}</span>`;
+      content += `</div>`;
+      content += `<div class="text-xs text-gray-400">${stat.label}</div>`;
+      content += `<div class="text-sm font-semibold text-white">${stat.value}</div>`;
+      content += `</div>`;
+    }
+  });
+  
+  content += `</div>`;
+  content += `</div>`;
+  
+  // Calendar section
+  if (info.calendar) {
+    content += `<div class="p-4 space-y-4">`;
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-3">📅 Calendar System</h3>`;
+    content += `<div class="bg-gray-800 rounded-lg p-4">`;
+    content += `<div class="grid grid-cols-2 gap-4 mb-4">`;
+    content += `<div>`;
+    content += `<span class="text-gray-400 text-sm">Calendar Type</span>`;
+    content += `<p class="text-white font-semibold">${info.calendar.system || 'Standard'}</p>`;
+    content += `</div>`;
+    content += `<div>`;
+    content += `<span class="text-gray-400 text-sm">Structure</span>`;
+    content += `<p class="text-white font-semibold">${info.calendar.months || 12} months, ${info.calendar.days || 365} days</p>`;
+    content += `</div>`;
+    content += `</div>`;
+    
+    if (info.calendar.weekDays) {
+      content += `<div class="mb-4">`;
+      content += `<span class="text-gray-400 text-sm">Days of the Week</span>`;
+      content += `<p class="text-white">${info.calendar.weekDays}</p>`;
+      content += `</div>`;
+    }
+    
+    if (info.calendar.specialEvents && info.calendar.specialEvents.length > 0) {
+      content += `<div>`;
+      content += `<h4 class="font-semibold text-yellow-400 mb-2">🎉 Special Events</h4>`;
+      content += `<div class="space-y-2">`;
+      
+      info.calendar.specialEvents.forEach(event => {
+        content += `<div class="bg-gray-700 rounded p-3">`;
+        content += `<div class="flex justify-between items-start mb-1">`;
+        content += `<span class="font-semibold text-white">${event.name}</span>`;
+        content += `<span class="text-xs text-blue-400">${event.timing}</span>`;
+        content += `</div>`;
+        content += `<p class="text-sm text-gray-300">${event.description}</p>`;
+        content += `</div>`;
+      });
+      
+      content += `</div>`;
+      content += `</div>`;
+    }
+    
+    content += `</div>`;
+    content += `</div>`;
+    content += `</div>`;
   }
   
-  return content
+  content += `</div>`;
+  
+  return content;
+}
+
+// Enhanced region formatting
+function formatRegionContent(region) {
+  let content = `<div class="rounded-lg overflow-hidden">`;
+  
+  // Header
+  content += `<div class="bg-gradient-to-r from-green-800 to-emerald-700 p-4">`;
+  content += `<h2 class="text-2xl font-bold text-white flex items-center gap-2">`;
+  content += `<span>🗺️</span> ${region.name}`;
+  content += `</h2>`;
+  content += `</div>`;
+  
+  // Key information
+  content += `<div class="bg-gray-800 p-4 space-y-3">`;
+  
+  const infoFields = [
+    { label: 'Location', value: region.location, icon: '📍' },
+    { label: 'Government', value: region.government, icon: '🏛️' },
+    { label: 'Culture', value: region.culture, icon: '🎭' },
+    { label: 'Military', value: region.military, icon: '⚔️' }
+  ];
+  
+  infoFields.forEach(field => {
+    if (field.value) {
+      content += `<div class="flex items-start gap-3">`;
+      content += `<span class="text-xl mt-1">${field.icon}</span>`;
+      content += `<div class="flex-1">`;
+      content += `<span class="text-gray-400 text-sm">${field.label}</span>`;
+      content += `<p class="text-white">${field.value}</p>`;
+      content += `</div>`;
+      content += `</div>`;
+    }
+  });
+  
+  content += `</div>`;
+  
+  // Description and other sections
+  content += `<div class="p-4 space-y-4">`;
+  
+  if (region.description) {
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-2">Overview</h3>`;
+    content += `<p class="text-gray-300">${region.description}</p>`;
+    content += `</div>`;
+  }
+  
+  // Cities
+  if (region.cities && region.cities.length > 0) {
+    content += `<div>`;
+    content += `<h3 class="text-lg font-semibold text-emerald-400 mb-3">Major Settlements</h3>`;
+    content += `<div class="space-y-3">`;
+    
+    region.cities.forEach(city => {
+      content += `<div class="bg-gray-800 rounded-lg p-4 border border-gray-700">`;
+      content += `<div class="flex items-start justify-between mb-2">`;
+      content += `<h4 class="text-lg font-semibold text-white flex items-center gap-2">`;
+      content += city.isCapital ? '👑 ' : '🏛️ ';
+      content += city.name;
+      content += `</h4>`;
+      content += `<div class="text-right">`;
+      content += `<div class="text-sm text-gray-400">Population</div>`;
+      content += `<div class="font-semibold text-white">${city.population?.toLocaleString() || 'Unknown'}</div>`;
+      content += `</div>`;
+      content += `</div>`;
+      content += `<div class="flex items-center gap-4 text-sm mb-2">`;
+      content += `<span class="${city.wealth === 'Rich' ? 'text-yellow-400' : city.wealth === 'Poor' ? 'text-red-400' : 'text-blue-400'}">`;
+      content += `💰 ${city.wealth || 'Unknown'} Wealth`;
+      content += `</span>`;
+      content += `</div>`;
+      if (city.description) {
+        content += `<p class="text-gray-300 text-sm">${city.description}</p>`;
+      }
+      content += `</div>`;
+    });
+    
+    content += `</div>`;
+    content += `</div>`;
+  }
+  
+  // Conflicts
+  if (region.conflicts) {
+    content += `<div class="bg-red-900 bg-opacity-20 rounded-lg p-4 border border-red-800">`;
+    content += `<h3 class="text-lg font-semibold text-red-400 mb-2">⚔️ Current Conflicts</h3>`;
+    content += `<p class="text-gray-300">${region.conflicts}</p>`;
+    content += `</div>`;
+  }
+  
+  // Trade
+  if (region.trade) {
+    content += `<div class="bg-green-900 bg-opacity-20 rounded-lg p-4 border border-green-800">`;
+    content += `<h3 class="text-lg font-semibold text-green-400 mb-2">💰 Trade & Economy</h3>`;
+    content += `<p class="text-gray-300">${region.trade}</p>`;
+    content += `</div>`;
+  }
+  
+  content += `</div>`;
+  content += `</div>`;
+  
+  return content;
 }
 
 function closeImportModal() {
@@ -1961,17 +2219,42 @@ function addGeneratedContent(content) {
   emit('content-generated', content)
 }
 
+// Enhanced formatContent method that detects content type and applies appropriate formatting
 function formatContent(content) {
-  return content
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/^#+\s(.*)$/gm, '<h4 class="font-semibold text-white mt-3 mb-1">$1</h4>')
-    .replace(/^(\d+\.)\s/gm, '<br>$1 ')
-    .replace(/^-\s/gm, '<br>• ')
-    .replace(/\n\n/g, '</p><p class="mb-2">')
-    .replace(/\n/g, '<br>')
-    .replace(/^/, '<p class="mb-2">')
-    .replace(/$/, '</p>')
+  // Check if content has HTML formatting already
+  if (content.content && content.content.includes('<div class="')) {
+    return content.content;
+  }
+  
+  // Apply basic markdown-like formatting
+  let formatted = content.content || content;
+  
+  // Headers
+  formatted = formatted.replace(/^### (.*)$/gm, '<h4 class="text-base font-semibold text-emerald-300 mt-3 mb-2">$1</h4>');
+  formatted = formatted.replace(/^## (.*)$/gm, '<h3 class="text-lg font-semibold text-emerald-400 mt-4 mb-2">$1</h3>');
+  formatted = formatted.replace(/^# (.*)$/gm, '<h2 class="text-xl font-bold text-emerald-500 mt-4 mb-3">$1</h2>');
+  
+  // Bold and italic
+  formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+  formatted = formatted.replace(/\*(.*?)\*/g, '<em class="text-gray-300">$1</em>');
+  
+  // Lists
+  formatted = formatted.replace(/^- (.*)$/gm, '<li class="ml-4 mb-1">• $1</li>');
+  formatted = formatted.replace(/^(\d+)\. (.*)$/gm, '<li class="ml-4 mb-1">$1. $2</li>');
+  
+  // Wrap lists
+  formatted = formatted.replace(/(<li.*<\/li>\n?)+/g, '<ul class="my-2">$&</ul>');
+  
+  // Paragraphs
+  formatted = formatted.replace(/\n\n/g, '</p><p class="mb-3 text-gray-300">');
+  formatted = formatted.replace(/\n/g, '<br>');
+  
+  // Wrap in paragraph if not already
+  if (!formatted.startsWith('<')) {
+    formatted = `<p class="mb-3 text-gray-300">${formatted}</p>`;
+  }
+  
+  return formatted;
 }
 
 function formatTime(date) {
@@ -2452,6 +2735,106 @@ function handleEditKeyboard(event) {
     }
   }
 }
+
+// Clear all world building content
+function clearAllContent() {
+  if (generatedContent.value.length === 0) return
+  
+  const itemCount = generatedContent.value.length
+  const categories = {}
+  generatedContent.value.forEach(item => {
+    categories[item.category] = (categories[item.category] || 0) + 1
+  })
+  
+  const categoryBreakdown = Object.entries(categories)
+    .map(([cat, count]) => `${getCategoryIcon(cat)} ${cat}: ${count}`)
+    .join('\n')
+  
+  const confirmed = confirm(
+    `⚠️ Clear All World Building Content?\n\n` +
+    `This will permanently delete ${itemCount} items:\n\n` +
+    `${categoryBreakdown}\n\n` +
+    `This action cannot be undone!\n\n` +
+    `Tip: Save your world first using the "💾 Save World" button.`
+  )
+  
+  if (!confirmed) return
+  
+  // Double confirmation for safety
+  const doubleConfirmed = confirm(
+    `🔴 FINAL CONFIRMATION\n\n` +
+    `Are you absolutely sure you want to delete all ${itemCount} world building items?\n\n` +
+    `Click OK to delete everything, or Cancel to keep your content.`
+  )
+  
+  if (!doubleConfirmed) return
+  
+  // Clear all content
+  generatedContent.value = []
+  
+  // Clear from localStorage
+  localStorage.removeItem('worldBuildingData')
+  localStorage.removeItem('worldLocations')
+  
+  // Clear world metadata
+  worldName.value = 'My Campaign World'
+  worldDescription.value = ''
+  sessionStorage.removeItem('world-name')
+  sessionStorage.removeItem('world-description')
+  sessionStorage.removeItem('sessionPrepLocations')
+  sessionStorage.removeItem('worldBuildingExport')
+  
+  // Reset forms to defaults
+  loreConfig.value = {
+    type: 'world-history',
+    subject: '',
+    timePeriod: '',
+    themes: '',
+    connections: ''
+  }
+  
+  rulesConfig.value = {
+    category: 'combat',
+    name: '',
+    purpose: '',
+    concept: '',
+    includeExamples: true
+  }
+  
+  itemsConfig.value = {
+    type: 'weapon',
+    mode: 'single',
+    rarity: 'uncommon',
+    theme: '',
+    properties: ''
+  }
+  
+  locationConfig.value = {
+    type: 'city',
+    name: '',
+    size: 'medium',
+    features: '',
+    includeMap: true,
+    includeNPCs: true
+  }
+  
+  creatureConfig.value = {
+    type: 'beast',
+    cr: 1,
+    concept: '',
+    abilities: '',
+    includeVariants: false
+  }
+  
+  // Show success message
+  progressMessage.value = '✅ World Cleared'
+  progressDetail.value = 'All world building content has been removed.'
+  
+  setTimeout(() => {
+    progressMessage.value = ''
+    progressDetail.value = ''
+  }, 3000)
+}
 function removeContent(index) {
   if (confirm('Remove this content?')) {
     generatedContent.value.splice(index, 1)
@@ -2671,5 +3054,15 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   opacity: 1;
   height: 2rem;
+}
+
+/* Sticky export options shadow effect */
+.sticky {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+/* Clear all button hover effect */
+.bg-red-600:hover:not(:disabled) {
+  background-color: rgb(220 38 38) !important;
 }
 </style>
