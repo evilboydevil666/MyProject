@@ -35,6 +35,9 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useNarrativeChat.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useNavigation.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useNotifications.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/usePredictiveContentEngine.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/composables/useSmartRollPredictor.js
+
 Directory: src/layouts/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/layouts/MainLayout.vue
 Directory: src/router/
@@ -88,12 +91,13 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/NarrativeInput.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/NarrativeMessages.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/NarrativeQuickActions.vue
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/DiceSystem.js
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/InventorySystem.js
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/MemorySystemjs
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/NarrativeEngine.js
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/PredictionSystem.js
-https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/core/SystemsManager.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/narrative/EnhancedNarrativeSuggestions.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/DiceSystem.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/InventorySystem.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/MemorySystemjs
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/NarrativeEngine.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/PredictionSystem.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/SystemsManager.js
 
 Directory: src/components/party/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/party/FactionsList.vue
@@ -109,3 +113,4 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/tabs/InventoryReadOnly.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/tabs/SkillsReadOnly.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/tabs/SpellsReadOnly.vue
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/session/WorldBuildingPanel.vue

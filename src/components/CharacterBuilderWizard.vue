@@ -1,7 +1,6 @@
 <template>
-  
-    <div class="character-builder-wizard-container">
-      <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg shadow-2xl border border-gray-700 backdrop-blur-sm bg-opacity-95">
+  <div class="character-builder-wizard-container">
+    <div class="character-builder-wizard bg-gray-900 text-white p-6 rounded-lg shadow-2xl border border-gray-700 backdrop-blur-sm bg-opacity-95">
       <!-- Header -->
       <div class="mb-6">
         <h2 class="text-3xl font-bold text-blue-300 mb-2">
@@ -112,6 +111,25 @@
             {{ isLevelUp ? 'Choose Class for Level ' + (currentLevel + 1) : 'Choose Your Class' }}
           </h3>
           
+          <!-- Class Category Tabs -->
+          <div class="mb-4">
+            <div class="flex gap-2 flex-wrap">
+              <button
+                v-for="category in classCategories"
+                :key="category"
+                @click="selectedClassCategory = category"
+                :class="[
+                  'px-4 py-2 rounded transition-all',
+                  selectedClassCategory === category 
+                    ? 'bg-green-700 text-white shadow-md border border-green-400' 
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600'
+                ]"
+              >
+                {{ category }}
+              </button>
+            </div>
+          </div>
+          
           <!-- Class Selection -->
           <div class="class-selection-container">
             <div v-if="isLevelUp" class="mb-4 p-3 bg-gray-800 rounded">
@@ -143,8 +161,9 @@
                 <h4 class="font-bold" :class="selectedClass?.id === cls.id ? 'text-green-200' : 'text-green-300'">
                   {{ cls.name }}
                 </h4>
+                <p class="text-xs text-gray-400">{{ cls.category }}</p>
                 <p class="text-xs mt-1" :class="selectedClass?.id === cls.id ? 'text-green-300' : 'text-gray-400'">
-                  {{ cls.hitDie }} HD, {{ cls.bab }} BAB
+                  {{ cls.hitDie }} HD, {{ formatBAB(cls.bab) }} BAB
                 </p>
                 <div class="mt-2 text-xs">
                   <p :class="selectedClass?.id === cls.id ? 'text-green-300' : ''">
@@ -153,9 +172,10 @@
                   <p class="mt-1" :class="selectedClass?.id === cls.id ? 'text-green-200' : 'text-blue-300'">
                     {{ cls.primaryAbility }}
                   </p>
-                  <p v-if="cls.alignmentRestriction" class="mt-1 text-yellow-400">
-                    Requires: {{ cls.alignmentRestriction }}
+                  <p v-if="cls.alignment && cls.alignment !== 'Any'" class="mt-1 text-yellow-400">
+                    Requires: {{ cls.alignment }}
                   </p>
+                  <p class="mt-1 text-gray-300 line-clamp-2">{{ cls.description }}</p>
                 </div>
               </div>
             </div>
@@ -1248,41 +1268,23 @@
           </button>
         </div>
       </div>
-      </div>
     </div>
-  
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { characterState } from '@/characterState.js'
-// Import the race data from pathfinderRaces.js - Try different import paths
+// Import the race data from pathfinderRaces.js
 import { pathfinderRaces, getAllRaces, getRaceById } from '@/data/pathfinderRaces.js'
+// Import the class data from pathfinderClasses.js
+import { getAllClasses, getClassById } from '@/data/pathfinderClasses.js'
 import { InventoryParser } from '@/utils/InventoryParser.js'
 import { StorageService } from '@/services/StorageService.js'
 import { useChatGPT } from '@/composables/useChatGPT'
+
 const storageService = new StorageService('pathfinder')
 const { sendToChatGPT } = useChatGPT()
-
-/* 
- * Integration with Inventory System:
- * 
- * When the character creation is complete, the parent component should:
- * 
- * 1. Process the equipment array from characterData.equipment
- * 2. Use InventoryParser to add items to the character's inventory:
- *    const changes = {
- *      itemsGained: characterData.equipment,
- *      moneyGained: characterData.startingMoney
- *    }
- *    await InventoryParser.applyInventoryChanges(changes, true)
- * 
- * 3. Apply other character attributes (race, class, abilities, skills, feats)
- * 4. Handle any errors appropriately
- */
-
-// Debug log the imports
-console.log('Imported pathfinderRaces:', pathfinderRaces)
 
 // Props
 const props = defineProps({
@@ -1308,6 +1310,7 @@ const selectedClass = ref(null)
 const currentClasses = ref([])
 const currentLevel = ref(0)
 const selectedRaceCategory = ref('Core')
+const selectedClassCategory = ref('All')
 
 // Favored Class
 const favoredClass = ref('')
@@ -1344,13 +1347,6 @@ const alignments = [
   'LN', 'TN', 'CN',
   'LE', 'NE', 'CE'
 ]
-
-const alignmentRestrictions = {
-  'Paladin': ['LG'],
-  'Monk': ['LG', 'LN', 'LE', 'NG', 'TN', 'NE', 'CG', 'CN', 'CE'], // Any
-  'Barbarian': ['NG', 'CG', 'TN', 'CN', 'NE', 'CE'], // Non-lawful
-  'Druid': ['NG', 'LN', 'TN', 'CN', 'NE'], // Neutral on one axis
-}
 
 const commonLanguages = [
   'Common', 'Dwarven', 'Elven', 'Giant', 'Gnome', 'Goblin', 
@@ -1496,8 +1492,9 @@ const startingGold = computed(() => {
   return baseGold
 })
 
-// Starting gold dice by class
+// Starting gold dice by class - Expanded for all classes
 const startingGoldDice = {
+  // Core Classes
   'Fighter': { dice: 5, sides: 4, multiplier: 10 },
   'Wizard': { dice: 2, sides: 4, multiplier: 10 },
   'Rogue': { dice: 4, sides: 4, multiplier: 10 },
@@ -1509,11 +1506,33 @@ const startingGoldDice = {
   'Monk': { dice: 1, sides: 4, multiplier: 10 },
   'Paladin': { dice: 5, sides: 4, multiplier: 10 },
   'Sorcerer': { dice: 2, sides: 4, multiplier: 10 },
+  // Base Classes
+  'Alchemist': { dice: 3, sides: 4, multiplier: 10 },
+  'Cavalier': { dice: 5, sides: 4, multiplier: 10 },
+  'Gunslinger': { dice: 5, sides: 4, multiplier: 10 },
+  'Inquisitor': { dice: 4, sides: 4, multiplier: 10 },
+  'Magus': { dice: 4, sides: 4, multiplier: 10 },
+  'Oracle': { dice: 3, sides: 4, multiplier: 10 },
+  'Summoner': { dice: 2, sides: 4, multiplier: 10 },
+  'Witch': { dice: 3, sides: 4, multiplier: 10 },
+  // Hybrid Classes
+  'Arcanist': { dice: 2, sides: 4, multiplier: 10 },
+  'Bloodrager': { dice: 3, sides: 4, multiplier: 10 },
+  'Brawler': { dice: 3, sides: 4, multiplier: 10 },
+  'Hunter': { dice: 4, sides: 4, multiplier: 10 },
+  'Investigator': { dice: 3, sides: 4, multiplier: 10 },
+  'Shaman': { dice: 3, sides: 4, multiplier: 10 },
+  'Skald': { dice: 3, sides: 4, multiplier: 10 },
+  'Slayer': { dice: 5, sides: 4, multiplier: 10 },
+  'Swashbuckler': { dice: 5, sides: 4, multiplier: 10 },
+  'Warpriest': { dice: 5, sides: 4, multiplier: 10 },
+  // Default
   'default': { dice: 4, sides: 4, multiplier: 10 }
 }
 
 // Data - Now using imported race data
 const raceCategories = ['Core', 'Featured', 'Uncommon']
+const classCategories = ['All', 'Core', 'Base', 'Hybrid', 'Occult', 'Alternate', 'Unchained']
 const equipmentCategories = ['Weapons', 'Armor', 'Gear', 'Magic Items']
 
 // Equipment data
@@ -1732,100 +1751,26 @@ const filteredRaces = computed(() => {
   return races
 })
 
-const availableClasses = [
-  {
-    id: 'fighter',
-    name: 'Fighter',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 2,
-    primaryAbility: 'STR or DEX',
-    classSkills: ['Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (engineering)', 'Profession', 'Ride', 'Survival', 'Swim'],
-    bonusFeats: true,
-    alignmentRestriction: null,
-    saves: { fort: 'good', ref: 'poor', will: 'poor' }
-  },
-  {
-    id: 'wizard',
-    name: 'Wizard',
-    hitDie: 'd6',
-    bab: '1/2',
-    skillPoints: 2,
-    primaryAbility: 'INT',
-    classSkills: ['Appraise', 'Craft', 'Fly', 'Knowledge (all)', 'Linguistics', 'Profession', 'Spellcraft'],
-    bonusFeats: true,
-    alignmentRestriction: null,
-    saves: { fort: 'poor', ref: 'poor', will: 'good' },
-    spellcaster: true,
-    spellType: 'arcane',
-    spellsKnown: 'all',
-    spellsPrepared: true
-  },
-  {
-    id: 'rogue',
-    name: 'Rogue',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 8,
-    primaryAbility: 'DEX',
-    classSkills: ['Acrobatics', 'Appraise', 'Bluff', 'Climb', 'Craft', 'Diplomacy', 'Disable Device', 'Disguise', 'Escape Artist', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (local)', 'Linguistics', 'Perception', 'Perform', 'Profession', 'Sense Motive', 'Sleight of Hand', 'Stealth', 'Swim', 'Use Magic Device'],
-    bonusFeats: false,
-    alignmentRestriction: null,
-    saves: { fort: 'poor', ref: 'good', will: 'poor' }
-  },
-  {
-    id: 'cleric',
-    name: 'Cleric',
-    hitDie: 'd8',
-    bab: '3/4',
-    skillPoints: 2,
-    primaryAbility: 'WIS',
-    classSkills: ['Appraise', 'Craft', 'Diplomacy', 'Heal', 'Knowledge (arcana)', 'Knowledge (history)', 'Knowledge (nobility)', 'Knowledge (planes)', 'Knowledge (religion)', 'Linguistics', 'Profession', 'Sense Motive', 'Spellcraft'],
-    bonusFeats: false,
-    alignmentRestriction: null,
-    saves: { fort: 'good', ref: 'poor', will: 'good' },
-    spellcaster: true,
-    spellType: 'divine',
-    domains: true
-  },
-  {
-    id: 'barbarian',
-    name: 'Barbarian',
-    hitDie: 'd12',
-    bab: 'Full',
-    skillPoints: 4,
-    primaryAbility: 'STR',
-    classSkills: ['Acrobatics', 'Climb', 'Craft', 'Handle Animal', 'Intimidate', 'Knowledge (nature)', 'Perception', 'Ride', 'Survival', 'Swim'],
-    bonusFeats: false,
-    alignmentRestriction: 'Non-lawful',
-    saves: { fort: 'good', ref: 'poor', will: 'poor' }
-  },
-  {
-    id: 'ranger',
-    name: 'Ranger',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 6,
-    primaryAbility: 'STR or DEX',
-    classSkills: ['Climb', 'Craft', 'Handle Animal', 'Heal', 'Intimidate', 'Knowledge (dungeoneering)', 'Knowledge (geography)', 'Knowledge (nature)', 'Perception', 'Profession', 'Ride', 'Spellcraft', 'Stealth', 'Survival', 'Swim'],
-    bonusFeats: false,
-    alignmentRestriction: null,
-    saves: { fort: 'good', ref: 'good', will: 'poor' }
-  },
-  {
-    id: 'paladin',
-    name: 'Paladin',
-    hitDie: 'd10',
-    bab: 'Full',
-    skillPoints: 2,
-    primaryAbility: 'STR',
-    classSkills: ['Craft', 'Diplomacy', 'Handle Animal', 'Heal', 'Knowledge (nobility)', 'Knowledge (religion)', 'Profession', 'Ride', 'Sense Motive', 'Spellcraft'],
-    bonusFeats: false,
-    alignmentRestriction: 'Lawful Good',
-    saves: { fort: 'good', ref: 'poor', will: 'good' }
+// Available classes - using imported data
+const availableClasses = computed(() => {
+  const allClasses = getAllClasses()
+  
+  if (selectedClassCategory.value === 'All') {
+    return allClasses
   }
-]
+  
+  return allClasses.filter(cls => cls.category === selectedClassCategory.value)
+})
 
+// Filtered classes
+const filteredClasses = computed(() => {
+  if (!characterDetails.value.alignment || selectedClassCategory.value === 'All') {
+    return availableClasses.value
+  }
+  return availableClasses.value.filter(cls => meetsClassRequirements(cls))
+})
+
+// Skills data
 const availableSkills = [
   { name: 'Acrobatics', ability: 'DEX', description: 'Balance, tumble, and move gracefully' },
   { name: 'Appraise', ability: 'INT', description: 'Evaluate the worth of items' },
@@ -2012,11 +1957,6 @@ const derivedStats = computed(() => {
   }
 })
 
-const filteredClasses = computed(() => {
-  if (!characterDetails.value.alignment) return availableClasses
-  return availableClasses.filter(cls => meetsClassRequirements(cls))
-})
-
 const totalSteps = computed(() => {
   if (isLevelUp.value) return 5 // Class, HP, Skills, Feats, Summary
   // For creation: Mode, Race, Class+Favored, Abilities, Skills, Feats, [Spells], Equipment, Details, Summary
@@ -2125,7 +2065,14 @@ function formatAbilityMods(mods) {
     .join(', ')
 }
 
-
+function formatBAB(bab) {
+  const babMap = {
+    'full': 'Full',
+    '3/4': '3/4',
+    '1/2': '1/2'
+  }
+  return babMap[bab] || bab
+}
 
 // Get a summary of race traits
 function getRaceTraitSummary(race) {
@@ -2165,12 +2112,16 @@ function selectClass(cls) {
 }
 
 function meetsClassRequirements(cls) {
-  if (!cls.alignmentRestriction) return true
+  if (!cls.alignment || cls.alignment === 'Any') return true
   
-  const restrictions = alignmentRestrictions[cls.name]
-  if (!restrictions) return true
+  // Check alignment restrictions
+  if (cls.alignment === 'Any non-lawful' && characterDetails.value.alignment.includes('L')) return false
+  if (cls.alignment === 'Any non-chaotic' && characterDetails.value.alignment.includes('C')) return false
+  if (cls.alignment === 'Any neutral' && !characterDetails.value.alignment.includes('N')) return false
+  if (cls.alignment === 'Lawful good' && characterDetails.value.alignment !== 'LG') return false
+  if (cls.alignment === 'Chaotic evil' && characterDetails.value.alignment !== 'CE') return false
   
-  return restrictions.includes(characterDetails.value.alignment)
+  return true
 }
 
 function validateAbilityScores() {
@@ -2256,15 +2207,19 @@ function rollStartingGold() {
 }
 
 function calculateBAB(cls, level) {
-  if (cls.bab === 'Full') return level
+  if (cls.bab === 'full') return level
   if (cls.bab === '3/4') return Math.floor(level * 0.75)
   if (cls.bab === '1/2') return Math.floor(level * 0.5)
   return 0
 }
 
 function calculateSave(type, cls, level) {
-  const progression = cls.saves[type]
-  if (progression === 'good') {
+  const goodSaves = cls.goodSaves || []
+  if (type === 'fort' && goodSaves.includes('Fort')) {
+    return 2 + Math.floor(level / 2)
+  } else if (type === 'ref' && goodSaves.includes('Ref')) {
+    return 2 + Math.floor(level / 2)
+  } else if (type === 'will' && goodSaves.includes('Will')) {
     return 2 + Math.floor(level / 2)
   } else {
     return Math.floor(level / 3)
@@ -2342,6 +2297,10 @@ function calculateSkillPoints() {
   // Minimum 1 skill point
   points = Math.max(1, points)
   
+  // First level gets x4
+  if (!isLevelUp.value) {
+    points *= 4
+  }
   
   totalSkillPoints.value = points
   skillPointsRemaining.value = points
@@ -2403,6 +2362,9 @@ function hasBonusFeats() {
     return !isLevelUp.value || (currentLevel.value + 1) % 2 === 0
   }
   if (selectedClass.value?.name === 'Wizard' && (!isLevelUp.value || (currentLevel.value + 1) % 5 === 0)) {
+    return true
+  }
+  if (selectedClass.value?.bonusFeats) {
     return true
   }
   return false
@@ -2813,9 +2775,14 @@ function generateQuickCharacter() {
       characterDetails.value.languages = ['Common']
     }
   }
-  selectedClass.value = availableClasses[0] // Fighter
-  favoredClass.value = 'Fighter'
-  favoredClassBonus.value = 'hp'
+  
+  // Select Fighter class
+  const fighterClass = availableClasses.value.find(cls => cls.name === 'Fighter')
+  if (fighterClass) {
+    selectedClass.value = fighterClass
+    favoredClass.value = 'Fighter'
+    favoredClassBonus.value = 'hp'
+  }
   
   // Standard array
   abilityScores.value = {
@@ -3059,70 +3026,70 @@ async function applyCharacterData(data) {
     
     // Equipment
     if (data.equipment && Array.isArray(data.equipment)) {
-  data.equipment.forEach(item => {
-    if (item && item.name) {
-      characterState.inventory.push({
-        name: item.name,
-        quantity: item.quantity || 1,
-        category: item.category || 'miscellaneous',
-        type: item.type || '',
-        value: item.value || 0,
-        weight: item.weight || 0,
-        equipped: false,
-        notes: item.notes || ''
+      data.equipment.forEach(item => {
+        if (item && item.name) {
+          characterState.inventory.push({
+            name: item.name,
+            quantity: item.quantity || 1,
+            category: item.category || 'miscellaneous',
+            type: item.type || '',
+            value: item.value || 0,
+            weight: item.weight || 0,
+            equipped: false,
+            notes: item.notes || ''
+          })
+        }
       })
     }
-  })
-}
     
     // Racial traits
     characterState.vision = data.race.racialTraits?.find(t => t.name.includes('vision'))?.name || 'Normal'
     characterState.speed = data.race.speed
     
     // Spells (if applicable)
-if (data.spells && data.spells.length > 0) {
-  console.log('Fetching spell details...')
-  
-  try {
-    const spellDetails = await fetchSpellDetails(data.spells)
-    
-    characterState.spellsKnown = data.spells
-    characterState.spells = spellDetails.map(spell => {
-      const isCantrip = wizardCantrips.some(c => c.name === spell.name)
+    if (data.spells && data.spells.length > 0) {
+      console.log('Fetching spell details...')
       
-      return {
-        ...spell,
-        level: isCantrip ? 0 : (spell.level || 1),
-        prepared: true,
-        source: 'Wizard'
-      }
-    })
-    
-    if (data.class.name === 'Wizard') {
-      const intMod = getAbilityModifier(data.finalAbilityScores.INT)
-      characterState.spellSlots = {
-        0: { used: 0, max: 3 },
-        1: { used: 0, max: 1 + Math.max(0, intMod) },
-        2: { used: 0, max: 0 },
-        3: { used: 0, max: 0 },
-        4: { used: 0, max: 0 },
-        5: { used: 0, max: 0 },
-        6: { used: 0, max: 0 },
-        7: { used: 0, max: 0 },
-        8: { used: 0, max: 0 },
-        9: { used: 0, max: 0 }
+      try {
+        const spellDetails = await fetchSpellDetails(data.spells)
+        
+        characterState.spellsKnown = data.spells
+        characterState.spells = spellDetails.map(spell => {
+          const isCantrip = wizardCantrips.some(c => c.name === spell.name)
+          
+          return {
+            ...spell,
+            level: isCantrip ? 0 : (spell.level || 1),
+            prepared: true,
+            source: 'Wizard'
+          }
+        })
+        
+        if (data.class.name === 'Wizard') {
+          const intMod = getAbilityModifier(data.finalAbilityScores.INT)
+          characterState.spellSlots = {
+            0: { used: 0, max: 3 },
+            1: { used: 0, max: 1 + Math.max(0, intMod) },
+            2: { used: 0, max: 0 },
+            3: { used: 0, max: 0 },
+            4: { used: 0, max: 0 },
+            5: { used: 0, max: 0 },
+            6: { used: 0, max: 0 },
+            7: { used: 0, max: 0 },
+            8: { used: 0, max: 0 },
+            9: { used: 0, max: 0 }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch spell details:', error)
+        characterState.spells = data.spells.map(spellName => ({
+          name: spellName,
+          level: 1,
+          school: 'Unknown',
+          description: 'Details unavailable'
+        }))
       }
     }
-  } catch (error) {
-    console.error('Failed to fetch spell details:', error)
-    characterState.spells = data.spells.map(spellName => ({
-      name: spellName,
-      level: 1,
-      school: 'Unknown',
-      description: 'Details unavailable'
-    }))
-  }
-}
     
   } else {
     // Level up existing character
