@@ -2297,10 +2297,7 @@ function calculateSkillPoints() {
   // Minimum 1 skill point
   points = Math.max(1, points)
   
-  // First level gets x4
-  if (!isLevelUp.value) {
-    points *= 4
-  }
+
   
   totalSkillPoints.value = points
   skillPointsRemaining.value = points

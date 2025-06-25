@@ -8,7 +8,7 @@ export function useNarrativeChat() {
   
   // Check for API key
   const hasApiKey = computed(() => {
-    const key = localStorage.getItem('openai_api_key')
+    const key = localStorage.getItem('openai-api-key')
     return !!key && key.startsWith('sk-')
   })
   
@@ -65,7 +65,7 @@ export function useNarrativeChat() {
     isLoading.value = true
     
     try {
-      const apiKey = localStorage.getItem('openai_api_key')
+      const apiKey = localStorage.getItem('openai-api-key')
       
       // Build the prompt with context
       let systemPrompt = buildSystemPrompt(context)

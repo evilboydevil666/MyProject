@@ -106,7 +106,7 @@
           <td class="p-2 text-center">
             <button class="px-2 py-1 bg-green-600 text-white rounded" @click="rollSkill(k)">🎲</button>
           </td>
-          <td class="p-2 text-center">{{ abilityMod('Int') >= 0 ? '+' : '' }}{{ abilityMod('Int') }}</td>
+          <td class="p-2 text-center">{{ abilityMod('INT') >= 0 ? '+' : '' }}{{ abilityMod('INT') }}</td>
           <td class="p-2">
             <input type="number" v-model.number="k.rank" class="w-12 border p-1 rounded text-center"/>
           </td>
@@ -146,7 +146,7 @@
           <td class="p-2 text-center">
             <button class="px-2 py-1 bg-green-600 text-white rounded" @click="rollSkill(c)">🎲</button>
           </td>
-          <td class="p-2 text-center">{{ abilityMod('Int') >= 0 ? '+' : '' }}{{ abilityMod('Int') }}</td>
+          <td class="p-2 text-center">{{ abilityMod('INT') >= 0 ? '+' : '' }}{{ abilityMod('INT') }}</td>
           <td class="p-2">
             <input type="number" v-model.number="c.rank" class="w-12 border p-1 rounded text-center"/>
           </td>
@@ -257,7 +257,23 @@ const currentClassList = computed(() =>
 )
 
 function isClassSkill(name) {
-  return characterState.classes.some(c => characterState.classSkills[c.className]?.includes(name))
+  return characterState.classes.some(c => {
+    // Check if the class has this skill directly
+    if (characterState.classSkills[c.className]?.includes(name)) return true
+    
+    // Special handling for Bard and Wizard with "Knowledge (All)"
+    if (name.startsWith('Knowledge (') && 
+        (c.className === 'Bard' || c.className === 'Wizard') &&
+        characterState.classSkills[c.className]?.includes('Knowledge (All)')) {
+      return true
+    }
+    
+    // Special handling for general skill categories like "Craft" or "Profession"
+    const baseSkill = name.split(' ')[0]
+    if (characterState.classSkills[c.className]?.includes(baseSkill)) return true
+    
+    return false
+  })
 }
 
 function isUntrained(sk) {
@@ -270,44 +286,99 @@ function abilityMod(stat) {
 }
 
 function rollSkill(skill) {
-  // roll logic
+  // TODO: Implement dice rolling logic
+  const roll = Math.floor(Math.random() * 20) + 1
+  const total = skillTotal(skill)
+  console.log(`Rolling ${skill.name || skill.subskill}: d20(${roll}) + ${total} = ${roll + total}`)
 }
 
+// Fixed classBonus function - returns 3 if ANY class has it as a class skill
 function classBonus(skill) {
   const skillName = skill.subskill
-    ? `${skill.name} (${skill.subskill})`
+    ? `${skill.name || (skill.ability === 'INT' ? 'Knowledge' : skill.ability === 'WIS' ? 'Profession' : skill.ability === 'CHA' ? 'Lore' : 'Craft')} (${skill.subskill})`
     : skill.name
-  return characterState.classes.reduce((sum, c) => {
-    return sum + (characterState.classSkills[c.className]?.includes(skillName) && skill.rank > 0 ? 3 : 0)
-  }, 0)
+  
+  // Check if ANY class has this as a class skill (not sum)
+  const isAnyClassSkill = characterState.classes.some(c => {
+    // Direct match
+    if (characterState.classSkills[c.className]?.includes(skillName)) return true
+    
+    // Knowledge (All) for Bard and Wizard
+    if (skillName.startsWith('Knowledge (') && 
+        (c.className === 'Bard' || c.className === 'Wizard') &&
+        characterState.classSkills[c.className]?.includes('Knowledge (All)')) {
+      return true
+    }
+    
+    // Check base categories
+    const baseSkill = skillName.split(' ')[0]
+    if (characterState.classSkills[c.className]?.includes(baseSkill)) return true
+    
+    return false
+  })
+  
+  // Return 3 if it's a class skill and has at least 1 rank, otherwise 0
+  return (isAnyClassSkill && skill.rank > 0) ? 3 : 0
 }
 
+// Fixed skillTotal function - no longer double-adding class bonus
 function skillTotal(skill) {
   const skillName = skill.subskill
-    ? `${skill.name} (${skill.subskill})`
+    ? `${skill.name || (skill.ability === 'INT' ? 'Knowledge' : skill.ability === 'WIS' ? 'Profession' : skill.ability === 'CHA' ? 'Lore' : 'Craft')} (${skill.subskill})`
     : skill.name
-  const base =
-    (skill.rank || 0) +
-    abilityMod(skill.ability) +
-    (isClassSkill(skillName) && (skill.rank || 0) > 0 ? 3 : 0)
+  
+  // Calculate components
+  const ranks = skill.rank || 0
+  const abilityModValue = abilityMod(skill.ability || 'INT')
   const misc = skill.misc || 0
-  return base + misc
+  const classBonusValue = classBonus(skill) // Get the class bonus (already handles the logic)
+  
+  // Return total without double-adding class bonus
+  return ranks + abilityModValue + misc + classBonusValue
 }
 
 function addKnowledge() {
-  characterState.knowledgeSkills.push({ subskill: '', rank: 0, misc: 0 })
+  characterState.knowledgeSkills.push({ 
+    subskill: '', 
+    rank: 0, 
+    misc: 0, 
+    untrained: 'No',
+    ability: 'INT',
+    name: 'Knowledge'
+  })
 }
 
 function addCraft() {
-  characterState.craftSkills.push({ subskill: '', rank: 0, misc: 0 })
+  characterState.craftSkills.push({ 
+    subskill: '', 
+    rank: 0, 
+    misc: 0, 
+    untrained: 'Yes',
+    ability: 'INT',
+    name: 'Craft'
+  })
 }
 
 function addProfession() {
-  characterState.professionSkills.push({ subskill: '', rank: 0, misc: 0 })
+  characterState.professionSkills.push({ 
+    subskill: '', 
+    rank: 0, 
+    misc: 0, 
+    untrained: 'No',
+    ability: 'WIS',
+    name: 'Profession'
+  })
 }
 
 function addLore() {
-  characterState.loreSkills.push({ subskill: '', rank: 0, misc: 0 })
+  characterState.loreSkills.push({ 
+    subskill: '', 
+    rank: 0, 
+    misc: 0, 
+    untrained: 'No',
+    ability: 'CHA',
+    name: 'Lore'
+  })
 }
 </script>
 <style scoped>
