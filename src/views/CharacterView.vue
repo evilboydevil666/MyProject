@@ -1,5 +1,23 @@
 <template>
   <div class="character-view relative h-full">
+    <!-- Session Start Message (NEW) -->
+    <div 
+      v-if="sessionStartMessage" 
+      class="bg-blue-900 bg-opacity-90 text-white p-4 rounded-lg mb-4 mx-4 shadow-lg"
+    >
+      <h3 class="font-bold text-lg mb-2 flex items-center gap-2">
+        <span class="text-2xl">🎮</span>
+        Session Started!
+      </h3>
+      <p class="whitespace-pre-wrap text-sm">{{ sessionStartMessage }}</p>
+      <button 
+        @click="sessionStartMessage = ''"
+        class="mt-3 bg-blue-700 hover:bg-blue-600 px-3 py-1 rounded text-sm"
+      >
+        Dismiss
+      </button>
+    </div>
+
     <!-- Character Builder Wizard Overlay - FIXED: Now only covers this view -->
     <div 
       v-if="showWizard" 
@@ -68,6 +86,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { characterState } from '../characterState.js'
 
 // Tab Components - Updated to be read-only
@@ -77,42 +96,23 @@ import SkillsReadOnly from '../components/tabs/SkillsReadOnly.vue'
 import FeatsReadOnly from '../components/tabs/FeatsReadOnly.vue'
 import SpellsReadOnly from '../components/tabs/SpellsReadOnly.vue'
 import CharacterBuilderWizard from '../components/CharacterBuilderWizard.vue'
-import { onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { useNarrativeChat } from '@/composables/useNarrativeChat'
 
+// Initialize route
 const route = useRoute()
-const { addNarrativeMessage } = useNarrativeChat()
-
-onMounted(() => {
-  // Check if starting a new session
-  if (route.query.sessionStart === 'true') {
-    const openingScene = sessionStorage.getItem('openingScene')
-    if (openingScene) {
-      // Add opening narration
-      addNarrativeMessage({
-        type: 'narration',
-        content: openingScene,
-        timestamp: new Date()
-      })
-      
-      // Clear the flag
-      sessionStorage.removeItem('openingScene')
-    }
-  }
-})
 
 // Props & Emits
 const props = defineProps({
   currentTab: String
 })
 
-const emit = defineEmits(['update:current-tab', 'character-roll'])
+const emit = defineEmits(['update:current-tab', 'character-roll', 'session-start'])
 
 // State
 const currentTab = ref(props.currentTab || 'Overview')
 const showWizard = ref(false)
 const wizardMode = ref('create')
+const sessionStartMessage = ref('')
+const currentLocation = ref('')
 
 // Tab configuration
 const tabs = ['Overview', 'Inventory', 'Skills', 'Feats', 'Spells']
@@ -216,8 +216,6 @@ function clearCharacterData() {
 }
 
 // Updated onWizardComplete function for CharacterView.vue
-// Replace the existing onWizardComplete function with this one:
-
 function onWizardComplete(data) {
   // Apply character data from wizard
   if (data.mode === 'create') {
@@ -370,6 +368,46 @@ function handleCharacterRoll(rollData) {
   emit('character-roll', rollData)
 }
 
+// NEW: Handle session start
+function handleSessionStart() {
+  const openingScene = sessionStorage.getItem('openingScene')
+  const location = sessionStorage.getItem('currentLocation')
+  
+  if (openingScene) {
+    // Set the session start message
+    sessionStartMessage.value = openingScene
+    currentLocation.value = location || 'Unknown Location'
+    
+    // Load active session data
+    const activeSession = localStorage.getItem('activeSession')
+    if (activeSession) {
+      const sessionData = JSON.parse(activeSession)
+      console.log('Session started:', sessionData)
+      
+      // Update character state with session info if needed
+      if (sessionData.location) {
+        characterState.currentLocation = sessionData.location.name
+      }
+      
+      // Emit event for other components that might need to know
+      emit('session-start', {
+        location: sessionData.location,
+        scene: sessionData.scene,
+        world: sessionData.world
+      })
+    }
+    
+    // Clear session storage
+    sessionStorage.removeItem('openingScene')
+    sessionStorage.removeItem('currentLocation')
+    
+    // Log for debugging
+    console.log('=== SESSION START ===')
+    console.log('Location:', location)
+    console.log('Opening Scene:', openingScene)
+  }
+}
+
 // Watchers
 watch(currentTab, (newTab) => {
   emit('update:current-tab', newTab)
@@ -379,11 +417,17 @@ watch(() => props.currentTab, (newTab) => {
   if (newTab) currentTab.value = newTab
 })
 
-// Show wizard on mount if no character exists
+// On mount - check for character and session start
 onMounted(() => {
+  // Check for character first
   if (!characterExists.value) {
     wizardMode.value = 'create'
     showWizard.value = true
+  }
+  
+  // Check for session start
+  if (route.query.sessionStart === 'true') {
+    handleSessionStart()
   }
 })
 </script>
@@ -404,5 +448,21 @@ onMounted(() => {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth fade-in for session message */
+.bg-blue-900 {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
