@@ -11,6 +11,18 @@ let chatGPTWindow
 const isDev = process.argv.includes('--dev')
 
 function createWindow() {
+  // Try to use the minimal preload first, fallback to regular preload
+  let preloadPath = path.join(__dirname, 'preload-minimal.js')
+  
+  // If minimal doesn't exist, try the regular one
+  if (!fs.existsSync(preloadPath)) {
+    preloadPath = path.join(__dirname, 'preload.cjs')
+  }
+  
+  // Log for debugging
+  console.log('Using preload:', preloadPath)
+  console.log('Preload exists:', fs.existsSync(preloadPath))
+  
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -18,7 +30,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
+      preload: fs.existsSync(preloadPath) ? preloadPath : undefined,
+      webviewTag: true // Enable webview tag for embedded ChatGPT
     },
     icon: path.join(__dirname, '../build/icon.png'),
     titleBarStyle: 'default',
@@ -43,6 +56,16 @@ function createWindow() {
     mainWindow = null
     if (chatGPTWindow && !chatGPTWindow.isDestroyed()) {
       chatGPTWindow.close()
+    }
+  })
+  
+  // Handle webview permission requests
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    // Allow webview to load external content
+    if (permission === 'media' || permission === 'geolocation' || permission === 'notifications') {
+      callback(false) // Deny these permissions for security
+    } else {
+      callback(true) // Allow other permissions
     }
   })
 }
@@ -114,7 +137,7 @@ function createMenu() {
       label: 'Tools',
       submenu: [
         {
-          label: 'Open ChatGPT',
+          label: 'Open ChatGPT (External)',
           accelerator: 'CmdOrCtrl+G',
           click: () => {
             if (!chatGPTWindow || chatGPTWindow.isDestroyed()) {
@@ -124,6 +147,12 @@ function createMenu() {
             }
           }
         },
+        {
+          label: 'ChatGPT Tab',
+          accelerator: 'CmdOrCtrl+Shift+G',
+          click: () => mainWindow.webContents.send('menu-open-chatgpt-tab')
+        },
+        { type: 'separator' },
         {
           label: 'Dice Roller',
           accelerator: 'CmdOrCtrl+D',
@@ -197,6 +226,33 @@ app.whenReady().then(() => {
       createWindow()
     }
   })
+  
+  // Set up webview preferences with better error handling
+  app.on('web-contents-created', (event, contents) => {
+    contents.on('will-attach-webview', (event, webPreferences, params) => {
+      // Delete any default preload that might cause issues
+      delete webPreferences.preloadURL
+      delete webPreferences.preload
+      
+      // Set secure defaults
+      webPreferences.nodeIntegration = false
+      webPreferences.contextIsolation = true
+      
+      // Allow preload scripts from our app for ChatGPT
+      if (params.src && params.src.includes('chat')) {
+        const chatGPTPreloadPath = path.join(__dirname, 'preload-chatgpt.js')
+        console.log('ChatGPT webview preload path:', chatGPTPreloadPath)
+        console.log('ChatGPT preload exists:', fs.existsSync(chatGPTPreloadPath))
+        
+        if (fs.existsSync(chatGPTPreloadPath)) {
+          webPreferences.preload = chatGPTPreloadPath
+          console.log('ChatGPT preload script attached')
+        } else {
+          console.warn('ChatGPT preload script not found, webview will load without it')
+        }
+      }
+    })
+  })
 })
 
 app.on('window-all-closed', () => {
@@ -206,7 +262,7 @@ app.on('window-all-closed', () => {
 })
 
 // IPC Handlers
-// Handle direct ChatGPT injection
+// Handle direct ChatGPT injection (for external window)
 ipcMain.handle('inject-to-chatgpt', async (event, content) => {
   try {
     // Create or focus ChatGPT window
@@ -350,4 +406,14 @@ ipcMain.handle('get-app-version', () => {
 // Open external links
 ipcMain.handle('open-external', async (event, url) => {
   shell.openExternal(url)
+})
+
+// Get app directory (for preload scripts)
+ipcMain.handle('get-app-path', () => {
+  return app.getAppPath()
+})
+
+// Get preload directory for webview
+ipcMain.handle('get-preload-path', () => {
+  return __dirname
 })
