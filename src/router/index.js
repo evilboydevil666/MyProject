@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory, createWebHashHistory } from 'vue-router'
 
 // Import views
-import { createRouter, createWebHistory } from 'vue-router'
 import CharacterView from '@/views/CharacterView.vue'
 import PartyView from '@/views/PartyView.vue'
 import TacticalMapView from '@/views/TacticalMapView.vue'

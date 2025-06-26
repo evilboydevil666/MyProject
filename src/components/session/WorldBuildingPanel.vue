@@ -91,6 +91,57 @@
     </div>
   </div>
 </div>
+        <!-- Campaign Start -->
+        <div v-if="currentCategory === 'campaign-start'" class="space-y-4">
+          <h3 class="text-lg font-semibold text-amber-400 mb-3">🎭 Campaign Start</h3>
+          
+          <div>
+            <label class="block text-sm font-medium mb-1">Starting Location</label>
+            <input 
+              v-model="campaignConfig.startingLocation" 
+              placeholder="e.g., The Silver Stag Tavern in Absalom, Prison cell in Red Mountain Keep"
+              class="w-full bg-gray-700 border border-gray-600 rounded p-2"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Starting Situation</label>
+            <textarea 
+              v-model="campaignConfig.startingSituation" 
+              placeholder="e.g., You've just arrived after a long journey, You wake up with no memory of how you got here"
+              class="w-full bg-gray-700 border border-gray-600 rounded p-2 h-20 resize-none"
+            ></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Player Context (Optional)</label>
+            <input 
+              v-model="campaignConfig.playerContext" 
+              placeholder="e.g., Seasoned mercenary, Fresh recruit, Mysterious stranger"
+              class="w-full bg-gray-700 border border-gray-600 rounded p-2"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium mb-1">Campaign Tone</label>
+            <select v-model="campaignConfig.tone" class="w-full bg-gray-700 border border-gray-600 rounded p-2">
+              <option value="epic-fantasy">🏰 Epic Fantasy</option>
+              <option value="dark-gritty">💀 Dark & Gritty</option>
+              <option value="high-adventure">⚔️ High Adventure</option>
+              <option value="mystery">🔍 Mystery & Intrigue</option>
+              <option value="comedic">🎭 Light-hearted</option>
+            </select>
+          </div>
+
+          <button 
+            @click="generateCampaignOpening"
+            :disabled="isGenerating || !campaignConfig.startingLocation || !campaignConfig.startingSituation"
+            class="w-full bg-amber-600 hover:bg-amber-500 disabled:bg-gray-600 px-4 py-3 rounded font-semibold"
+          >
+            {{ isGenerating ? '🎭 Creating Opening...' : '🎬 Generate Campaign Opening' }}
+          </button>
+        </div>
+
         <!-- Lore & History -->
         <div v-if="currentCategory === 'lore'" class="space-y-4">
           <h3 class="text-lg font-semibold text-emerald-400 mb-3">📚 Lore Generator</h3>
@@ -446,7 +497,7 @@
                 @click="exportToChatGPTSession()"
                 class="bg-purple-600 hover:bg-purple-500 px-3 py-2 rounded text-sm transition-colors"
               >
-                🌐 Export to ChatGPT
+                🌐 Send All to ChatGPT
               </button>
             </div>
           </div>
@@ -486,9 +537,9 @@
                 <button 
                   @click="copyContent(content)"
                   class="bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded text-xs transition-colors"
-                  title="Copy"
+                  title="Send to ChatGPT"
                 >
-                  📋
+                  🌐
                 </button>
                 <button 
                   @click="exportToChatGPT(content)"
@@ -590,86 +641,93 @@
         
         <!-- Parsed Results -->
         <div v-else class="flex-1 overflow-y-auto">
-          <div class="mb-4 p-3 bg-gray-700 rounded">
-            <h4 class="font-semibold mb-2 text-emerald-300">✅ Content Parsed Successfully!</h4>
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
-              <template v-for="(categoryItems, category) in parsedResults" :key="category">
-                <template v-if="categoryItems && categoryItems.length > 0">
-                  <span :class="getCategoryColor(category)">{{ getCategoryIcon(category) }} {{ category }}:</span>
-                  <span class="text-white font-semibold">{{ categoryItems.length }}</span>
-                </template>
-              </template>
-            </div>
+  <div class="mb-4 p-3 bg-gray-700 rounded">
+    <h4 class="font-semibold mb-2 text-emerald-300">✅ Content Parsed Successfully!</h4>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+      <template v-for="(categoryItems, category) in parsedResults" :key="category">
+        <template v-if="categoryItems && categoryItems.length > 0">
+          <span :class="getCategoryColor(category)">{{ getCategoryIcon(category) }} {{ getCategoryName(category) }}:</span>
+          <span class="text-white font-semibold">{{ categoryItems.length }}</span>
+        </template>
+      </template>
+    </div>
+  </div>
+  
+  <!-- Category Tabs -->
+  <div class="flex gap-2 mb-4 overflow-x-auto">
+    <template v-for="(categoryItems, category) in parsedResults" :key="category">
+      <button 
+        v-if="categoryItems && categoryItems.length > 0"
+        @click="selectedImportCategory = category"
+        :class="[
+          'px-3 py-1 rounded text-sm whitespace-nowrap',
+          selectedImportCategory === category 
+            ? 'bg-amber-600 text-white' 
+            : 'bg-gray-700 hover:bg-gray-600'
+        ]"
+      >
+        {{ getCategoryIcon(category) }} {{ getCategoryName(category) }} ({{ categoryItems.length }})
+      </button>
+    </template>
+  </div>
+  
+  <!-- Items Preview -->
+  <div class="space-y-2 max-h-64 overflow-y-auto mb-4">
+    <div 
+      v-for="(item, index) in parsedResults[selectedImportCategory]" 
+      :key="index"
+      class="p-3 bg-gray-700 rounded text-sm"
+    >
+      <div class="flex justify-between items-start">
+        <div>
+          <strong>{{ item.name || item.title || `Item ${index + 1}` }}</strong>
+          <div class="text-xs text-gray-400 mt-1">
+            {{ getItemPreview(item, selectedImportCategory) }}
           </div>
           
-          <!-- Category Tabs -->
-          <div class="flex gap-2 mb-4 overflow-x-auto">
-            <template v-for="(categoryItems, category) in parsedResults" :key="category">
-              <button 
-                v-if="categoryItems && categoryItems.length > 0"
-                @click="selectedImportCategory = category"
-                :class="[
-                  'px-3 py-1 rounded text-sm whitespace-nowrap',
-                  selectedImportCategory === category 
-                    ? 'bg-amber-600 text-white' 
-                    : 'bg-gray-700 hover:bg-gray-600'
-                ]"
-              >
-                {{ getCategoryIcon(category) }} {{ category }} ({{ categoryItems.length }})
-              </button>
-            </template>
+          <!-- Additional details for new categories -->
+          <div v-if="selectedImportCategory === 'trade' && item.tradeRoutes?.length" class="text-xs text-amber-400 mt-1">
+            Routes: {{ item.tradeRoutes.join(', ') }}
           </div>
-          
-
-
-          <!-- Items Preview -->
-          <div class="space-y-2 max-h-64 overflow-y-auto mb-4">
-            <div 
-              v-for="(item, index) in parsedResults[selectedImportCategory]" 
-              :key="index"
-              class="p-3 bg-gray-700 rounded text-sm"
-            >
-              <div class="flex justify-between items-start">
-                <div>
-                  <strong>{{ item.name || item.title || `Item ${index + 1}` }}</strong>
-                  <div class="text-xs text-gray-400 mt-1">
-                    {{ getItemPreview(item, selectedImportCategory) }}
-                  </div>
-                </div>
-                <input 
-                  type="checkbox" 
-                  v-model="item.selected"
-                  class="ml-2"
-                  :checked="true"
-                />
-              </div>
-            </div>
+          <div v-if="selectedImportCategory === 'wars' && item.status" class="text-xs text-red-400 mt-1">
+            Status: {{ item.status }} • {{ item.type }}
           </div>
-          
-          <!-- Import Actions -->
-          <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
-            <div class="text-sm text-gray-400">
-              {{ getSelectedCount() }} items selected for import
-            </div>
-            <div class="flex gap-3">
-              <button 
-                @click="importParsed = false"
-                class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded"
-              >
-                ← Back
-              </button>
-              <button 
-                @click="importSelected"
-                :disabled="getSelectedCount() === 0 || isImporting"
-                class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 px-4 py-2 rounded font-semibold"
-              >
-                {{ isImporting ? '📤 Importing...' : '✨ Import Selected' }}
-              </button>
-            </div>
+          <div v-if="selectedImportCategory === 'alliances' && item.parties?.length" class="text-xs text-blue-400 mt-1">
+            Parties: {{ item.parties.join(' & ') }}
           </div>
         </div>
+        <input 
+          type="checkbox" 
+          v-model="item.selected"
+          class="ml-2"
+          :checked="true"
+        />
       </div>
     </div>
+  </div>
+  
+  <!-- Import Actions -->
+  <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-700">
+    <div class="text-sm text-gray-400">
+      {{ getSelectedCount() }} items selected for import
+    </div>
+    <div class="flex gap-3">
+      <button 
+        @click="importParsed = false"
+        class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded"
+      >
+        ← Back
+      </button>
+      <button 
+        @click="importSelected"
+        :disabled="getSelectedCount() === 0 || isImporting"
+        class="bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-600 px-4 py-2 rounded font-semibold"
+      >
+        {{ isImporting ? '📤 Importing...' : '✨ Import Selected' }}
+      </button>
+    </div>
+  </div>
+</div>
   </div>
 <!-- Edit Content Modal -->
 <div v-if="showEditModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -852,12 +910,34 @@
     </div>
   </div>
 </div>
+</div>
+</div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { characterState } from '../../characterState.js'
+import { chatGPTService } from '@/services/ChatGPTService.js'
+
+function getCategoryName(category) {
+  const names = {
+    locations: 'Locations',
+    lore: 'Lore & History',
+    creatures: 'Creatures',
+    items: 'Items',
+    rules: 'Custom Rules',
+    trade: 'Trade & Economy',
+    wars: 'Conflicts & Wars',
+    alliances: 'Alliances & Treaties',
+    worldInfo: 'World Overview',
+    regions: 'Regions',
+    cities: 'Cities',
+    factions: 'Factions',
+    npcs: 'NPCs'
+  }
+  return names[category] || category
+}
 
 // Props
 const props = defineProps({
@@ -871,7 +951,7 @@ const emit = defineEmits(['content-generated', 'usage-updated'])
 const router = useRouter()
 
 // State
-const currentCategory = ref('lore')
+const currentCategory = ref('campaign-start')
 const isGenerating = ref(false)
 const progressMessage = ref('')
 const progressDetail = ref('')
@@ -899,7 +979,10 @@ const parsedResults = ref({
   rules: [],
   cities: [],
   factions: [],
-  npcs: []
+  npcs: [],
+  trade: [],
+  wars: [],
+  alliances: []
 })
 
 // Edit modal state
@@ -918,8 +1001,9 @@ const livePreview = ref(true)
 
 
 
-// Content Categories
+// Content Categories - Updated to include campaign-start
 const contentCategories = [
+  { id: 'campaign-start', name: 'Campaign Start', icon: '🎭' },
   { id: 'lore', name: 'Lore & History', icon: '📚' },
   { id: 'rules', name: 'Custom Rules', icon: '⚖️' },
   { id: 'items', name: 'Items & Equipment', icon: '⚔️' },
@@ -928,6 +1012,14 @@ const contentCategories = [
 ]
 
 // Configuration States
+const campaignConfig = ref({
+  type: 'campaign-start',
+  startingLocation: '',
+  startingSituation: '',
+  playerContext: '',
+  tone: 'epic-fantasy'
+})
+
 const loreConfig = ref({
   type: 'world-history',
   subject: '',
@@ -1008,6 +1100,108 @@ onUnmounted(() => {
 })
 
 // Methods
+async function generateCampaignOpening() {
+  if (!campaignConfig.value.startingLocation || !campaignConfig.value.startingSituation) {
+    alert('Please specify both starting location and starting situation')
+    return
+  }
+  
+  isGenerating.value = true
+  progressMessage.value = 'Creating Campaign Opening'
+  progressDetail.value = 'Setting the stage for your adventure...'
+  
+  try {
+    const characterLevel = characterState.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || 1
+    const characterName = characterState.name || 'the adventurer'
+    
+    const prompt = `Create a campaign opening for Pathfinder 1e that begins at this EXACT location and situation:
+
+**Starting Location:** ${campaignConfig.value.startingLocation}
+**Starting Situation:** ${campaignConfig.value.startingSituation}
+**Player Context:** ${campaignConfig.value.playerContext || 'New adventurer'}
+**Campaign Tone:** ${campaignConfig.value.tone}
+**Character:** ${characterName} (Level ${characterLevel})
+
+CRITICAL INSTRUCTIONS:
+- The campaign MUST start EXACTLY at: ${campaignConfig.value.startingLocation}
+- The opening MUST incorporate this situation: ${campaignConfig.value.startingSituation}
+- DO NOT include sections for "Adventure Hooks", "Key NPCs", or "Initial Challenges"
+- DO NOT list plot hooks, NPCs, or challenges as separate sections
+
+Provide ONLY these two sections:
+
+1. **Campaign Opening** (2-3 paragraphs)
+   - Set the tone and atmosphere of the world
+   - Begin the narrative AT ${campaignConfig.value.startingLocation}
+   - Reference the starting situation naturally in the narrative
+
+2. **The Scene** (2-3 paragraphs)
+   - Describe EXACTLY what ${characterName} experiences at ${campaignConfig.value.startingLocation}
+   - Include sensory details: sights, sounds, smells, atmosphere
+   - Incorporate ${campaignConfig.value.startingSituation} into the immediate scene
+   - End with the character's immediate circumstances, not future possibilities
+
+Make it immersive and atmospheric. The reader should feel like they are there.`
+
+    const content = await callOpenAI(prompt, { 
+      maxTokens: 800,
+      temperature: 0.8 
+    })
+    
+    // Clean the response to ensure no unwanted sections
+    const cleanedContent = cleanCampaignOpening(content)
+    
+    addGeneratedContent({
+      category: 'campaign-start',
+      title: `Campaign Opening: ${campaignConfig.value.startingLocation}`,
+      content: cleanedContent,
+      tags: ['campaign-start', 'opening-scene', campaignConfig.value.tone, campaignConfig.value.startingLocation.split(' ')[0].toLowerCase()]
+    })
+    
+    // Reset form
+    campaignConfig.value.startingLocation = ''
+    campaignConfig.value.startingSituation = ''
+    campaignConfig.value.playerContext = ''
+    
+  } catch (error) {
+    console.error('Campaign opening generation failed:', error)
+    alert('Failed to generate campaign opening: ' + error.message)
+  } finally {
+    isGenerating.value = false
+  }
+}
+
+function cleanCampaignOpening(content) {
+  // Remove any sections that shouldn't be there
+  const unwantedSections = [
+    /\*\*Adventure Hooks?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Key NPCs?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Initial Challenges?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Plot Hooks?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Notable NPCs?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Immediate Challenges?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Quest Hooks?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\*\*Potential Encounters?\*\*[\s\S]*?(?=\*\*|$)/gi,
+    /\d+\.\s*\*\*[^*]+\*\*\s*[-:].*?(?=\d+\.|$)/gi, // Numbered lists of hooks/challenges
+    /^[-•]\s*\*\*[^*]+\*\*\s*[-:].*$/gm // Bullet lists of hooks/challenges
+  ]
+  
+  let cleanedContent = content
+  unwantedSections.forEach(pattern => {
+    cleanedContent = cleanedContent.replace(pattern, '')
+  })
+  
+  // Clean up extra whitespace
+  cleanedContent = cleanedContent.replace(/\n{3,}/g, '\n\n').trim()
+  
+  // If content was overly cleaned and too short, return original
+  if (cleanedContent.length < 200) {
+    return content
+  }
+  
+  return cleanedContent
+}
+
 async function generateLore() {
   if (!validateConfig(loreConfig.value, ['subject'])) return
   
@@ -1321,6 +1515,7 @@ function saveWorldData() {
         contentCount: totalContentCount.value,
         worldName: currentWorldName,
         categories: {
+          'campaign-start': generatedContent.value.filter(c => c.category === 'campaign-start').length,
           lore: generatedContent.value.filter(c => c.category === 'lore').length,
           rules: generatedContent.value.filter(c => c.category === 'rules').length,
           items: generatedContent.value.filter(c => c.category === 'items').length,
@@ -1624,7 +1819,10 @@ async function parseImportedContent() {
       rules: [],
       cities: [],
       factions: [],
-      npcs: []
+      npcs: [],
+      trade: [],
+      wars: [],
+      alliances: []
     }
     
     // Process results safely
@@ -1638,6 +1836,9 @@ async function parseImportedContent() {
       parsedResults.value.lore = results.lore || []
       parsedResults.value.regions = results.regions || []
       parsedResults.value.worldInfo = results.worldInfo ? [results.worldInfo] : []
+      parsedResults.value.trade = results.trade || []
+      parsedResults.value.wars = results.wars || []
+      parsedResults.value.alliances = results.alliances || []
     } else {
       // Mixed content - safely merge with defaults
       Object.keys(results).forEach(key => {
@@ -1671,7 +1872,6 @@ async function parseImportedContent() {
     isParsing.value = false
   }
 }
-
 // Update the importSelected method to use enhanced formatting
 async function importSelected() {
   isImporting.value = true
@@ -1684,75 +1884,98 @@ async function importSelected() {
       const selectedItems = parsedResults.value[category].filter(item => item.selected)
       
       selectedItems.forEach(item => {
-        let formattedContent = '';
-        let title = '';
-        let tags = ['imported'];
-        let stats = '';
-        
-        // Special handling for different categories
-        if (category === 'locations' || category === 'cities' || category === 'pirateCities' || category === 'legendaryLocations') {
-          formattedContent = formatLocationContent(item);
-          title = item.name;
-          tags.push(item.type || 'city', item.region || 'unknown');
-          if (item.population) stats = `Pop: ${item.population.toLocaleString()}, Wealth: ${item.wealth || 'Unknown'}`;
+        // Special handling for cities/locations
+        if (category === 'locations' || category === 'cities') {
+          itemsToImport.push({
+            category: 'locations',
+            title: item.name,
+            content: formatLocationContent(item),
+            tags: ['imported', item.type || 'city', item.region || 'unknown'],
+            stats: `Pop: ${item.population || 'Unknown'}, Wealth: ${item.wealth || 'Unknown'}`
+          })
         }
-        else if (category === 'regions') {
-          formattedContent = formatRegionContent(item);
-          title = `Region: ${item.name}`;
-          tags.push('region', 'geography');
-          if (item.cities) stats = `${item.cities.length} major settlements`;
+        // Trade information
+        else if (category === 'trade') {
+          itemsToImport.push({
+            category: 'lore',
+            title: `Trade Network: ${item.name}`,
+            content: formatTradeContent(item),
+            tags: ['imported', 'trade', 'economy']
+          })
         }
-        else if (category === 'worldInfo') {
-          formattedContent = formatWorldInfo(item);
-          title = 'World Overview';
-          tags.push('world-overview', 'campaign-setting');
+        // War/Conflict information
+        else if (category === 'wars') {
+          itemsToImport.push({
+            category: 'lore',
+            title: `Conflict: ${item.name}`,
+            content: formatWarContent(item),
+            tags: ['imported', 'conflict', item.status || 'active']
+          })
         }
+        // Alliance information
+        else if (category === 'alliances') {
+          itemsToImport.push({
+            category: 'lore',
+            title: `Alliance: ${item.name}`,
+            content: formatAllianceContent(item),
+            tags: ['imported', 'alliance', 'diplomacy']
+          })
+        }
+        // Lore items
         else if (category === 'lore') {
-          formattedContent = formatLoreContent(item);
-          title = item.title || item.name || 'Imported Lore';
-          tags.push(item.type || 'history');
+          itemsToImport.push({
+            category: 'lore',
+            title: item.title || item.name || 'Imported Lore',
+            content: item.content || formatLoreContent(item),
+            tags: ['imported', item.type || 'history']
+          })
         }
+        // World info
+        else if (category === 'worldInfo') {
+          itemsToImport.push({
+            category: 'lore',
+            title: 'World Overview',
+            content: formatWorldInfo(item),
+            tags: ['imported', 'world-overview', 'campaign-setting']
+          })
+        }
+        // Regions
+        else if (category === 'regions') {
+          itemsToImport.push({
+            category: 'lore',
+            title: `Region: ${item.name}`,
+            content: formatRegionContent(item),
+            tags: ['imported', 'region', 'geography']
+          })
+        }
+        // Other categories
         else {
-          // Default formatting for other types
-          formattedContent = formatContent(item.description || item.content || JSON.stringify(item, null, 2));
-          title = item.name || item.title || 'Imported Content';
+          itemsToImport.push({
+            category: category.slice(0, -1), // Remove plural 's'
+            title: item.name || item.title || 'Imported Content',
+            content: item.description || item.content || JSON.stringify(item, null, 2),
+            tags: ['imported']
+          })
         }
-        
-        itemsToImport.push({
-          category: category === 'locations' || category === 'cities' || category === 'pirateCities' || category === 'legendaryLocations' ? 'locations' : 
-                    category === 'regions' || category === 'worldInfo' ? 'lore' : 
-                    category.slice(0, -1), // Remove plural 's'
-          title: title,
-          content: formattedContent,
-          tags: tags,
-          stats: stats
-        });
-      });
-    });
+      })
+    })
     
     // Add all items to generated content
     itemsToImport.forEach(item => {
-      addGeneratedContent(item);
-    });
+      addGeneratedContent(item)
+    })
     
     // Close modal and reset
-    closeImportModal();
+    closeImportModal()
     
-    // Show success message with nice formatting
-    progressMessage.value = 'Import Successful!';
-    progressDetail.value = `Successfully imported ${itemsToImport.length} items into your world building collection.`;
-    
-    // Clear progress message after 3 seconds
-    setTimeout(() => {
-      progressMessage.value = '';
-      progressDetail.value = '';
-    }, 3000);
+    // Show success message
+    alert(`Successfully imported ${itemsToImport.length} items!`)
     
   } catch (error) {
-    console.error('Import error:', error);
-    alert('Failed to import content. Please try again.');
+    console.error('Import error:', error)
+    alert('Failed to import content. Please try again.')
   } finally {
-    isImporting.value = false;
+    isImporting.value = false
   }
 }
 
@@ -2090,6 +2313,96 @@ function formatRegionContent(region) {
   return content;
 }
 
+// Format trade information
+function formatTradeContent(trade) {
+  let content = `# ${trade.name}\n\n`
+  
+  if (trade.economicStatus) content += `**Economic Status:** ${trade.economicStatus}\n\n`
+  
+  if (trade.tradeRoutes && trade.tradeRoutes.length > 0) {
+    content += `## Trade Routes\n`
+    trade.tradeRoutes.forEach(route => {
+      content += `- ${route}\n`
+    })
+    content += '\n'
+  }
+  
+  if (trade.exports && trade.exports.length > 0) {
+    content += `## Exports\n`
+    content += trade.exports.join(', ') + '\n\n'
+  }
+  
+  if (trade.imports && trade.imports.length > 0) {
+    content += `## Imports\n`
+    content += trade.imports.join(', ') + '\n\n'
+  }
+  
+  if (trade.specialties && trade.specialties.length > 0) {
+    content += `## Specialties\n`
+    trade.specialties.forEach(specialty => {
+      content += `- ${specialty}\n`
+    })
+  }
+  
+  if (trade.tradePartners && trade.tradePartners.length > 0) {
+    content += `\n## Trade Partners\n`
+    content += trade.tradePartners.join(', ')
+  }
+  
+  return content
+}
+
+// Format war/conflict information
+function formatWarContent(war) {
+  let content = `# ${war.name}\n\n`
+  
+  content += `**Type:** ${war.type}\n`
+  content += `**Status:** ${war.status}\n`
+  
+  if (war.parties && war.parties.length > 0) {
+    content += `**Belligerents:** ${war.parties.join(' vs ')}\n`
+  }
+  
+  if (war.duration) {
+    content += `**Duration:** ${war.duration}\n`
+  }
+  
+  if (war.location) {
+    content += `**Location:** ${war.location}\n`
+  }
+  
+  content += `\n## Description\n${war.description || 'No detailed description available.'}\n`
+  
+  return content
+}
+
+// Format alliance information
+function formatAllianceContent(alliance) {
+  let content = `# ${alliance.name}\n\n`
+  
+  content += `**Type:** ${alliance.type} alliance\n`
+  content += `**Status:** ${alliance.status || 'Active'}\n`
+  
+  if (alliance.parties && alliance.parties.length > 0) {
+    content += `**Parties:** ${alliance.parties.join(' & ')}\n`
+  }
+  
+  if (alliance.purpose) {
+    content += `**Purpose:** ${alliance.purpose}\n`
+  }
+  
+  content += `\n## Description\n${alliance.description || 'No detailed description available.'}\n`
+  
+  if (alliance.terms && alliance.terms.length > 0) {
+    content += `\n## Terms\n`
+    alliance.terms.forEach(term => {
+      content += `- ${term}\n`
+    })
+  }
+  
+  return content
+}
+
 function closeImportModal() {
   showImportModal.value = false
   importText.value = ''
@@ -2110,9 +2423,28 @@ function closeImportModal() {
 
 function loadSampleContent() {
   importText.value = `1. Thalorim Isles
-Elun'vyr (Capital): Pop. 42,000 – High elven spires, leyline research, naval command. Wealth: Rich
-Virelen: Pop. 9,500 – Artisan district, magical glassworks. Wealth: In-between
-Lys'Alae: Pop. 4,200 – Healing sanctum and sacred groves. Wealth: Rich
+Elun'vyr (Capital): Pop. 42,000 – High elven spires, leyline research, naval command. Major trading port with extensive silk and spice trade. Allied with the Southern Kingdoms. Wealth: Rich
+Virelen: Pop. 9,500 – Artisan district, magical glassworks. Exports enchanted glass to mainland cities. Wealth: In-between
+Lys'Alae: Pop. 4,200 – Healing sanctum and sacred groves. Currently under siege by rebel forces. Wealth: Rich
+
+Trade Routes:
+- Northern Passage: Connects to Dwarven Mountain Holds (gems, ore imports)
+- Sunset Route: Links to Western Desert Cities (spice trade)
+- Moonlight Way: Secret smuggling route to Free Pirate Cities
+
+Current Conflicts:
+- The Virelen Uprising: Active civil war in the artisan quarter
+- Border Skirmishes: Ongoing territorial dispute with the Storm Coast settlements
+
+Diplomatic Alliances:
+- Treaty of Silver Waves: Military alliance with the Coral Throne Empire
+- Merchant's Compact: Trade agreement ensuring safe passage for guild members
+
+2. Storm Coast Region
+Port Blackwater: Pop. 18,000 – Pirate haven turned legitimate trading hub. Major naval base. At war with the Crimson Fleet. Wealth: Prosperous
+Tidecaller Village: Pop. 890 – Fishing village, storm oracle temple. Neutral in current conflicts. Wealth: Poor
+
+Economic Notes: The region's economy depends on fishing, piracy, and salvage operations. Recent discovery of pearl beds has attracted merchant guilds.
 
 Legendary Sites:
 Moon-Drowned Vault (Nessavine Bloom) – Lost Fey Archive warped by lunar anomalies.
@@ -2121,7 +2453,33 @@ Leviathan Hinge (Orekh's Teeth) – Giant kraken skeleton used as bridge between
 
 function getItemPreview(item, category) {
   if (category === 'locations' || category === 'cities') {
-    return `Pop: ${item.population?.toLocaleString() || 'Unknown'} • ${item.wealth || 'Unknown wealth'} • ${item.type || 'Settlement'}`
+    const details = []
+    if (item.population) details.push(`Pop: ${item.population?.toLocaleString() || 'Unknown'}`)
+    if (item.wealth) details.push(item.wealth)
+    if (item.type) details.push(item.type)
+    if (item.hasTradeImportance) details.push('🏪 Trade Hub')
+    return details.join(' • ')
+  }
+  if (category === 'trade') {
+    const details = []
+    if (item.economicStatus) details.push(item.economicStatus)
+    if (item.exports?.length) details.push(`Exports: ${item.exports.slice(0, 3).join(', ')}`)
+    if (item.specialties?.length) details.push(`Known for: ${item.specialties[0]}`)
+    return details.join(' • ')
+  }
+  if (category === 'wars') {
+    const details = []
+    if (item.type) details.push(item.type)
+    if (item.parties?.length) details.push(item.parties.join(' vs '))
+    if (item.duration) details.push(`Duration: ${item.duration}`)
+    return details.join(' • ')
+  }
+  if (category === 'alliances') {
+    const details = []
+    if (item.type) details.push(`${item.type} alliance`)
+    if (item.purpose) details.push(item.purpose)
+    if (item.status) details.push(`Status: ${item.status}`)
+    return details.join(' • ')
   }
   if (category === 'lore') {
     return `${item.type || 'History'} • ${item.timePeriod || 'Era unknown'}`
@@ -2130,7 +2488,12 @@ function getItemPreview(item, category) {
     return `Magic: ${item.magicLevel || 'Unknown'} • Tech: ${item.technology || 'Unknown'}`
   }
   if (category === 'regions') {
-    return `${item.cities?.length || 0} cities • ${item.description?.substring(0, 50)}...`
+    const details = []
+    if (item.cities?.length) details.push(`${item.cities.length} cities`)
+    if (item.tradeNotes?.length) details.push('Trade hub')
+    if (item.conflicts?.length) details.push('⚔️ Active conflicts')
+    if (item.alliances?.length) details.push('🤝 Diplomatic ties')
+    return details.join(' • ')
   }
   return item.type || 'Imported content'
 }
@@ -2170,7 +2533,7 @@ async function callOpenAI(prompt, options = {}) {
           content: prompt
         }
       ],
-      temperature: 0.8,
+      temperature: options.temperature || 0.8,
       max_tokens: options.maxTokens || 1200
     })
   })
@@ -2266,6 +2629,7 @@ function formatTime(date) {
 
 function getCategoryIcon(category) {
   const icons = {
+    'campaign-start': '🎭',
     lore: '📚',
     rules: '⚖️',
     items: '⚔️',
@@ -2273,13 +2637,19 @@ function getCategoryIcon(category) {
     creatures: '🐉',
     worldInfo: '🌍',
     regions: '🗺️',
-    cities: '🏛️'
+    cities: '🏛️',
+    trade: '💰',
+    wars: '⚔️',
+    alliances: '🤝',
+    factions: '🏛️',
+    npcs: '👥'
   }
   return icons[category] || '📄'
 }
 
 function getCategoryColor(category) {
   const colors = {
+    'campaign-start': 'text-amber-400',
     lore: 'text-emerald-400',
     rules: 'text-blue-400',
     items: 'text-purple-400',
@@ -2287,16 +2657,33 @@ function getCategoryColor(category) {
     creatures: 'text-red-400',
     worldInfo: 'text-cyan-400',
     regions: 'text-orange-400',
-    cities: 'text-yellow-400'
+    cities: 'text-yellow-400',
+    trade: 'text-amber-400',
+    wars: 'text-red-500',
+    alliances: 'text-blue-500',
+    factions: 'text-indigo-400',
+    npcs: 'text-green-400'
   }
   return colors[category] || 'text-gray-400'
 }
 
-function copyContent(content) {
-  const text = `# ${content.title}\n\n${content.content}\n\n---\nGenerated for Pathfinder 1e`
-  navigator.clipboard.writeText(text).then(() => {
-    alert('Content copied to clipboard!')
-  })
+async function copyContent(content) {
+  try {
+    const text = `# ${content.title}\n\n${content.content}\n\n---\nGenerated for Pathfinder 1e`
+    
+    // Send to ChatGPT instead of clipboard
+    const success = await chatGPTService.sendToChatGPT(text, {
+      autoSubmit: false,
+      showNotification: true
+    })
+    
+    if (!success) {
+      alert('Failed to send to ChatGPT. Make sure ChatGPT tab is loaded.')
+    }
+  } catch (error) {
+    console.error('Failed to send to ChatGPT:', error)
+    alert('Failed to send content to ChatGPT')
+  }
 }
 
 function exportToChatGPT(content) {
@@ -2347,32 +2734,19 @@ async function performChatGPTExport(content, options) {
     // Generate the export text
     const exportText = exporter.exportWorldBuildingContent(content, options)
     
-    // Copy to clipboard
-    await navigator.clipboard.writeText(exportText)
+    // Send to ChatGPT directly
+    const success = await chatGPTService.sendToChatGPT(exportText, {
+      autoSubmit: false,
+      showNotification: true
+    })
     
-    // Show success with options
-    const action = confirm(
-      'Content exported to clipboard with ChatGPT setup!\n\n' +
-      'Click OK to open ChatGPT in a new tab, or Cancel to stay here.'
-    )
-    
-    if (action) {
-      // Open ChatGPT
-      const projectId = localStorage.getItem('chatgpt-project-id')
-      const url = projectId 
-        ? `https://chat.openai.com/?project=${projectId}`
-        : 'https://chat.openai.com'
-      window.open(url, '_blank')
+    if (!success) {
+      alert('Failed to send to ChatGPT. Make sure ChatGPT tab is loaded.')
     }
     
   } catch (error) {
     console.error('Export failed:', error)
-    
-    // Fallback to simple export
-    const simpleText = `# Pathfinder 1e ${content.category}: ${content.title}\n\n${content.content}`
-    navigator.clipboard.writeText(simpleText).then(() => {
-      alert('Content copied to clipboard (simple format)')
-    })
+    alert('Failed to send to ChatGPT. Please try again.')
   }
 }
 
@@ -2458,6 +2832,22 @@ async function regenerateContent() {
     
     // Build prompt based on category
     switch (category) {
+      case 'campaign-start':
+        prompt = `Regenerate this Pathfinder 1e campaign opening with a fresh perspective:
+        
+Title: ${editingContent.value.title}
+Previous version for context (create something new, don't copy):
+${editingContent.value.content.substring(0, 500)}...
+
+Create an entirely new campaign opening that:
+1. Maintains the same starting location and situation
+2. Provides a different atmospheric approach
+3. Uses different descriptive details
+4. Creates a fresh scene setup
+
+Remember to ONLY include Campaign Opening and The Scene sections, no adventure hooks or NPCs.`
+        break
+        
       case 'lore':
         prompt = `Regenerate this Pathfinder 1e lore with a fresh perspective:
         
@@ -2610,6 +3000,7 @@ Return the enhanced version while preserving the original structure and intent.`
 // Add a new section to content
 function addSection() {
   const sectionTemplates = {
+    'campaign-start': '\n\n## Additional Scene Details\n\nAdd your content here...',
     lore: '\n\n## New Section\n\nAdd your content here...',
     locations: '\n\n## Additional Area\n\n**Description:** \n\n**Notable Features:**\n- \n- ',
     items: '\n\n---\n\n**Item Name**\n\n*Description:* \n\n*Mechanics:* \n\n*Value:* gp',
@@ -2704,7 +3095,7 @@ function handleTab(event) {
   }, 0)
 }
 
-// Add tag on enter
+// Add tag on enter (completing the cut-off function)
 function addTag(event) {
   const input = event.target.value.trim()
   if (input && !editForm.value.tags.includes(input)) {
@@ -2715,174 +3106,325 @@ function addTag(event) {
   }
 }
 
-// Remove a specific tag
+// Remove tag from edit form
 function removeTag(tagToRemove) {
-  const tags = editForm.value.tags
-    .split(',')
-    .map(t => t.trim())
-    .filter(t => t && t !== tagToRemove)
+  const tags = editForm.value.tags.split(',').map(t => t.trim()).filter(t => t && t !== tagToRemove)
   editForm.value.tags = tags.join(', ')
 }
 
-// Add keyboard shortcut handler
+// Handle keyboard shortcuts in edit modal
 function handleEditKeyboard(event) {
-  if (showEditModal.value) {
-    if (event.key === 'Escape') {
+  // Ctrl/Cmd + S to save
+  if ((event.ctrlKey || event.metaKey) && event.key === 's' && showEditModal.value) {
+    event.preventDefault()
+    saveEdit()
+  }
+  
+  // Escape to close
+  if (event.key === 'Escape') {
+    if (showEditModal.value) {
       cancelEdit()
-    } else if (event.ctrlKey && event.key === 's') {
-      event.preventDefault()
-      saveEdit()
+    } else if (showImportModal.value) {
+      closeImportModal()
     }
   }
 }
 
-// Clear all world building content
+// Update world name
+function updateWorldName() {
+  sessionStorage.setItem('world-name', worldName.value)
+  autoSaveWorld()
+}
+
+// Update world description
+function updateWorldDescription() {
+  sessionStorage.setItem('world-description', worldDescription.value)
+  autoSaveWorld()
+}
+
+// Remove content item
+function removeContent(index) {
+  const item = generatedContent.value[index]
+  const confirmDelete = confirm(
+    `Delete "${item.title}"?\n\n` +
+    `Category: ${item.category}\n` +
+    `This action cannot be undone.`
+  )
+  
+  if (confirmDelete) {
+    generatedContent.value.splice(index, 1)
+    autoSaveWorld()
+  }
+}
+
+// Clear all content
 function clearAllContent() {
   if (generatedContent.value.length === 0) return
   
-  const itemCount = generatedContent.value.length
-  const categories = {}
-  generatedContent.value.forEach(item => {
-    categories[item.category] = (categories[item.category] || 0) + 1
-  })
-  
-  const categoryBreakdown = Object.entries(categories)
-    .map(([cat, count]) => `${getCategoryIcon(cat)} ${cat}: ${count}`)
-    .join('\n')
-  
-  const confirmed = confirm(
-    `⚠️ Clear All World Building Content?\n\n` +
-    `This will permanently delete ${itemCount} items:\n\n` +
-    `${categoryBreakdown}\n\n` +
-    `This action cannot be undone!\n\n` +
-    `Tip: Save your world first using the "💾 Save World" button.`
+  const confirmClear = confirm(
+    '⚠️ Clear ALL world building content?\n\n' +
+    `This will permanently delete ${totalContentCount.value} items.\n` +
+    'This action cannot be undone!\n\n' +
+    'Tip: Save your world first if you want to keep a backup.'
   )
   
-  if (!confirmed) return
-  
-  // Double confirmation for safety
-  const doubleConfirmed = confirm(
-    `🔴 FINAL CONFIRMATION\n\n` +
-    `Are you absolutely sure you want to delete all ${itemCount} world building items?\n\n` +
-    `Click OK to delete everything, or Cancel to keep your content.`
-  )
-  
-  if (!doubleConfirmed) return
-  
-  // Clear all content
-  generatedContent.value = []
-  
-  // Clear from localStorage
-  localStorage.removeItem('worldBuildingData')
-  localStorage.removeItem('worldLocations')
-  
-  // Clear world metadata
-  worldName.value = 'My Campaign World'
-  worldDescription.value = ''
-  sessionStorage.removeItem('world-name')
-  sessionStorage.removeItem('world-description')
-  sessionStorage.removeItem('sessionPrepLocations')
-  sessionStorage.removeItem('worldBuildingExport')
-  
-  // Reset forms to defaults
-  loreConfig.value = {
-    type: 'world-history',
-    subject: '',
-    timePeriod: '',
-    themes: '',
-    connections: ''
-  }
-  
-  rulesConfig.value = {
-    category: 'combat',
-    name: '',
-    purpose: '',
-    concept: '',
-    includeExamples: true
-  }
-  
-  itemsConfig.value = {
-    type: 'weapon',
-    mode: 'single',
-    rarity: 'uncommon',
-    theme: '',
-    properties: ''
-  }
-  
-  locationConfig.value = {
-    type: 'city',
-    name: '',
-    size: 'medium',
-    features: '',
-    includeMap: true,
-    includeNPCs: true
-  }
-  
-  creatureConfig.value = {
-    type: 'beast',
-    cr: 1,
-    concept: '',
-    abilities: '',
-    includeVariants: false
-  }
-  
-  // Show success message
-  progressMessage.value = '✅ World Cleared'
-  progressDetail.value = 'All world building content has been removed.'
-  
-  setTimeout(() => {
-    progressMessage.value = ''
-    progressDetail.value = ''
-  }, 3000)
-}
-function removeContent(index) {
-  if (confirm('Remove this content?')) {
-    generatedContent.value.splice(index, 1)
-  }
-}
-
-function exportAll(format) {
-  if (format === 'markdown') {
-    const markdown = generatedContent.value.map(content => 
-      `# ${content.title}\n\n*Category: ${content.category}*\n\n${content.content}\n\n---\n`
-    ).join('\n')
+  if (confirmClear) {
+    const doubleCheck = confirm(
+      'Are you REALLY sure?\n\n' +
+      'All locations, lore, creatures, items, and rules will be deleted.'
+    )
     
-    downloadFile('world-building.md', markdown)
-  } else if (format === 'json') {
-    const json = JSON.stringify(generatedContent.value, null, 2)
-    downloadFile('world-building.json', json)
+    if (doubleCheck) {
+      generatedContent.value = []
+      localStorage.removeItem('worldBuildingData')
+      localStorage.removeItem('worldLocations')
+      alert('All world content has been cleared.')
+    }
   }
 }
 
+// Export all content in various formats
+async function exportAll(format) {
+  if (generatedContent.value.length === 0) {
+    alert('No content to export!')
+    return
+  }
+  
+  let exportData = ''
+  const worldTitle = worldName.value || 'My Campaign World'
+  const date = new Date().toLocaleDateString()
+  
+  if (format === 'markdown') {
+    // Create markdown document
+    exportData = `# ${worldTitle}\n\n`
+    exportData += `*Generated on ${date} for Pathfinder 1e*\n\n`
+    
+    if (worldDescription.value) {
+      exportData += `## World Description\n\n${worldDescription.value}\n\n`
+    }
+    
+    exportData += `## Table of Contents\n\n`
+    
+    // Group by category
+    const categories = {}
+    generatedContent.value.forEach(item => {
+      if (!categories[item.category]) {
+        categories[item.category] = []
+      }
+      categories[item.category].push(item)
+    })
+    
+    // Add TOC
+    Object.keys(categories).forEach(cat => {
+      const catName = cat.charAt(0).toUpperCase() + cat.slice(1)
+      exportData += `- **${catName}** (${categories[cat].length} items)\n`
+    })
+    
+    exportData += '\n---\n\n'
+    
+    // Add content by category
+    Object.keys(categories).forEach(cat => {
+      const catName = cat.charAt(0).toUpperCase() + cat.slice(1)
+      exportData += `# ${getCategoryIcon(cat)} ${catName}\n\n`
+      
+      categories[cat].forEach(item => {
+        exportData += `## ${item.title}\n\n`
+        
+        if (item.tags && item.tags.length > 0) {
+          exportData += `*Tags: ${item.tags.join(', ')}*\n\n`
+        }
+        
+        if (item.stats) {
+          exportData += `**${item.stats}**\n\n`
+        }
+        
+        // Convert HTML formatting back to markdown
+        let content = item.content
+        content = content.replace(/<h2[^>]*>(.*?)<\/h2>/g, '## $1')
+        content = content.replace(/<h3[^>]*>(.*?)<\/h3>/g, '### $1')
+        content = content.replace(/<h4[^>]*>(.*?)<\/h4>/g, '#### $1')
+        content = content.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**')
+        content = content.replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*')
+        content = content.replace(/<p[^>]*>(.*?)<\/p>/g, '$1\n\n')
+        content = content.replace(/<br\s*\/?>/g, '\n')
+        content = content.replace(/<[^>]+>/g, '') // Remove remaining HTML
+        
+        exportData += content + '\n\n---\n\n'
+      })
+    })
+    
+    // Save as markdown file
+    const blob = new Blob([exportData], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${worldTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-worldbuilding.md`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+  } else if (format === 'json') {
+    // Export as structured JSON
+    const jsonExport = {
+      version: '1.0',
+      worldName: worldTitle,
+      worldDescription: worldDescription.value,
+      exportDate: new Date().toISOString(),
+      metadata: {
+        totalItems: totalContentCount.value,
+        estimatedPages: estimatedPages.value,
+        categories: {}
+      },
+      content: {}
+    }
+    
+    // Organize by category
+    generatedContent.value.forEach(item => {
+      if (!jsonExport.content[item.category]) {
+        jsonExport.content[item.category] = []
+        jsonExport.metadata.categories[item.category] = 0
+      }
+      
+      jsonExport.content[item.category].push({
+        id: item.id,
+        title: item.title,
+        content: item.content,
+        tags: item.tags,
+        stats: item.stats,
+        timestamp: item.timestamp,
+        lastModified: item.lastModified
+      })
+      
+      jsonExport.metadata.categories[item.category]++
+    })
+    
+    // Save as JSON file
+    const blob = new Blob([JSON.stringify(jsonExport, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${worldTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-worldbuilding.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+  
+  alert(`✅ Exported ${totalContentCount.value} items as ${format.toUpperCase()}`)
+}
+
+// Generate comprehensive campaign guide
 async function exportCampaignGuide() {
-  if (generatedContent.value.length === 0) return
+  if (generatedContent.value.length < 5) {
+    alert('Please generate more content before creating a campaign guide.\n\nRecommended: At least 5-10 pieces of world content.')
+    return
+  }
   
   isGenerating.value = true
   progressMessage.value = 'Creating Campaign Guide'
-  progressDetail.value = 'Organizing your world building...'
+  progressDetail.value = 'Organizing your world into a comprehensive document...'
   
   try {
-    const contentSummary = generatedContent.value.map(c => 
-      `${c.category}: ${c.title}`
-    ).join('\n')
+    // Prepare world summary
+    const categories = {}
+    generatedContent.value.forEach(item => {
+      if (!categories[item.category]) {
+        categories[item.category] = []
+      }
+      categories[item.category].push({
+        title: item.title,
+        summary: item.content.substring(0, 200) + '...'
+      })
+    })
     
-    const prompt = `Create a cohesive campaign guide that ties together these world-building elements:
+    const prompt = `Create a comprehensive Pathfinder 1e Campaign Guide document outline based on this world content:
 
-${contentSummary}
+World Name: ${worldName.value || 'My Campaign World'}
+Description: ${worldDescription.value || 'A rich fantasy world'}
 
-Structure the guide with:
-1. **Campaign Overview** - Central theme and tone
-2. **World Summary** - Key locations and history
-3. **Major Factions** - Power groups and their goals  
-4. **Campaign Arcs** - 3-5 major storylines
-5. **Getting Started** - First adventure hooks
-6. **GM Resources** - Quick reference lists
+Content Summary:
+${Object.entries(categories).map(([cat, items]) => 
+  `${cat}: ${items.length} items - ${items.slice(0, 3).map(i => i.title).join(', ')}${items.length > 3 ? ', and more...' : ''}`
+).join('\n')}
 
-Connect all the elements into a unified campaign setting.`
+Create a professional campaign guide outline that includes:
 
-    const guide = await callOpenAI(prompt, { maxTokens: 2000 })
+1. **Campaign Guide Cover Page**
+   - World name and tagline
+   - Brief overview paragraph
+   - Content highlights
+
+2. **Table of Contents**
+   - Organized by logical sections
+   - Page number placeholders
+
+3. **Introduction**
+   - Welcome to the world
+   - How to use this guide
+   - Campaign themes and tone
+
+4. **World Overview**
+   - Geography and regions
+   - Political landscape
+   - Magic and technology level
+   - Major conflicts and tensions
+
+5. **Chapter Outlines** (3-5 chapters based on the content)
+   - Each chapter should organize related content
+   - Include suggested reading order
+   - Cross-references between sections
+
+6. **Appendices Suggestions**
+   - Quick reference sheets needed
+   - Campaign starter ideas
+   - NPC name generators topics
+
+7. **GM Resources**
+   - Session zero topics
+   - Campaign arc suggestions
+   - Potential plot hooks
+
+Make this a practical outline that a GM could use to organize all their world content into a cohesive campaign guide.`
+
+    const guideOutline = await callOpenAI(prompt, { maxTokens: 1500 })
     
-    downloadFile('campaign-guide.md', `# Campaign Guide\n\n${guide}`)
+    // Create the campaign guide document
+    let campaignGuide = `# ${worldName.value || 'My Campaign World'} - Campaign Guide\n\n`
+    campaignGuide += `*A comprehensive guide for Game Masters*\n\n`
+    campaignGuide += `---\n\n`
+    campaignGuide += guideOutline
+    campaignGuide += `\n\n---\n\n# World Content\n\n`
+    
+    // Add all world content organized by the AI's suggested structure
+    const sortedContent = [...generatedContent.value].sort((a, b) => {
+      const categoryOrder = ['campaign-start', 'lore', 'locations', 'rules', 'creatures', 'items']
+      return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category)
+    })
+    
+    let currentCategory = ''
+    sortedContent.forEach(item => {
+      if (item.category !== currentCategory) {
+        currentCategory = item.category
+        campaignGuide += `\n## ${getCategoryIcon(item.category)} ${item.category.charAt(0).toUpperCase() + item.category.slice(1)}\n\n`
+      }
+      
+      campaignGuide += `### ${item.title}\n\n`
+      
+      // Clean content for markdown
+      let content = item.content
+      content = content.replace(/<[^>]+>/g, '') // Remove HTML tags
+      content = content.replace(/\*\*(.*?)\*\*/g, '**$1**') // Preserve bold
+      
+      campaignGuide += content + '\n\n'
+    })
+    
+    // Save the guide
+    const blob = new Blob([campaignGuide], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${worldName.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-campaign-guide.md`
+    a.click()
+    URL.revokeObjectURL(url)
+    
+    alert('✅ Campaign Guide created successfully!\n\nThe guide includes an AI-generated outline to help organize your content.')
     
   } catch (error) {
     console.error('Campaign guide generation failed:', error)
@@ -2892,177 +3434,120 @@ Connect all the elements into a unified campaign setting.`
   }
 }
 
-// NEW: Export entire session to ChatGPT
+// Export entire world to ChatGPT
 async function exportToChatGPTSession() {
   if (generatedContent.value.length === 0) {
-    alert('No content to export yet!')
+    alert('No world content to export!')
     return
   }
   
   try {
-    // Import the enhanced exporter
     const { EnhancedChatGPTExport } = await import('../../utils/EnhancedChatGPTExport.js')
     const exporter = new EnhancedChatGPTExport()
     
-    // Update session context
-    exporter.saveSessionContext({
-      character: {
-        name: characterState.name,
-        level: characterState.classes?.reduce((sum, c) => sum + (c.level || 0), 0) || 1,
-        classes: characterState.classes?.map(c => `${c.className} ${c.level}`).join(', ') || 'Adventurer'
+    // Create a comprehensive world summary
+    const worldSummary = {
+      worldName: worldName.value || 'My Campaign World',
+      worldDescription: worldDescription.value || '',
+      contentSummary: {},
+      totalItems: totalContentCount.value,
+      categories: []
+    }
+    
+    // Organize content by category
+    const categoryMap = {}
+    generatedContent.value.forEach(item => {
+      if (!categoryMap[item.category]) {
+        categoryMap[item.category] = []
       }
+      categoryMap[item.category].push(item)
     })
     
-    // Add all world elements
-    generatedContent.value.forEach(content => {
-      exporter.addWorldElement(content)
+    // Build summary
+    Object.entries(categoryMap).forEach(([category, items]) => {
+      worldSummary.categories.push({
+        name: category,
+        count: items.length,
+        highlights: items.slice(0, 3).map(i => i.title)
+      })
+      worldSummary.contentSummary[category] = items.length
     })
     
-    // Generate session briefing
-    const briefing = exporter.generateSessionBriefing(generatedContent.value)
+    // Generate export text
+    let exportText = `# 🌍 Pathfinder 1e World Building Session
+
+## World: ${worldSummary.worldName}
+
+${worldSummary.worldDescription || 'A rich and detailed campaign world.'}
+
+### Content Overview:
+- Total Items: ${worldSummary.totalItems}
+- Categories: ${worldSummary.categories.map(c => `${getCategoryIcon(c.name)} ${c.name} (${c.count})`).join(', ')}
+
+### Available Locations:
+${worldLocations.value.slice(0, 10).map(loc => `- ${loc.name} (${loc.type})`).join('\n')}
+${worldLocations.value.length > 10 ? `\n...and ${worldLocations.value.length - 10} more locations` : ''}
+
+### Request Examples:
+- "Tell me about [location name]"
+- "What creatures might be found in [region]?"
+- "Describe the lore of [subject]"
+- "How does [custom rule] work?"
+- "Create an adventure hook involving [location/item/NPC]"
+
+### World-Specific Context:
+This world contains ${totalContentCount.value} carefully crafted elements. Each location has NPCs, plot hooks, and connections to the greater world. The lore is interconnected and ready for adventure.
+
+---
+
+I'm ready to help you explore and expand this world. What would you like to know about or work on?`
+
+    // Send to ChatGPT directly
+    const success = await chatGPTService.sendToChatGPT(exportText, {
+      autoSubmit: false,
+      showNotification: true
+    })
     
-    // Copy to clipboard
-    await navigator.clipboard.writeText(briefing)
-    
-    const action = confirm(
-      `Session summary with ${generatedContent.value.length} items exported!\n\n` +
-      'ChatGPT will now act as your world building assistant, maintaining context of all created content.\n\n' +
-      'Click OK to open ChatGPT, or Cancel to stay here.'
-    )
-    
-    if (action) {
-      const projectId = localStorage.getItem('chatgpt-project-id')
-      const url = projectId 
-        ? `https://chat.openai.com/?project=${projectId}`
-        : 'https://chat.openai.com'
-      window.open(url, '_blank')
+    if (success) {
+      // Show custom success message
+      chatGPTService.showNotification(`✅ World with ${totalContentCount.value} elements sent to ChatGPT!`)
+    } else {
+      alert('Failed to send to ChatGPT. Make sure ChatGPT tab is loaded.')
     }
     
   } catch (error) {
-    console.error('Session export failed:', error)
-    alert('Export failed - please try again')
+    console.error('Export failed:', error)
+    alert('Failed to send to ChatGPT: ' + error.message)
   }
 }
-
-function downloadFile(filename, content) {
-  const blob = new Blob([content], { type: 'text/plain' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
+// Get random tips for loading screen
 function getRandomTip() {
   const tips = [
-    'You can generate related content by referencing previous items',
-    'Use the themed item generation for cohesive treasure hoards',
-    'Custom rules work best when solving specific gameplay issues',
-    'Reference real mythology for inspiring creature abilities',
-    'Connect new lore to player character backstories',
-    'Generate NPCs for each major location you create',
-    'Save your favorite content as templates for future use',
-    'Batch generation is more cost-effective than single items',
-    'Add personal touches to generated content after creation',
-    'Import existing content to enhance with AI'
+    'Tip: Use tags to organize your content for easy searching',
+    'Tip: Generated locations are automatically available in Session Prep',
+    'Tip: Export your world regularly to create backups',
+    'Tip: Click the edit button to refine any generated content',
+    'Tip: Campaign openings set the tone for your entire adventure',
+    'Tip: Link creatures to specific locations for coherent encounters',
+    'Tip: Custom rules can make your world feel unique',
+    'Tip: Use the import feature to add content from other sources',
+    'Tip: Items with curses or quirks create memorable moments',
+    'Tip: Every location should have at least one secret'
   ]
+  
   return tips[Math.floor(Math.random() * tips.length)]
 }
-function updateWorldName() {
-  sessionStorage.setItem('world-name', worldName.value)
-}
 
-function updateWorldDescription() {
-  sessionStorage.setItem('world-description', worldDescription.value)
-}
-// Watch for category changes
-watch(currentCategory, (newCategory) => {
-  progressMessage.value = ''
-  progressDetail.value = ''
+// Auto-save periodically
+setInterval(() => {
+  if (generatedContent.value.length > 0) {
+    autoSaveWorld()
+  }
+}, 60000) // Auto-save every minute
+
+// Clean up on unmount
+onUnmounted(() => {
+  // Save current state
+  autoSaveWorld()
 })
 </script>
-
-<style scoped>
-.content-display {
-  max-height: 400px;
-  overflow-y: auto;
-}
-/* Disabled button styling */
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-button:disabled:hover {
-  opacity: 0.5;
-  background-color: inherit !important;
-}
-
-/* Button hover tooltips */
-button[title] {
-  position: relative;
-}
-
-/* Ensure buttons stay visible and aligned */
-.flex.items-center.gap-2 {
-  flex-wrap: nowrap;
-  min-width: 0;
-}
-
-.flex.items-center.gap-2 button {
-  flex-shrink: 0;
-}
-
-.content-display::-webkit-scrollbar {
-  width: 6px;
-}
-
-.content-display::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.content-display::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-}
-
-/* Animation for new content */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.bg-gray-800 {
-  animation: slideIn 0.3s ease-out;
-}
-
-/* Make form inputs consistent */
-input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
-  cursor: pointer;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  opacity: 1;
-  height: 2rem;
-}
-
-/* Sticky export options shadow effect */
-.sticky {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-}
-
-/* Clear all button hover effect */
-.bg-red-600:hover:not(:disabled) {
-  background-color: rgb(220 38 38) !important;
-}
-</style>

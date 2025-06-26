@@ -7,6 +7,13 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/App.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/main.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/characterState.js
 
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/index.html
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/Package.json
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/package-lock.json
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/postcss.config.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/tailwind.config.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/vite.config.js
+
 
 
 Directory: src/composables/
@@ -53,6 +60,10 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/Enhan
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/WorldBuildingImportParser.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/utils/ItemEffects.js
 
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/electron/main.cjs
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/electron/preload.cjs
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/electron/preload-chatgpt.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/electron/preload-minimal.js
 
 Directory: src/views/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/views/AutomationView.vue
@@ -100,7 +111,6 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/Memory
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/NarrativeEngine.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/PredictionSystem.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/core/SystemsManager.js
-https://raw.githubusercontent.com/evilboydevil666/MyProject/src/electron/main.js
 Directory: src/components/party/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/party/FactionsList.vue
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/components/party/PartyRoster.vue

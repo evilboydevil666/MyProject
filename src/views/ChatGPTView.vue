@@ -104,6 +104,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useCharacter } from '@/composables/useCharacter'
 import { useGameState } from '@/composables/useGameState'
 import { useChatGPT } from '@/composables/useChatGPT'
+import { chatGPTService } from '@/services/ChatGPTService'
 
 export default {
   name: 'ChatGPTView',
@@ -119,6 +120,22 @@ export default {
     const canGoForward = ref(false)
     const messagesContainer = ref(null)
     
+onMounted(() => {
+  // Register webview when ready
+  const webview = webviewRef.value
+  if (webview) {
+    webview.addEventListener('dom-ready', () => {
+      chatGPTService.setWebviewRef(webview)
+    })
+  }
+})
+
+// Listen for navigation requests
+window.addEventListener('navigate-to-chatgpt', () => {
+  // Emit to parent to switch tabs
+  emit('requestTabChange', 'chatgpt')
+})
+
     // Check if running in Electron
     const isElectron = computed(() => window.isElectron || false)
     
