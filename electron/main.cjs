@@ -1,5 +1,5 @@
 // electron/main.cjs
-const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron')
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell, session } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
@@ -216,8 +216,71 @@ function createChatGPTWindow() {
   })
 }
 
+// Configure webview settings when app is ready
+function configureWebviewSecurity() {
+  // Configure the webview partition
+  const chatGPTPartition = session.fromPartition('persist:chatgpt')
+  
+  // Set a custom user agent to avoid detection issues
+  chatGPTPartition.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+  )
+  
+  // Handle certificate errors gracefully
+  chatGPTPartition.setCertificateVerifyProc((request, callback) => {
+    // Only allow OpenAI domains
+    const allowedHosts = ['chatgpt.com', 'openai.com', 'auth0.com', 'oaistatic.com', 'oaiusercontent.com']
+    const isAllowed = allowedHosts.some(host => request.hostname.endsWith(host))
+    callback(isAllowed ? 0 : -2)
+  })
+  
+  // Configure webRequest to handle CORS and cookies
+  chatGPTPartition.webRequest.onBeforeSendHeaders((details, callback) => {
+    // Ensure proper headers for ChatGPT
+    const headers = details.requestHeaders
+    headers['Origin'] = 'https://chatgpt.com'
+    headers['Referer'] = 'https://chatgpt.com/'
+    
+    // Remove problematic headers
+    delete headers['x-frame-options']
+    delete headers['x-content-type-options']
+    
+    callback({ requestHeaders: headers })
+  })
+  
+  // Handle response headers to allow embedding
+  chatGPTPartition.webRequest.onHeadersReceived((details, callback) => {
+    const headers = details.responseHeaders
+    
+    // Remove headers that prevent embedding
+    delete headers['x-frame-options']
+    delete headers['frame-options']
+    delete headers['content-security-policy']
+    
+    callback({ responseHeaders: headers })
+  })
+  
+  // Handle webview permissions
+  chatGPTPartition.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['clipboard-read', 'clipboard-write', 'storage']
+    if (allowedPermissions.includes(permission)) {
+      callback(true)
+    } else {
+      callback(false)
+    }
+  })
+  
+  // Clear service workers that might interfere
+  chatGPTPartition.clearStorageData({
+    storages: ['serviceworkers']
+  })
+}
+
 // App event handlers
 app.whenReady().then(() => {
+  // Configure webview security settings
+  configureWebviewSecurity()
+  
   createWindow()
   createMenu()
 
@@ -229,17 +292,21 @@ app.whenReady().then(() => {
   
   // Set up webview preferences with better error handling
   app.on('web-contents-created', (event, contents) => {
+    // Handle webview attachment
     contents.on('will-attach-webview', (event, webPreferences, params) => {
       // Delete any default preload that might cause issues
       delete webPreferences.preloadURL
-      delete webPreferences.preload
       
       // Set secure defaults
       webPreferences.nodeIntegration = false
+      webPreferences.nodeIntegrationInSubFrames = false
       webPreferences.contextIsolation = true
+      webPreferences.sandbox = true
+      webPreferences.webSecurity = true
+      webPreferences.allowRunningInsecureContent = false
       
       // Allow preload scripts from our app for ChatGPT
-      if (params.src && params.src.includes('chat')) {
+      if (params.src && (params.src.includes('chatgpt.com') || params.src.includes('chat.openai.com'))) {
         const chatGPTPreloadPath = path.join(__dirname, 'preload-chatgpt.js')
         console.log('ChatGPT webview preload path:', chatGPTPreloadPath)
         console.log('ChatGPT preload exists:', fs.existsSync(chatGPTPreloadPath))
@@ -250,7 +317,88 @@ app.whenReady().then(() => {
         } else {
           console.warn('ChatGPT preload script not found, webview will load without it')
         }
+        
+        // Set partition for persistent session
+        webPreferences.partition = 'persist:chatgpt'
       }
+    })
+    
+    // Monitor webview events
+    contents.on('did-attach-webview', (event, webContents) => {
+      console.log('Webview attached:', webContents.id)
+      
+      // Configure webview webContents
+      webContents.setWindowOpenHandler(({ url }) => {
+        // Handle new window requests from ChatGPT
+        if (url.includes('chatgpt.com') || url.includes('openai.com')) {
+          return { action: 'deny' } // Load in same webview instead
+        }
+        return { action: 'deny' }
+      })
+      
+      // Monitor webview events
+      webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+        console.error('Webview load failed:', errorCode, errorDescription, validatedURL)
+        
+        // Common error codes and their meanings
+        const errorMessages = {
+          '-3': 'Request aborted',
+          '-6': 'Connection failed',
+          '-106': 'Internet disconnected',
+          '-501': 'SSL certificate error'
+        }
+        
+        const message = errorMessages[errorCode] || errorDescription
+        console.error(`Webview error: ${message} (${errorCode})`)
+      })
+      
+      webContents.on('crashed', (event, killed) => {
+        console.error('Webview crashed:', killed ? 'killed' : 'crashed')
+        
+        // Attempt to reload after crash
+        if (!killed) {
+          setTimeout(() => {
+            console.log('Attempting to reload crashed webview...')
+            webContents.reload()
+          }, 1000)
+        }
+      })
+      
+      webContents.on('unresponsive', () => {
+        console.error('Webview became unresponsive')
+      })
+      
+      webContents.on('responsive', () => {
+        console.log('Webview is responsive again')
+      })
+      
+      // Better console message handling
+      webContents.on('console-message', (event, level, message, line, sourceId) => {
+        // Filter out noise
+        const ignoredMessages = [
+          'Intercom',
+          'Failed to load resource',
+          'Mixed Content',
+          'DevTools failed to load',
+          'Extension server error'
+        ]
+        
+        const shouldIgnore = ignoredMessages.some(ignored => 
+          message.toLowerCase().includes(ignored.toLowerCase())
+        )
+        
+        if (!shouldIgnore) {
+          const levels = ['log', 'warn', 'error']
+          const levelName = levels[level] || 'info'
+          
+          if (level === 2 || (isDev && level >= 1)) { // Errors always, warnings in dev
+            console.log(`[ChatGPT ${levelName}]:`, message)
+            if (sourceId && line) {
+              console.log(`  at ${sourceId}:${line}`)
+            }
+          }
+        }
+      })
     })
   })
 })
@@ -284,34 +432,44 @@ ipcMain.handle('inject-to-chatgpt', async (event, content) => {
         // Find the textarea (ChatGPT might change selectors)
         const selectors = [
           'textarea[id="prompt-textarea"]',
-          'textarea[data-id]',
+          'textarea[data-id="prompt-textarea"]',
           'textarea[placeholder*="Message"]',
-          'textarea.m-0'
+          'div[contenteditable="true"][role="textbox"]',
+          'textarea.m-0.w-full',
+          'textarea'
         ];
         
-        let textarea = null;
+        let element = null;
         for (const selector of selectors) {
-          textarea = document.querySelector(selector);
-          if (textarea) break;
+          element = document.querySelector(selector);
+          if (element) break;
         }
         
-        if (textarea) {
-          // Clear existing content
-          textarea.value = '';
-          
-          // Set new content
-          textarea.value = ${JSON.stringify(content)};
-          
-          // Trigger React's onChange
-          const inputEvent = new Event('input', { bubbles: true });
-          textarea.dispatchEvent(inputEvent);
-          
-          // Also trigger a change event
-          const changeEvent = new Event('change', { bubbles: true });
-          textarea.dispatchEvent(changeEvent);
-          
-          // Focus the textarea
-          textarea.focus();
+        if (element) {
+          if (element.tagName === 'TEXTAREA') {
+            // Handle textarea
+            element.value = ${JSON.stringify(content)};
+            
+            // Trigger React's onChange
+            const inputEvent = new Event('input', { bubbles: true });
+            element.dispatchEvent(inputEvent);
+            
+            const changeEvent = new Event('change', { bubbles: true });
+            element.dispatchEvent(changeEvent);
+            
+            element.focus();
+          } else if (element.contentEditable === 'true') {
+            // Handle contenteditable
+            element.textContent = ${JSON.stringify(content)};
+            element.focus();
+            
+            const inputEvent = new InputEvent('input', { 
+              bubbles: true,
+              cancelable: true,
+              inputType: 'insertText'
+            });
+            element.dispatchEvent(inputEvent);
+          }
           
           // Enable send button if needed
           const sendButton = document.querySelector('button[data-testid="send-button"]');
@@ -416,4 +574,14 @@ ipcMain.handle('get-app-path', () => {
 // Get preload directory for webview
 ipcMain.handle('get-preload-path', () => {
   return __dirname
+})
+
+// Handle webview console logs from renderer
+ipcMain.on('webview-log', (event, { level, args }) => {
+  console.log(`[Webview ${level}]:`, ...args)
+})
+
+// Handle webview errors
+ipcMain.on('webview-error', (event, error) => {
+  console.error('Webview error reported:', error)
 })
