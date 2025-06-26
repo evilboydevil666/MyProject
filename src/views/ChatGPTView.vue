@@ -19,6 +19,11 @@
       </button>
     </div>
     
+    <!-- Python Status Indicator -->
+    <div v-if="activeTab === 'web'" class="python-status">
+      <span :class="pythonStatusColor">● {{ pythonStatus }}</span>
+    </div>
+    
     <!-- Content Container - Both tabs always rendered -->
     <div class="content-container">
       <!-- Integrated AI Content - Always rendered, visibility controlled by CSS -->
@@ -78,6 +83,13 @@
             ⟳
           </button>
           <button 
+            @click="goHome" 
+            class="nav-button home-button"
+            :title="chatGptProjectId ? 'Go to Project/GPT' : 'Go to ChatGPT Home'"
+          >
+            🏠
+          </button>
+          <button 
             v-if="chatUrl && !chatUrl.includes('/c/')" 
             @click="navigateToChat" 
             class="nav-button chat-button"
@@ -132,6 +144,9 @@
             <div class="loading-content">
               <div class="loading-spinner-large">⟳</div>
               <p>Initializing ChatGPT...</p>
+              <p v-if="chatGptProjectId" class="loading-note project-info">
+                {{ chatGptProjectType === 'custom-gpt' ? '🤖 Loading Custom GPT' : '📁 Loading Project' }}: {{ chatGptProjectId }}
+              </p>
               <p v-if="!isElectron" class="loading-note">
                 Note: Full integration requires the desktop app. 
                 <button @click="openInBrowser" class="inline-link">Open in new tab</button> for better experience.
@@ -145,10 +160,11 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted, watch } from 'vue'
 import { useCharacter } from '@/composables/useCharacter'
 import { useGameState } from '@/composables/useGameState'
 import { useChatGPT } from '@/composables/useChatGPT'
+import { usePythonBridge } from '@/composables/usePythonBridge'
 
 export default {
   name: 'ChatGPTView',
@@ -156,6 +172,14 @@ export default {
     const { character } = useCharacter()
     const { currentLocation, sessionNotes } = useGameState()
     const { generateContent } = useChatGPT()
+    
+    // Add Python bridge composable
+    const { 
+      isConnected: pythonConnected, 
+      optimizePrompt, 
+      statusMessage: pythonStatus,
+      statusColor: pythonStatusColor 
+    } = usePythonBridge()
     
     // Tab state
     const activeTab = ref('integrated')
@@ -165,18 +189,23 @@ export default {
     const userInput = ref('')
     const messagesContainer = ref(null)
     
+    // ChatGPT project configuration
+    const chatGptProjectId = ref('')
+    const chatGptProjectType = ref('project')
+    
     // Webview/iframe state
     const chatIframe = ref(null)
     const electronWebviewContainer = ref(null)
     const webviewContainer = ref(null)
     const webviewReady = ref(false)
-    const webviewUrl = ref('https://chatgpt.com')
+    const webviewUrl = ref('https://chat.openai.com')
     const canGoBack = ref(false)
     const canGoForward = ref(false)
     const chatUrl = ref('')
     const savedChatUrl = ref('')
     const chatStatus = ref('loading') // 'loading', 'active', 'inactive'
     const keepAliveActive = ref(false)
+    
     let keepAliveInterval = null
     let electronWebview = null
     
@@ -186,29 +215,88 @@ export default {
                 (typeof process !== 'undefined' && process.versions && process.versions.electron))
     })
     
-    // Display URL
+    // Display URL - updated to show project/GPT info
     const displayUrl = computed(() => {
       if (chatStatus.value === 'loading') return 'Loading ChatGPT...'
       if (!chatUrl.value) return 'Initializing...'
+      
+      // Show project/GPT info if configured
+      if (chatGptProjectId.value) {
+        const typeLabel = chatGptProjectType.value === 'custom-gpt' ? '🤖 GPT' : '📁 Project'
+        if (chatUrl.value.includes('/c/')) {
+          return `${typeLabel}: Active Chat`
+        }
+        return `${typeLabel}: ${chatGptProjectId.value}`
+      }
+      
+      // Default display
       if (chatUrl.value.includes('/c/')) {
         return '💬 Active Chat Session'
       }
       return '🏠 ChatGPT Home'
     })
     
-    // Load saved chat URL from localStorage
-    const loadSavedChatUrl = () => {
-      const saved = localStorage.getItem('pathfinder-chatgpt-url')
-      if (saved && saved.includes('/c/')) {
-        savedChatUrl.value = saved
-        webviewUrl.value = saved
+    // Load ChatGPT project configuration
+    const loadProjectConfiguration = () => {
+      const savedProjectId = localStorage.getItem('chatgpt-project-id')
+      const savedProjectType = localStorage.getItem('chatgpt-project-type')
+      
+      if (savedProjectId) {
+        chatGptProjectId.value = savedProjectId
+        chatGptProjectType.value = savedProjectType || 'project'
+        
+        // Update webview URL based on configuration
+        updateWebviewUrl()
+        
+        console.log('Loaded ChatGPT configuration:', {
+          id: savedProjectId,
+          type: savedProjectType,
+          url: webviewUrl.value
+        })
       }
     }
     
+    // Update webview URL based on project configuration
+    const updateWebviewUrl = () => {
+      let url = 'https://chat.openai.com'
+      
+      if (chatGptProjectId.value) {
+        if (chatGptProjectType.value === 'custom-gpt') {
+          // Custom GPT URL format
+          url = `${url}/g/${chatGptProjectId.value}`
+        } else {
+          // Project URL format
+          url = `${url}/?project=${chatGptProjectId.value}`
+        }
+      }
+      
+      // Check if we have a saved chat URL that we should preserve
+      const saved = localStorage.getItem('pathfinder-chatgpt-url')
+      if (saved && saved.includes('/c/')) {
+        // If we have a saved chat, use it instead
+        webviewUrl.value = saved
+        savedChatUrl.value = saved
+      } else {
+        // Use the project/GPT URL
+        webviewUrl.value = url
+      }
+    }
+    
+    // Watch for tab changes to reload webview if needed
+    watch(activeTab, async (newTab) => {
+      if (newTab === 'web' && isElectron.value) {
+        await nextTick()
+        // If webview exists and URL has changed, reload
+        if (electronWebview && electronWebview.src !== webviewUrl.value) {
+          electronWebview.loadURL(webviewUrl.value)
+        }
+      }
+    })
+    
     // Initialize on mount
     onMounted(async () => {
-      // Load saved URL
-      loadSavedChatUrl()
+      // Load project configuration first
+      loadProjectConfiguration()
       
       // Welcome message for integrated AI
       messages.value.push({
@@ -239,7 +327,7 @@ export default {
         return
       }
       
-      console.log('Creating Electron webview...')
+      console.log('Creating Electron webview with URL:', webviewUrl.value)
       
       try {
         // Create webview element dynamically
@@ -390,7 +478,7 @@ export default {
           return
         }
         
-        // Use a more compatible injection method
+        // Use a more compatible injection method that doesn't try to override protected properties
         await electronWebview.executeJavaScript(`
           try {
             // Pathfinder GM Assistant - Session Manager
@@ -403,31 +491,86 @@ export default {
               // Store session start time
               window.pathfinderSessionStart = Date.now();
               
-              // Override page visibility API safely
-              if (typeof document !== 'undefined' && document.hidden !== undefined) {
+              // Store project info if available
+              window.pathfinderProject = ${JSON.stringify({
+                id: chatGptProjectId.value,
+                type: chatGptProjectType.value
+              })};
+              
+              // Alternative session keep-alive methods that don't require overriding protected properties
+              
+              // Method 1: Periodic activity simulation
+              window.pathfinderActivityInterval = setInterval(function() {
                 try {
-                  Object.defineProperty(document, 'hidden', {
-                    configurable: true,
-                    get: function() { return false; }
+                  // Simulate user activity without overriding visibility API
+                  const event = new MouseEvent('mousemove', {
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: Math.floor(Math.random() * 100) + 200,
+                    clientY: Math.floor(Math.random() * 100) + 200
                   });
+                  document.dispatchEvent(event);
                   
-                  Object.defineProperty(document, 'visibilityState', {
-                    configurable: true,
-                    get: function() { return 'visible'; }
-                  });
+                  // Also dispatch a keypress event periodically
+                  if (Math.random() > 0.7) {
+                    const keyEvent = new KeyboardEvent('keypress', {
+                      bubbles: true,
+                      cancelable: true,
+                      key: ' ',
+                      code: 'Space'
+                    });
+                    document.dispatchEvent(keyEvent);
+                  }
                 } catch (e) {
-                  console.log('Could not override visibility API:', e);
+                  console.log('Activity simulation error:', e);
                 }
-              }
+              }, 45000); // Every 45 seconds
+              
+              // Method 2: Prevent idle detection by intercepting visibility change events
+              let originalAddEventListener = EventTarget.prototype.addEventListener;
+              EventTarget.prototype.addEventListener = function(type, listener, options) {
+                // Intercept visibility change listeners
+                if ((type === 'visibilitychange' || type === 'blur' || type === 'focus') && 
+                    this === document && 
+                    window.isPathfinderSession) {
+                  console.log('Intercepted ' + type + ' listener');
+                  // Add a modified listener that doesn't trigger on our simulated events
+                  return originalAddEventListener.call(this, type, function(event) {
+                    if (!window.pathfinderSimulatedEvent) {
+                      listener.call(this, event);
+                    }
+                  }, options);
+                }
+                return originalAddEventListener.call(this, type, listener, options);
+              };
+              
+              // Method 3: Periodic focus management
+              window.pathfinderFocusInterval = setInterval(function() {
+                try {
+                  if (document.hasFocus && !document.hasFocus()) {
+                    // Try to maintain focus state
+                    window.focus();
+                  }
+                } catch (e) {
+                  // Ignore focus errors
+                }
+              }, 30000); // Every 30 seconds
               
               // Add session indicator when ready
               const addIndicator = function() {
                 try {
                   if (document.getElementById('pathfinder-session-indicator')) return;
                   
+                  const projectInfo = window.pathfinderProject;
+                  let indicatorText = '🎮 GM Session Active';
+                  if (projectInfo && projectInfo.id) {
+                    const icon = projectInfo.type === 'custom-gpt' ? '🤖' : '📁';
+                    indicatorText = icon + ' ' + projectInfo.id.substring(0, 12) + '...';
+                  }
+                  
                   const indicator = document.createElement('div');
                   indicator.id = 'pathfinder-session-indicator';
-                  indicator.innerHTML = '🎮 GM Session Active';
+                  indicator.innerHTML = indicatorText;
                   indicator.style.cssText = [
                     'position: fixed',
                     'top: 10px',
@@ -440,11 +583,30 @@ export default {
                     'font-weight: 600',
                     'z-index: 10000',
                     'pointer-events: none',
-                    'box-shadow: 0 2px 8px rgba(0,0,0,0.2)'
+                    'box-shadow: 0 2px 8px rgba(0,0,0,0.2)',
+                    'transition: all 0.3s ease'
                   ].join(';');
+                  
+                  // Add pulse animation
+                  const style = document.createElement('style');
+                  style.textContent = \`
+                    @keyframes pathfinderPulse {
+                      0% { transform: scale(1); opacity: 0.95; }
+                      50% { transform: scale(1.05); opacity: 1; }
+                      100% { transform: scale(1); opacity: 0.95; }
+                    }
+                    #pathfinder-session-indicator.active {
+                      animation: pathfinderPulse 2s ease-in-out infinite;
+                    }
+                  \`;
+                  document.head.appendChild(style);
                   
                   if (document.body) {
                     document.body.appendChild(indicator);
+                    // Add active class after a short delay
+                    setTimeout(function() {
+                      indicator.classList.add('active');
+                    }, 100);
                   }
                 } catch (e) {
                   console.log('Could not add indicator:', e);
@@ -466,7 +628,17 @@ export default {
               
               tryAddIndicator(10); // Try up to 10 times
               
-              console.log('Pathfinder session manager active');
+              console.log('Pathfinder session manager active (compatibility mode)');
+              
+              // Clean up on page unload
+              window.addEventListener('beforeunload', function() {
+                if (window.pathfinderActivityInterval) {
+                  clearInterval(window.pathfinderActivityInterval);
+                }
+                if (window.pathfinderFocusInterval) {
+                  clearInterval(window.pathfinderFocusInterval);
+                }
+              });
             }
           } catch (error) {
             console.error('Session manager error:', error);
@@ -602,6 +774,18 @@ export default {
       }
     }
     
+    // Go to home/project/GPT
+    const goHome = () => {
+      if (electronWebview) {
+        // Recalculate the home URL based on current configuration
+        updateWebviewUrl()
+        electronWebview.loadURL(webviewUrl.value)
+      } else if (chatIframe.value) {
+        updateWebviewUrl()
+        chatIframe.value.src = webviewUrl.value
+      }
+    }
+    
     // Keep alive functionality
     const startKeepAlive = () => {
       if (keepAliveInterval) return
@@ -626,7 +810,13 @@ export default {
               const indicator = document.getElementById('pathfinder-session-indicator');
               if (indicator) {
                 indicator.style.background = 'rgba(76, 175, 80, 0.95)';
-                indicator.innerHTML = '🎮 GM Session Active • ' + new Date().toLocaleTimeString();
+                const projectInfo = window.pathfinderProject;
+                if (projectInfo && projectInfo.id) {
+                  const icon = projectInfo.type === 'custom-gpt' ? '🤖' : '📁';
+                  indicator.innerHTML = icon + ' Active • ' + new Date().toLocaleTimeString();
+                } else {
+                  indicator.innerHTML = '🎮 GM Session Active • ' + new Date().toLocaleTimeString();
+                }
               }
               
               console.log('Keep-alive signal sent');
@@ -698,7 +888,7 @@ GM Request: `
       }
     }
     
-    // Safer injection method for the context
+    // Updated injectContext function with Python optimization
     const injectContext = async () => {
       if (!electronWebview) {
         copyContext()
@@ -706,8 +896,23 @@ GM Request: `
         return
       }
       
-      const context = prepareGameContext()
+      let context = prepareGameContext()
       
+      // NEW: Use Python optimization if available
+      if (pythonConnected.value) {
+        try {
+          console.log('🐍 Optimizing context with Python...')
+          const optimized = await optimizePrompt(context)
+          if (optimized !== context) {
+            context = optimized
+            showNotification('✨ Context optimized by Python!')
+          }
+        } catch (error) {
+          console.warn('Python optimization failed, using original:', error)
+        }
+      }
+      
+      // Rest of the function stays the same...
       try {
         // First check if we can execute JavaScript
         const canExecute = await electronWebview.executeJavaScript('true').catch(() => false)
@@ -808,11 +1013,8 @@ GM Request: `
     }
     
     const openInBrowser = () => {
-      if (savedChatUrl.value) {
-        window.open(savedChatUrl.value, '_blank')
-      } else {
-        window.open('https://chatgpt.com', '_blank')
-      }
+      // Use the configured URL when opening in browser
+      window.open(webviewUrl.value, '_blank')
     }
     
     // Clean up
@@ -857,6 +1059,13 @@ GM Request: `
       displayUrl,
       chatStatus,
       keepAliveActive,
+      chatGptProjectId,
+      chatGptProjectType,
+      
+      // Python bridge data
+      pythonConnected,
+      pythonStatus,
+      pythonStatusColor,
       
       // Methods
       sendMessage,
@@ -869,6 +1078,7 @@ GM Request: `
       goBack,
       goForward,
       reload,
+      goHome,
       copyContext,
       injectContext,
       keepAlive,
@@ -949,6 +1159,31 @@ GM Request: `
 
 .icon {
   font-size: 18px;
+}
+
+/* Python Status */
+.python-status {
+  padding: 8px 16px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #3a3a3a;
+  font-size: 12px;
+  text-align: center;
+}
+
+.python-status .text-green-500 {
+  color: #4CAF50;
+}
+
+.python-status .text-yellow-500 {
+  color: #ff9800;
+}
+
+.python-status .text-red-500 {
+  color: #f44336;
+}
+
+.python-status .text-gray-500 {
+  color: #888;
 }
 
 /* Content Container - Fixed to ensure proper sizing */
@@ -1132,6 +1367,16 @@ GM Request: `
   cursor: not-allowed;
 }
 
+.home-button {
+  background: #5a5a5a;
+  color: white;
+  border-color: #5a5a5a;
+}
+
+.home-button:hover {
+  background: #6a6a6a;
+}
+
 .chat-button {
   background: #4CAF50;
   color: white;
@@ -1268,6 +1513,11 @@ webview {
   margin-top: 20px;
   font-size: 14px;
   color: #666;
+}
+
+.loading-note.project-info {
+  color: #4CAF50;
+  font-weight: 500;
 }
 
 .inline-link {
