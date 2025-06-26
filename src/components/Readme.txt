@@ -35,6 +35,7 @@ https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/router/inde
 Directory: src/services/
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/services/AIService.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/services/StorageService.js
+https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/services/ChatGPTService.js
 
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/pathfinderClasses.js
 https://raw.githubusercontent.com/evilboydevil666/MyProject/main/src/data/pathfinderData.js
